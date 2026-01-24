@@ -1,0 +1,9 @@
+# Work directory (logs, temp files)
+work/
+
+# OS files
+.DS_Store
+
+# Editor files
+*.swp
+*~
