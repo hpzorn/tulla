@@ -4,28 +4,59 @@ Autonomous idea-to-implementation loop with mandatory research phase.
 
 Extends Geoffrey Huntley's [Ralph Wiggum loop](https://ghuntley.com/ralph/) with:
 - **Mandatory research phase** before implementation
-- **Idea pool integration** for continuous multi-task processing
+- **Idea pool integration** via MCP for continuous multi-task processing
+- **Decomposition** of large ideas into sub-ideas
+- **Dependency tracking** and blocking detection
 - **PRD-driven implementation**
-- **Status tracking** and completion marking
+- **Lifecycle state tracking** with automatic transitions
 
 ## The Loop
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     RESEARCH-FIRST RALPH                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   ┌─────────┐     ┌──────────┐     ┌─────┐     ┌────────────┐  │
-│   │  IDEA   │────▶│ RESEARCH │────▶│ PRD │────▶│ IMPLEMENT  │  │
-│   │  POOL   │     │  PHASE   │     │     │     │   (Ralph)  │  │
-│   └─────────┘     └──────────┘     └─────┘     └────────────┘  │
-│        ▲                                              │         │
-│        │         ┌──────────────────┐                 │         │
-│        └─────────│  UPDATE STATUS   │◀────────────────┘         │
-│                  │ (done/tried/fail)│                           │
-│                  └──────────────────┘                           │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        RESEARCH-FIRST RALPH                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   ┌─────────┐    ┌───────────┐    ┌───────────┐    ┌─────┐          │
+│   │ BACKLOG │───▶│ RESEARCH  │───▶│ DECOMPOSE │───▶│ PRD │          │
+│   └─────────┘    └───────────┘    └───────────┘    └─────┘          │
+│        ▲               │                │              │             │
+│        │               ▼                ▼              ▼             │
+│        │         ┌──────────┐    ┌──────────┐   ┌───────────┐       │
+│        │         │INVALIDATE│    │ CHILDREN │   │ IMPLEMENT │       │
+│        │         │  / PARK  │    │ → BACKLOG│   │  (Ralph)  │       │
+│        │         └──────────┘    └──────────┘   └───────────┘       │
+│        │                                              │              │
+│        │         ┌──────────────────┐                 │              │
+│        └─────────│    COMPLETED     │◀────────────────┘              │
+│                  │ / BLOCKED / FAIL │                                │
+│                  └──────────────────┘                                │
+└─────────────────────────────────────────────────────────────────────┘
 ```
+
+## Lifecycle States
+
+```
+backlog ──► researching ──► researched ──► scoped ──► implementing ──► completed
+                │                │                          │
+                ▼                ▼                          ▼
+           invalidated     decomposing               blocked/failed
+              parked      (→ children)
+```
+
+| State | Meaning |
+|-------|---------|
+| `backlog` | Queued for Ralph to process |
+| `researching` | Research phase active |
+| `researched` | Research done, ready for scoping |
+| `invalidated` | Dead end, won't implement |
+| `parked` | Needs human decision |
+| `decomposing` | Breaking into sub-ideas |
+| `scoped` | PRD created |
+| `implementing` | Code being written |
+| `blocked` | Stuck on dependency |
+| `completed` | Done! |
+| `failed` | Gave up after retries |
 
 ## Quick Start
 
@@ -38,120 +69,133 @@ Extends Geoffrey Huntley's [Ralph Wiggum loop](https://ghuntley.com/ralph/) with
 
 # Dry run to see what would happen
 ./research-ralph.sh --dry-run --idea 5
+
+# Interactive mode (pause between phases for review)
+./research-ralph.sh --interactive --idea 13
 ```
 
 ## Requirements
 
 - `claude` CLI (Claude Code) installed and authenticated
-- `idea-pool` MCP server configured (for idea selection/status updates)
+- `idea-pool` MCP server configured with the following tools:
+  - `get_workable_ideas()` - Find ideas ready for processing
+  - `set_lifecycle()` - Change idea state
+  - `read_idea()` / `append_to_idea()` - Read and update ideas
+  - `create_sub_idea()` - Create child ideas
+  - `add_dependency()` - Track blocking relationships
+  - `check_parent_completion()` - Roll up child completions
+  - `get_ralph_status()` - Dashboard view
 - Bash 4.0+
 
 ## Usage
 
 ```
-./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID]
+./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID] [--interactive]
 
 Options:
-  --once      Run once and exit (don't loop continuously)
-  --dry-run   Show what would be done without executing
-  --idea ID   Process a specific idea by number or pattern
-  --help      Show help message
+  --once        Run once and exit (don't loop continuously)
+  --dry-run     Show what would be done without executing
+  --idea ID     Process a specific idea by number or pattern
+  --interactive Pause for human review between phases
+  --help        Show help message
 ```
 
 ## Phases
 
 ### 1. Extract (Idea Selection)
 
-Queries the idea pool for the next workable idea based on:
-- Lifecycle: `sprout` or `growing` (ready for implementation)
-- Has a concrete problem statement
+Queries the idea pool for the next workable idea:
+- State: `backlog`
 - Not blocked by dependencies
-- Prioritized by novelty, complexity, and recency
+- Prioritized by the idea pool server
 
 ### 2. Research (Mandatory)
 
-**This phase cannot be skipped.** The agent must:
-- Conduct literature review (papers, docs, blog posts)
-- Document prior art (existing implementations)
-- Identify theoretical foundations
-- Catalog failure modes and pitfalls
+**This phase cannot be skipped.** Transitions idea to `researching` state.
 
-Output: `research-notes.md`
+The agent must:
+- Read the idea content
+- Search for prior art (existing implementations, tools)
+- Look for academic papers or blog posts
+- Identify theoretical foundations
+- Document failure modes and pitfalls
+
+Writes research notes directly to the idea via `append_to_idea()`.
+
+**Research outcomes:**
+- `proceed` → Continue to decomposition check (state: `researched`)
+- `invalidate` → Mark as dead end (state: `invalidated`)
+- `park` → Needs human decision (state: `parked`)
 
 Time-boxed to prevent research paralysis (default: 30 minutes).
 
-### 3. PRD Creation
+### 3. Decomposition Check
 
-Based on the idea and research notes, creates a Product Requirements Document with:
+Evaluates if the idea is too large for atomic implementation:
+- More than 5 success criteria needed?
+- More than 3 independent components?
+
+If decomposition is needed:
+- Creates child ideas via `create_sub_idea()`
+- Sets up dependencies via `add_dependency()`
+- Parent enters `decomposing` state
+- Children are added to `backlog`
+- Loop continues to process children
+
+If atomic, continues to PRD phase.
+
+### 4. PRD Creation
+
+Creates a Product Requirements Document (state: `scoped`):
 - Problem Statement
 - Research Summary
 - Proposed Solution
-- Success Criteria (checkboxes)
+- Success Criteria (max 5 for atomic ideas)
 - Non-Goals
 - Technical Approach
 - Risks & Mitigations
 - Estimated Complexity (S/M/L)
 
-Output: `prd.md`
+PRD is appended directly to the idea file.
 
-### 4. Implementation (Classic Ralph)
+### 5. Implementation (Classic Ralph)
 
-The core Ralph loop:
-```bash
-while :; do cat prd.md | claude ; done
+The core Ralph loop (state: `implementing`):
+```
+while retries < max:
+    result = claude("Implement the PRD...")
+    if result == COMPLETE: break
+    if result == BLOCKED: create_dependency(); break
+    retries++
 ```
 
-Runs until the agent creates a `DONE` file indicating all PRD success criteria are met.
+**Implementation outcomes:**
+- `COMPLETE` → All success criteria met (state: `completed`)
+- `BLOCKED: reason` → Dependency discovered (state: `blocked`)
+- `STUCK: reason` → Retry or eventually fail (state: `failed`)
 
-Limited to prevent infinite loops (default: 10 iterations).
-
-### 5. Mark Complete
-
-Updates the idea status in the pool:
-- `implemented` - PRD fulfilled, code works
-- `tried` - Attempted but blocked/deferred
-- `failed` - Fundamental issue discovered
-
-Creates a completion record with:
-- Final status
-- Work directory location
-- Implementation summary
-- Lessons learned
+On completion, checks if any parent idea can now complete via `check_parent_completion()`.
 
 ## Configuration
 
 Edit `research-ralph.conf` to customize:
 
 ```bash
-# Where your ideas live
-IDEA_POOL_DIR="$HOME/ideas"
-
-# Work directory for artifacts
-WORK_DIR="./work"
-
 # Research time limit (minutes)
 RESEARCH_TIME_BOX_MINUTES=30
 
-# Max implementation loop iterations
-MAX_IMPLEMENTATION_LOOPS=10
+# Max implementation retries before failure
+MAX_IMPLEMENTATION_RETRIES=3
+
+# Decomposition thresholds
+MAX_SUCCESS_CRITERIA=5
+MAX_INDEPENDENT_COMPONENTS=3
 
 # Sleep interval when no ideas (seconds)
 SLEEP_INTERVAL=3600
-```
 
-## Directory Structure
-
-After running, each idea gets a work directory:
-
-```
-work/
-└── idea-13-20260124-143052/
-    ├── idea-source.md      # Original idea content
-    ├── research-notes.md   # Research phase output
-    ├── prd.md              # Product requirements document
-    ├── DONE                 # Completion marker
-    ├── completion-record.md # Final status and summary
-    └── [implementation files...]
+# Enable interactive mode by default
+INTERACTIVE=false
 ```
 
 ## Key Differences from Original Ralph
@@ -160,9 +204,25 @@ work/
 |--------|---------------|---------------------|
 | Input | Single PROMPT.md | Idea pool (many ideas) |
 | Research | None (jump to code) | Mandatory pre-phase |
+| Decomposition | None | Auto-splits large ideas |
+| Dependencies | None | Tracks blocking relationships |
 | Documentation | Optional | PRD required |
 | State tracking | File on disk | Idea pool lifecycle |
+| Failure handling | None | Retry with limits |
 | Scope | One task | Continuous multi-task |
+
+## MCP Tools Used
+
+| Tool | Purpose |
+|------|---------|
+| `get_workable_ideas()` | Find ideas ready for processing |
+| `get_ralph_status()` | Dashboard of all idea states |
+| `set_lifecycle()` | Transition idea between states |
+| `read_idea()` | Get full idea content |
+| `append_to_idea()` | Add research notes, PRD |
+| `create_sub_idea()` | Decompose into children |
+| `add_dependency()` | Track blocking relationships |
+| `check_parent_completion()` | Roll up when children complete |
 
 ## References
 

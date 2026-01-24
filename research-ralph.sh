@@ -5,9 +5,14 @@
 # - Mandatory research phase before implementation
 # - Idea pool integration for continuous multi-task processing
 # - PRD-driven implementation
+# - Decomposition of large ideas into sub-ideas
+# - Dependency tracking and blocking detection
 # - Status tracking and completion marking
 #
-# Usage: ./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID]
+# Lifecycle: backlog → researching → researched → [decomposing] → scoped → implementing → completed
+#            With branches to: invalidated, parked, blocked, failed
+#
+# Usage: ./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID] [--interactive]
 #
 # Reference: https://ghuntley.com/ralph/
 
@@ -30,11 +35,16 @@ fi
 IDEA_POOL_DIR="${IDEA_POOL_DIR:-$HOME/ideas}"
 WORK_DIR="${WORK_DIR:-$SCRIPT_DIR/work}"
 SLEEP_INTERVAL="${SLEEP_INTERVAL:-3600}"
-MAX_IMPLEMENTATION_LOOPS="${MAX_IMPLEMENTATION_LOOPS:-10}"
+MAX_IMPLEMENTATION_RETRIES="${MAX_IMPLEMENTATION_RETRIES:-3}"
 RESEARCH_TIME_BOX_MINUTES="${RESEARCH_TIME_BOX_MINUTES:-30}"
 DRY_RUN="${DRY_RUN:-false}"
 SINGLE_RUN="${SINGLE_RUN:-false}"
 SPECIFIC_IDEA="${SPECIFIC_IDEA:-}"
+INTERACTIVE="${INTERACTIVE:-false}"
+
+# Decomposition thresholds
+MAX_SUCCESS_CRITERIA="${MAX_SUCCESS_CRITERIA:-5}"
+MAX_INDEPENDENT_COMPONENTS="${MAX_INDEPENDENT_COMPONENTS:-3}"
 
 # =============================================================================
 # Argument Parsing
@@ -54,14 +64,19 @@ while [[ $# -gt 0 ]]; do
             SPECIFIC_IDEA="$2"
             shift 2
             ;;
+        --interactive)
+            INTERACTIVE=true
+            shift
+            ;;
         --help|-h)
-            echo "Usage: $0 [--once] [--dry-run] [--idea IDEA_ID]"
+            echo "Usage: $0 [--once] [--dry-run] [--idea IDEA_ID] [--interactive]"
             echo ""
             echo "Options:"
-            echo "  --once      Run once and exit (don't loop)"
-            echo "  --dry-run   Show what would be done without executing"
-            echo "  --idea ID   Process a specific idea by number or pattern"
-            echo "  --help      Show this help message"
+            echo "  --once        Run once and exit (don't loop)"
+            echo "  --dry-run     Show what would be done without executing"
+            echo "  --idea ID     Process a specific idea by number or pattern"
+            echo "  --interactive Pause for human review between phases"
+            echo "  --help        Show this help message"
             exit 0
             ;;
         *)
@@ -83,17 +98,30 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
+    echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE" >&2
 }
 
 log_info() { log "INFO" "$@"; }
 log_warn() { log "WARN" "$@"; }
 log_error() { log "ERROR" "$@"; }
+log_state() { log "STATE" "$@"; }
 log_phase() {
-    echo ""
-    echo "============================================================"
+    echo "" >&2
+    echo "============================================================" >&2
     log "PHASE" "$@"
-    echo "============================================================"
+    echo "============================================================" >&2
+}
+
+# =============================================================================
+# Interactive Mode
+# =============================================================================
+
+pause_if_interactive() {
+    local phase="$1"
+    if [[ "$INTERACTIVE" == "true" ]]; then
+        echo "" >&2
+        read -rp "[INTERACTIVE] Phase '$phase' complete. Press Enter to continue, or Ctrl+C to abort... " </dev/tty
+    fi
 }
 
 # =============================================================================
@@ -105,9 +133,33 @@ setup() {
     touch "$LOG_FILE"
     log_info "Research-First Ralph starting..."
     log_info "Work directory: $WORK_DIR"
-    log_info "Idea pool directory: $IDEA_POOL_DIR"
     log_info "Dry run: $DRY_RUN"
     log_info "Single run: $SINGLE_RUN"
+    log_info "Interactive: $INTERACTIVE"
+}
+
+# =============================================================================
+# MCP Tool Wrappers
+# =============================================================================
+
+# Set lifecycle state with logging
+set_lifecycle() {
+    local idea_id="$1"
+    local new_state="$2"
+    local reason="${3:-}"
+
+    log_state "Transitioning idea $idea_id to '$new_state'" ${reason:+"(reason: $reason)"}
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would set lifecycle: $idea_id → $new_state"
+        return 0
+    fi
+
+    claude --print "
+Use mcp__idea-pool__set_lifecycle to change idea '$idea_id' to state '$new_state'.
+${reason:+Reason: $reason}
+Return only 'OK' or 'ERROR'.
+" 2>/dev/null || echo "ERROR"
 }
 
 # =============================================================================
@@ -117,30 +169,34 @@ setup() {
 extract_idea() {
     log_phase "1. EXTRACT - Selecting next workable idea"
 
-    local idea_query
-    if [[ -n "$SPECIFIC_IDEA" ]]; then
-        idea_query="Return the idea matching '$SPECIFIC_IDEA'"
-    else
-        idea_query="Find the next workable idea with lifecycle=sprout or lifecycle=growing that has a concrete problem statement"
-    fi
-
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would query idea pool: $idea_query"
-        echo "DRY_RUN_IDEA"
+        if [[ -n "$SPECIFIC_IDEA" ]]; then
+            log_info "[DRY RUN] Would process specific idea: $SPECIFIC_IDEA"
+            echo "$SPECIFIC_IDEA"
+        else
+            log_info "[DRY RUN] Would query for workable ideas"
+            echo "DRY_RUN_IDEA"
+        fi
         return 0
     fi
 
     local idea
-    idea=$(claude --print "
-Use the idea-pool MCP tools to $idea_query.
+    if [[ -n "$SPECIFIC_IDEA" ]]; then
+        idea="$SPECIFIC_IDEA"
+        log_info "Using specified idea: $idea"
+    else
+        # Use the new get_workable_ideas tool
+        idea=$(claude --print "
+Use mcp__idea-pool__get_workable_ideas to find ideas ready for processing.
+These are ideas in 'backlog' state that are not blocked by dependencies.
 
-Selection criteria:
-- lifecycle: sprout or growing (ready for implementation)
-- Has a concrete problem statement
-- Prioritize by: novelty, simplicity (start with simpler ideas), recency
-
-Return ONLY the idea identifier (number), nothing else. If no workable ideas found, return 'NONE'.
+Return ONLY the identifier (number) of the first/highest priority idea.
+If no workable ideas are found, return exactly 'NONE'.
 " 2>/dev/null || echo "ERROR")
+    fi
+
+    # Clean up the response
+    idea=$(echo "$idea" | tr -d '[:space:]')
 
     if [[ "$idea" == "NONE" ]] || [[ "$idea" == "ERROR" ]] || [[ -z "$idea" ]]; then
         log_warn "No workable ideas found in pool"
@@ -161,355 +217,384 @@ run_research() {
 
     log_phase "2. RESEARCH - Mandatory groundwork for idea $idea_id"
 
-    local research_file="$idea_work_dir/research-notes.md"
+    # Transition to researching state
+    set_lifecycle "$idea_id" "researching" "Starting research phase"
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY RUN] Would research idea $idea_id"
-        log_info "[DRY RUN] Would create $research_file"
-        touch "$research_file"
-        echo "# Research Notes (DRY RUN)" > "$research_file"
+        echo "proceed"
         return 0
     fi
 
     log_info "Starting research phase (time-boxed to ${RESEARCH_TIME_BOX_MINUTES} minutes)..."
-    log_info "Output: $research_file"
 
-    # Read the full idea content first
-    local idea_content
-    idea_content=$(claude --print "
-Use mcp__idea-pool__read_idea to read idea '$idea_id' and return its full content.
-" 2>/dev/null || echo "")
-
-    if [[ -z "$idea_content" ]]; then
-        log_error "Failed to read idea content"
-        return 1
-    fi
-
-    # Save idea content for reference
-    echo "$idea_content" > "$idea_work_dir/idea-source.md"
-
-    # Run research
-    timeout "${RESEARCH_TIME_BOX_MINUTES}m" claude "
+    # Run research and get outcome
+    local outcome
+    outcome=$(timeout "${RESEARCH_TIME_BOX_MINUTES}m" claude --print "
 You are conducting research for implementing an idea. This is a MANDATORY research phase.
-You must NOT proceed to implementation - only research.
 
-## The Idea
-$idea_content
+## Instructions
 
-## Your Task
-Research this idea thoroughly and create research notes. Focus on:
+1. First, use mcp__idea-pool__read_idea('$idea_id') to read the full idea content
+2. Research the idea thoroughly:
+   - Search for prior art (existing implementations, tools, solutions)
+   - Look for academic papers or blog posts on the topic
+   - Identify theoretical foundations and key concepts
+   - Document failure modes and pitfalls to avoid
+3. Write your research findings using mcp__idea-pool__append_to_idea('$idea_id', content)
+   Add a section like:
 
-1. **Literature Review**: Search for academic papers, blog posts, and documentation related to this topic
-2. **Prior Art**: What existing implementations, tools, or solutions already exist?
-3. **Theoretical Foundations**: What concepts, patterns, or principles underpin this idea?
-4. **Failure Modes**: What approaches have been tried and failed? What are common pitfalls?
-5. **Key Insights**: What are the most important things to know before implementing?
+   ## Research Notes ($(date +%Y-%m-%d))
+
+   ### Prior Art
+   [What already exists]
+
+   ### Theoretical Foundations
+   [Key concepts and principles]
+
+   ### Pitfalls to Avoid
+   [What has failed or could go wrong]
+
+   ### Key Insights
+   [Most important findings]
+
+4. Determine the outcome based on your research:
+   - 'proceed' - Novel and feasible, ready to continue
+   - 'invalidate' - Already solved elsewhere or fundamentally flawed
+   - 'park' - Needs human decision or input before continuing
 
 ## Output
-Write your findings to: $research_file
+Return ONLY one word: proceed, invalidate, or park
+" 2>/dev/null || echo "error")
 
-Structure your notes with clear sections. Include links/references where possible.
-Be thorough but concise. This research will inform the PRD and implementation.
+    # Clean up outcome
+    outcome=$(echo "$outcome" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
 
-IMPORTANT: Do NOT write any implementation code. Research only.
-" 2>&1 | tee -a "$LOG_FILE" || {
-        log_warn "Research phase timed out or failed"
-    }
+    log_info "Research outcome: $outcome"
 
-    if [[ ! -f "$research_file" ]]; then
-        log_error "Research phase did not produce research-notes.md"
-        return 1
-    fi
-
-    local research_size
-    research_size=$(wc -c < "$research_file")
-    if [[ "$research_size" -lt 100 ]]; then
-        log_error "Research notes too short (${research_size} bytes) - research may have failed"
-        return 1
-    fi
-
-    log_info "Research complete: $research_file (${research_size} bytes)"
-    return 0
+    case "$outcome" in
+        proceed)
+            set_lifecycle "$idea_id" "researched" "Research complete, ready for scoping"
+            pause_if_interactive "research"
+            return 0
+            ;;
+        invalidate)
+            set_lifecycle "$idea_id" "invalidated" "Research found this is not viable"
+            log_warn "Idea $idea_id invalidated during research"
+            return 1
+            ;;
+        park)
+            set_lifecycle "$idea_id" "parked" "Needs human input"
+            log_warn "Idea $idea_id parked - needs human decision"
+            return 1
+            ;;
+        *)
+            log_error "Research phase returned unexpected outcome: $outcome"
+            set_lifecycle "$idea_id" "parked" "Research phase error"
+            return 1
+            ;;
+    esac
 }
 
 # =============================================================================
-# Phase 3: PRD Creation
+# Phase 3: Decomposition Check
+# =============================================================================
+
+check_decomposition() {
+    local idea_id="$1"
+
+    log_phase "3. DECOMPOSITION CHECK - Evaluating idea complexity"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would check if idea needs decomposition"
+        echo "atomic"
+        return 0
+    fi
+
+    local result
+    result=$(claude --print "
+Read idea '$idea_id' with mcp__idea-pool__read_idea and analyze its complexity.
+
+Decomposition criteria:
+- More than $MAX_SUCCESS_CRITERIA success criteria needed
+- More than $MAX_INDEPENDENT_COMPONENTS independent components
+- Multiple distinct deliverables that could be built separately
+
+If decomposition is needed:
+1. Use mcp__idea-pool__create_sub_idea for each component:
+   - parent_identifier='$idea_id'
+   - title='[Component name]'
+   - content='## Goal\n[What this sub-idea accomplishes]\n\n## Context\nPart of parent idea $idea_id'
+   - auto_number=true
+
+2. Use mcp__idea-pool__add_dependency if sub-ideas have ordering requirements
+
+3. Return 'decomposed'
+
+If the idea is atomic (can be implemented as-is):
+- Return 'atomic'
+
+Return ONLY: decomposed or atomic
+" 2>/dev/null || echo "atomic")
+
+    result=$(echo "$result" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+    log_info "Decomposition result: $result"
+
+    if [[ "$result" == "decomposed" ]]; then
+        set_lifecycle "$idea_id" "decomposing" "Spawning sub-ideas"
+        log_info "Idea decomposed into sub-ideas. Parent will complete when children complete."
+        return 1  # Don't continue with this idea, process children instead
+    fi
+
+    pause_if_interactive "decomposition"
+    return 0  # Continue with atomic idea
+}
+
+# =============================================================================
+# Phase 4: PRD Creation
 # =============================================================================
 
 create_prd() {
     local idea_id="$1"
-    local idea_work_dir="$2"
 
-    log_phase "3. PRD - Creating Product Requirements Document"
+    log_phase "4. PRD - Creating Product Requirements Document"
 
-    local prd_file="$idea_work_dir/prd.md"
-    local research_file="$idea_work_dir/research-notes.md"
-    local idea_file="$idea_work_dir/idea-source.md"
+    set_lifecycle "$idea_id" "scoped" "Creating PRD"
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would create PRD at $prd_file"
-        cp "$SCRIPT_DIR/templates/prd-template.md" "$prd_file" 2>/dev/null || \
-            echo "# PRD (DRY RUN)" > "$prd_file"
+        log_info "[DRY RUN] Would create PRD for idea $idea_id"
         return 0
     fi
 
-    if [[ ! -f "$research_file" ]]; then
-        log_error "Research notes not found - cannot create PRD"
-        return 1
-    fi
-
-    log_info "Creating PRD based on idea and research..."
-
-    local idea_content research_content
-    idea_content=$(cat "$idea_file")
-    research_content=$(cat "$research_file")
-
     claude "
-You are creating a PRD (Product Requirements Document) for implementation.
+Create a PRD for idea '$idea_id'.
 
-## The Idea
-$idea_content
+## Instructions
 
-## Research Notes
-$research_content
+1. Read the idea and research notes with mcp__idea-pool__read_idea('$idea_id')
 
-## Your Task
-Create a comprehensive PRD at: $prd_file
+2. Append a PRD section using mcp__idea-pool__append_to_idea('$idea_id', content):
 
-Use this structure:
-\`\`\`markdown
-# PRD: [Title]
+## PRD ($(date +%Y-%m-%d))
 
-## Problem Statement
-[Clear description of the problem being solved]
+### Problem Statement
+[Clear description from the idea]
 
-## Research Summary
-[Key findings from the research phase - prior art, theoretical foundations, pitfalls to avoid]
+### Research Summary
+[Key findings - prior art, foundations, pitfalls]
 
-## Proposed Solution
-[High-level description of the solution]
+### Proposed Solution
+[High-level approach]
 
-## Success Criteria
-[Measurable criteria for when this is 'done']
+### Success Criteria
 - [ ] Criterion 1
 - [ ] Criterion 2
-- [ ] ...
+- [ ] Criterion 3
+(Maximum $MAX_SUCCESS_CRITERIA for atomic ideas)
 
-## Non-Goals
-[What this implementation will NOT do]
+### Non-Goals
+[What we're explicitly NOT doing]
 
-## Technical Approach
-[Detailed technical plan - architecture, components, algorithms, tools]
+### Technical Approach
+[Implementation plan - architecture, components, tools]
 
-## Risks & Mitigations
-[Potential issues and how to address them]
+### Risks & Mitigations
+[Potential issues and how to handle them]
 
-## Estimated Complexity
-[S/M/L with brief justification]
-\`\`\`
+### Estimated Complexity
+[S/M/L with justification]
 
-Be specific and actionable. The implementation phase will use this PRD directly.
+Be specific and actionable. The implementation phase will execute this PRD.
 " 2>&1 | tee -a "$LOG_FILE"
 
-    if [[ ! -f "$prd_file" ]]; then
-        log_error "PRD creation failed - file not created"
-        return 1
-    fi
-
-    log_info "PRD created: $prd_file"
+    log_info "PRD created for idea $idea_id"
+    pause_if_interactive "prd"
     return 0
 }
 
 # =============================================================================
-# Phase 4: Implementation (Classic Ralph)
+# Phase 5: Implementation (Classic Ralph)
 # =============================================================================
 
 run_implementation() {
     local idea_id="$1"
-    local idea_work_dir="$2"
 
-    log_phase "4. IMPLEMENT - Classic Ralph loop"
+    log_phase "5. IMPLEMENT - Classic Ralph loop"
 
-    local prd_file="$idea_work_dir/prd.md"
-    local done_file="$idea_work_dir/DONE"
-    local loop_count=0
+    set_lifecycle "$idea_id" "implementing" "Starting implementation"
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would run implementation loop with PRD"
-        touch "$done_file"
+        log_info "[DRY RUN] Would run implementation loop"
+        echo "COMPLETE"
         return 0
     fi
 
-    if [[ ! -f "$prd_file" ]]; then
-        log_error "PRD not found - cannot implement"
-        return 1
-    fi
+    local retries=0
 
-    local prd_content
-    prd_content=$(cat "$prd_file")
+    while [[ $retries -lt $MAX_IMPLEMENTATION_RETRIES ]]; do
+        ((retries++))
+        log_info "Implementation attempt $retries/$MAX_IMPLEMENTATION_RETRIES"
 
-    log_info "Starting implementation loop (max $MAX_IMPLEMENTATION_LOOPS iterations)..."
-
-    cd "$idea_work_dir"
-
-    while [[ $loop_count -lt $MAX_IMPLEMENTATION_LOOPS ]]; do
-        ((loop_count++))
-        log_info "Implementation loop iteration $loop_count/$MAX_IMPLEMENTATION_LOOPS"
-
-        claude "
-## Implementation Task
-
-You are implementing the following PRD. Work in the current directory: $idea_work_dir
-
-$prd_content
+        local result
+        result=$(claude --print "
+Implement the PRD for idea '$idea_id'.
 
 ## Instructions
 
-1. Review the PRD and any existing implementation progress
-2. Implement the next piece of functionality
-3. Test your implementation
-4. Update progress
+1. Read the idea with mcp__idea-pool__read_idea('$idea_id') to get the PRD and success criteria
 
-## Completion
+2. Implement the solution:
+   - Work through the technical approach
+   - Create necessary files and code
+   - Test your implementation
 
-When ALL success criteria from the PRD are met:
-1. Create a file named 'DONE' with a summary of what was implemented
-2. List any follow-up tasks or improvements for later
+3. Check each success criterion and mark completed ones
 
-<promise>ALL_PRD_ITEMS_COMPLETE</promise>
-" 2>&1 | tee -a "$LOG_FILE"
+4. Determine outcome:
 
-        if [[ -f "$done_file" ]]; then
-            log_info "Implementation complete! DONE file created."
-            break
-        fi
+   If ALL success criteria are met:
+   - Update the idea to mark criteria as checked: [x]
+   - Return 'COMPLETE'
 
-        log_info "DONE file not found, continuing loop..."
-        sleep 2
+   If you discover a blocking dependency:
+   - Use mcp__idea-pool__create_sub_idea to capture the dependency
+   - Use mcp__idea-pool__add_dependency to mark the block
+   - Return 'BLOCKED: [description of what's blocking]'
+
+   If stuck after good effort:
+   - Return 'STUCK: [what went wrong]'
+
+<promise>ALL_SUCCESS_CRITERIA_MET</promise>
+
+Return ONLY one of:
+- COMPLETE
+- BLOCKED: [reason]
+- STUCK: [reason]
+" 2>/dev/null || echo "STUCK: Unknown error")
+
+        log_info "Implementation result: $result"
+
+        case "$result" in
+            COMPLETE*)
+                set_lifecycle "$idea_id" "completed" "All success criteria met"
+
+                # Check if this completes a parent
+                claude --print "
+Use mcp__idea-pool__check_parent_completion('$idea_id') to see if completing this idea
+allows a parent idea to also be marked complete.
+" 2>/dev/null || true
+
+                log_info "Idea $idea_id completed successfully!"
+                return 0
+                ;;
+            BLOCKED*)
+                local reason="${result#BLOCKED: }"
+                set_lifecycle "$idea_id" "blocked" "$reason"
+                log_warn "Idea $idea_id blocked: $reason"
+                return 1
+                ;;
+            STUCK*)
+                log_warn "Implementation stuck, retrying..."
+                sleep 2
+                ;;
+            *)
+                log_warn "Unexpected result, retrying..."
+                sleep 2
+                ;;
+        esac
     done
 
-    cd "$SCRIPT_DIR"
+    # Max retries exceeded
+    set_lifecycle "$idea_id" "failed" "Max retries ($MAX_IMPLEMENTATION_RETRIES) exceeded"
+    log_error "Idea $idea_id failed after $MAX_IMPLEMENTATION_RETRIES attempts"
+    return 1
+}
 
-    if [[ ! -f "$done_file" ]]; then
-        log_warn "Implementation loop exhausted without completion"
-        echo "Implementation incomplete after $MAX_IMPLEMENTATION_LOOPS iterations" > "$idea_work_dir/INCOMPLETE"
+# =============================================================================
+# Main Processing
+# =============================================================================
+
+process_idea() {
+    local idea_id="$1"
+
+    log_info "Processing idea: $idea_id"
+
+    # Phase 2: Research (mandatory)
+    if ! run_research "$idea_id" "$WORK_DIR"; then
+        log_warn "Idea $idea_id stopped at research phase"
         return 1
     fi
 
+    # Phase 3: Decomposition check
+    if ! check_decomposition "$idea_id"; then
+        log_info "Idea $idea_id decomposed - children added to backlog"
+        return 0  # Success - children will be processed separately
+    fi
+
+    # Phase 4: PRD
+    if ! create_prd "$idea_id"; then
+        log_error "PRD creation failed for idea $idea_id"
+        return 1
+    fi
+
+    # Phase 5: Implementation
+    if ! run_implementation "$idea_id"; then
+        log_warn "Implementation did not complete for idea $idea_id"
+        return 1
+    fi
+
+    log_info "Successfully completed idea $idea_id"
     return 0
 }
 
 # =============================================================================
-# Phase 5: Mark Complete
+# Status Dashboard
 # =============================================================================
 
-mark_complete() {
-    local idea_id="$1"
-    local idea_work_dir="$2"
-    local status="$3"  # implemented, tried, failed
-
-    log_phase "5. COMPLETE - Updating idea status to '$status'"
+show_status() {
+    log_info "Fetching Ralph status dashboard..."
 
     if [[ "$DRY_RUN" == "true" ]]; then
-        log_info "[DRY RUN] Would update idea $idea_id status to $status"
+        log_info "[DRY RUN] Would show status"
         return 0
     fi
 
-    # Create completion record
-    local completion_file="$idea_work_dir/completion-record.md"
-    cat > "$completion_file" << EOF
-# Completion Record
-
-- **Idea**: $idea_id
-- **Status**: $status
-- **Completed**: $(date -Iseconds)
-- **Work Directory**: $idea_work_dir
-
-## Files Produced
-$(ls -la "$idea_work_dir" 2>/dev/null || echo "Unable to list files")
-
-## Summary
-$(cat "$idea_work_dir/DONE" 2>/dev/null || echo "No DONE file found")
-EOF
-
-    log_info "Completion record saved: $completion_file"
-
-    # Update idea in pool (if update_idea tool is available)
     claude --print "
-If the mcp__idea-pool__update_idea tool is available, update idea '$idea_id':
-- Set lifecycle to '$status'
-- Add a note about implementation at $idea_work_dir
-- Record completion date: $(date -Iseconds)
-
-If the tool is not available, just acknowledge that the status update was skipped.
-" 2>/dev/null || log_warn "Could not update idea pool status"
-
-    log_info "Idea $idea_id marked as $status"
+Use mcp__idea-pool__get_ralph_status() to get the current workflow status.
+Display a summary of ideas in each lifecycle state.
+" 2>/dev/null || log_warn "Could not fetch status"
 }
 
 # =============================================================================
 # Main Loop
 # =============================================================================
 
-process_idea() {
-    local idea_id="$1"
-
-    # Create work directory for this idea
-    local idea_work_dir="$WORK_DIR/idea-$idea_id-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$idea_work_dir"
-
-    log_info "Work directory: $idea_work_dir"
-
-    # Phase 2: Research
-    if ! run_research "$idea_id" "$idea_work_dir"; then
-        log_error "Research phase failed"
-        mark_complete "$idea_id" "$idea_work_dir" "tried"
-        return 1
-    fi
-
-    # Phase 3: PRD
-    if ! create_prd "$idea_id" "$idea_work_dir"; then
-        log_error "PRD creation failed"
-        mark_complete "$idea_id" "$idea_work_dir" "tried"
-        return 1
-    fi
-
-    # Phase 4: Implementation
-    if ! run_implementation "$idea_id" "$idea_work_dir"; then
-        log_error "Implementation incomplete"
-        mark_complete "$idea_id" "$idea_work_dir" "tried"
-        return 1
-    fi
-
-    # Phase 5: Mark complete
-    mark_complete "$idea_id" "$idea_work_dir" "implemented"
-
-    log_info "Successfully implemented idea $idea_id"
-    return 0
-}
-
 main() {
     setup
+    show_status
 
     while true; do
-        # Phase 1: Extract
+        # Phase 1: Extract next workable idea
         local idea_id
         if ! idea_id=$(extract_idea); then
             if [[ "$SINGLE_RUN" == "true" ]]; then
                 log_info "No ideas to process. Exiting (--once mode)."
                 exit 0
             fi
-            log_info "No ideas available. Sleeping for ${SLEEP_INTERVAL}s..."
+            log_info "No workable ideas. Sleeping for ${SLEEP_INTERVAL}s..."
             sleep "$SLEEP_INTERVAL"
             continue
         fi
 
         # Process the idea through all phases
         if process_idea "$idea_id"; then
-            log_info "Idea $idea_id completed successfully!"
+            log_info "Idea $idea_id processing complete!"
         else
-            log_warn "Idea $idea_id processing failed or incomplete"
+            log_warn "Idea $idea_id processing stopped"
         fi
+
+        # Show updated status
+        show_status
 
         # Exit if single run mode
         if [[ "$SINGLE_RUN" == "true" ]]; then
