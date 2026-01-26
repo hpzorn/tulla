@@ -19,8 +19,12 @@
 #
 # Options:
 #   --num N             Number of ideas to generate (default: 3)
-#   --save              Save generated ideas to pool as seeds
+#   --no-save           Don't save generated ideas to pool (default: save)
 #   --dry-run           Show what would be done without executing
+#
+# Generated ideas are automatically saved to the idea pool with:
+#   author: AI
+#   source: epi-ralph
 
 set -euo pipefail
 
@@ -35,7 +39,7 @@ THESIS=""
 ANTITHESIS=""
 SIGNAL_URL=""
 NUM_IDEAS=3
-SAVE_TO_POOL=false
+SAVE_TO_POOL=true
 DRY_RUN=false
 
 # =============================================================================
@@ -71,8 +75,8 @@ while [[ $# -gt 0 ]]; do
             NUM_IDEAS="$2"
             shift 2
             ;;
-        --save)
-            SAVE_TO_POOL=true
+        --no-save)
+            SAVE_TO_POOL=false
             shift
             ;;
         --dry-run)
@@ -91,7 +95,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Options:"
             echo "  --num N      Number of ideas (default: 3)"
-            echo "  --save       Save to idea pool"
+            echo "  --no-save    Don't save to idea pool (default: save)"
             echo "  --dry-run    Show what would be done"
             exit 0
             ;;
@@ -189,7 +193,11 @@ Analyze the idea pool to find opportunities for new ideas.
 5. At the end, output a one-line summary of what you generated.
 
 $(if [[ "$SAVE_TO_POOL" == "true" ]]; then
-    echo "6. Use mcp__idea-pool__capture_seed to save each idea to the pool."
+    echo "6. Use mcp__idea-pool__capture_seed to save each idea to the pool with metadata:
+   - author: AI
+   - source: epi-ralph
+   - mode: pool
+   - protocol: [the protocol used for this idea]"
 fi)
 
 Be creative but grounded. Each idea should be actionable and distinct from existing pool content." 2>&1 | tee "${WORK_DIR}/generation.log"
@@ -246,7 +254,12 @@ Explore the domain: **${DOMAIN}**
 5. Output a one-line summary.
 
 $(if [[ "$SAVE_TO_POOL" == "true" ]]; then
-    echo "6. Use mcp__idea-pool__capture_seed to save each idea."
+    echo "6. Use mcp__idea-pool__capture_seed to save each idea with metadata:
+   - author: AI
+   - source: epi-ralph
+   - mode: domain
+   - domain: ${DOMAIN}
+   - protocol: [the protocol used for this idea]"
 fi)
 
 Focus on ideas that are novel yet grounded in research." 2>&1 | tee "${WORK_DIR}/generation.log"
@@ -306,7 +319,12 @@ Solve this problem: **${PROBLEM}**
 6. Output a one-line summary.
 
 $(if [[ "$SAVE_TO_POOL" == "true" ]]; then
-    echo "7. Use mcp__idea-pool__capture_seed to save each idea."
+    echo "7. Use mcp__idea-pool__capture_seed to save each idea with metadata:
+   - author: AI
+   - source: epi-ralph
+   - mode: problem
+   - problem: ${PROBLEM}
+   - protocol: [the approach used for this solution]"
 fi)
 
 Focus on actionable solutions." 2>&1 | tee "${WORK_DIR}/generation.log"
@@ -375,7 +393,13 @@ Resolve the contradiction between:
 5. Output a one-line summary.
 
 $(if [[ "$SAVE_TO_POOL" == "true" ]]; then
-    echo "6. Use mcp__idea-pool__capture_seed to save each synthesis."
+    echo "6. Use mcp__idea-pool__capture_seed to save each synthesis with metadata:
+   - author: AI
+   - source: epi-ralph
+   - mode: contradiction
+   - thesis: ${THESIS}
+   - antithesis: ${ANTITHESIS}
+   - protocol: dialectical-synthesis"
 fi)
 
 Warning: Avoid 'agreeable synthesis' that just says 'do both' - true synthesis transcends the opposition." 2>&1 | tee "${WORK_DIR}/generation.log"
@@ -437,7 +461,12 @@ React to external signal: **${SIGNAL_URL}**
 6. Output a one-line summary.
 
 $(if [[ "$SAVE_TO_POOL" == "true" ]]; then
-    echo "7. Use mcp__idea-pool__capture_seed to save each idea."
+    echo "7. Use mcp__idea-pool__capture_seed to save each idea with metadata:
+   - author: AI
+   - source: epi-ralph
+   - mode: signal
+   - signal_url: ${SIGNAL_URL}
+   - protocol: [the integration type used]"
 fi)
 
 Focus on ideas that genuinely integrate the new signal with existing knowledge." 2>&1 | tee "${WORK_DIR}/generation.log"
