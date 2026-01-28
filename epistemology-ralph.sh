@@ -12,6 +12,7 @@
 #
 # Modes:
 #   (no args)           Pool-driven: analyze idea pool for gaps
+#   --idea N            Idea-focused: expand from a specific idea
 #   --domain "X"        Domain-focused: explore a specific domain
 #   --problem "Q"       Problem-driven: generate solutions to a question
 #   --thesis A --antithesis B   Contradiction: synthesize opposing ideas
@@ -38,6 +39,7 @@ PROBLEM=""
 THESIS=""
 ANTITHESIS=""
 SIGNAL_URL=""
+IDEA_ID=""
 NUM_IDEAS=3
 SAVE_TO_POOL=true
 DRY_RUN=false
@@ -71,6 +73,11 @@ while [[ $# -gt 0 ]]; do
             SIGNAL_URL="$2"
             shift 2
             ;;
+        --idea|-i)
+            MODE="idea"
+            IDEA_ID="$2"
+            shift 2
+            ;;
         --num|-n)
             NUM_IDEAS="$2"
             shift 2
@@ -88,6 +95,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Modes:"
             echo "  (no args)                    Pool-driven analysis"
+            echo "  --idea N                     Expand from a specific idea"
             echo "  --domain 'X'                 Domain-focused exploration"
             echo "  --problem 'Q'                Problem-driven solutions"
             echo "  --thesis A --antithesis B    Contradiction synthesis"
@@ -101,7 +109,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             # Positional argument - try to auto-detect mode
-            if [[ "$1" == *"?"* ]]; then
+            if [[ "$1" =~ ^[0-9]+$ ]]; then
+                # Numeric argument = idea ID
+                MODE="idea"
+                IDEA_ID="$1"
+            elif [[ "$1" == *"?"* ]]; then
                 MODE="problem"
                 PROBLEM="$1"
             elif [[ "$1" == *" vs "* ]] || [[ "$1" == *" versus "* ]]; then
@@ -201,6 +213,77 @@ $(if [[ "$SAVE_TO_POOL" == "true" ]]; then
 fi)
 
 Be creative but grounded. Each idea should be actionable and distinct from existing pool content." 2>&1 | tee "${WORK_DIR}/generation.log"
+}
+
+# =============================================================================
+# Idea-Focused Mode
+# =============================================================================
+
+run_idea_mode() {
+    log "Expanding from idea: $IDEA_ID"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log "[DRY RUN] Would expand from idea '$IDEA_ID'"
+        return 0
+    fi
+
+    claude \
+        --allowedTools "mcp__idea-pool__list_ideas,mcp__idea-pool__read_idea,mcp__idea-pool__find_related_ideas,mcp__idea-pool__semantic_search,mcp__idea-pool__capture_seed,Write" \
+        -p "You are Epistemology-Ralph, a system for generating novel ideas through systematic analysis.
+
+## Task: Idea-Focused Expansion
+
+Expand and develop from idea #${IDEA_ID}
+
+## Instructions
+
+1. Use mcp__idea-pool__read_idea to read idea ${IDEA_ID} in full
+
+2. Use mcp__idea-pool__find_related_ideas to discover connected ideas in the pool
+
+3. Analyze the source idea:
+   - What is its core insight?
+   - What assumptions does it make?
+   - What are its limitations or gaps?
+   - What adjacent territories does it not explore?
+
+4. Generate ${NUM_IDEAS} new ideas using these protocols:
+   - **Extension**: Push the idea further in its natural direction
+   - **Lateral Transfer**: Apply the core insight to a different domain
+   - **Assumption Inversion**: What if a key assumption were reversed?
+   - **Decomposition**: Break into sub-ideas that stand alone
+   - **Synthesis**: Combine with a related idea from the pool
+
+5. Write to ${WORK_DIR}/ideas.md:
+
+   # Expansion from Idea #${IDEA_ID}
+
+   ## Source Idea Summary
+   [Title and core insight of the source idea]
+
+   ## Related Ideas in Pool
+   [Brief list of connected ideas found]
+
+   ## Idea 1: [Title]
+   **Protocol**: [Extension / Lateral Transfer / Inversion / Decomposition / Synthesis]
+   **Relationship to Source**: [how this builds on/diverges from the source]
+   **Description**: [2-3 sentences describing the idea]
+   **Novelty**: [what makes this distinct from the source]
+
+   ## Idea 2: ...
+
+6. Output a one-line summary.
+
+$(if [[ "$SAVE_TO_POOL" == "true" ]]; then
+    echo "7. Use mcp__idea-pool__capture_seed to save each idea with metadata:
+   - author: AI
+   - source: epi-ralph
+   - mode: idea
+   - source_idea: ${IDEA_ID}
+   - protocol: [the protocol used for this idea]"
+fi)
+
+Focus on ideas that genuinely build on the source while being distinct enough to stand alone." 2>&1 | tee "${WORK_DIR}/generation.log"
 }
 
 # =============================================================================
@@ -479,6 +562,9 @@ Focus on ideas that genuinely integrate the new signal with existing knowledge."
 case "$MODE" in
     pool)
         run_pool_mode
+        ;;
+    idea)
+        run_idea_mode
         ;;
     domain)
         run_domain_mode
