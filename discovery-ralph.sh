@@ -1096,8 +1096,8 @@ main() {
     while true; do
         local idea_id
         if ! idea_id=$(extract_idea); then
-            if [[ "$SINGLE_RUN" == "true" ]]; then
-                log_info "No ideas to process. Exiting (--once mode)."
+            if [[ "$SINGLE_RUN" == "true" ]] || [[ -n "$SPECIFIC_IDEA" ]]; then
+                log_info "No ideas to process. Exiting."
                 exit 0
             fi
             log_info "No ideas available. Sleeping for ${SLEEP_INTERVAL}s..."
@@ -1111,8 +1111,9 @@ main() {
             log_warn "Idea $idea_id discovery stopped"
         fi
 
-        if [[ "$SINGLE_RUN" == "true" ]]; then
-            log_info "Single run complete. Exiting."
+        # Exit if single run mode OR if a specific idea was requested
+        if [[ "$SINGLE_RUN" == "true" ]] || [[ -n "$SPECIFIC_IDEA" ]]; then
+            log_info "Processing complete. Exiting."
             exit 0
         fi
 
