@@ -43,6 +43,9 @@ SINGLE_RUN="${SINGLE_RUN:-false}"
 SPECIFIC_IDEA="${SPECIFIC_IDEA:-}"
 INTERACTIVE="${INTERACTIVE:-false}"
 
+# Budget Control (for --print mode API calls)
+MAX_BUDGET_USD="${MAX_BUDGET_USD:-5.00}"
+
 # PhD-Level Research Protocol Time Boxes (in minutes)
 R1_PRIOR_ART_MINUTES="${R1_PRIOR_ART_MINUTES:-15}"
 R2_SUB_ASPECT_MINUTES="${R2_SUB_ASPECT_MINUTES:-20}"
@@ -73,15 +76,20 @@ while [[ $# -gt 0 ]]; do
             INTERACTIVE=true
             shift
             ;;
+        --max-budget)
+            MAX_BUDGET_USD="$2"
+            shift 2
+            ;;
         --help|-h)
-            echo "Usage: $0 [--once] [--dry-run] [--idea IDEA_ID] [--interactive]"
+            echo "Usage: $0 [--once] [--dry-run] [--idea IDEA_ID] [--interactive] [--max-budget USD]"
             echo ""
             echo "Options:"
-            echo "  --once        Run once and exit (don't loop)"
-            echo "  --dry-run     Show what would be done without executing"
-            echo "  --idea ID     Process a specific idea by number or pattern"
-            echo "  --interactive Pause for human review between phases"
-            echo "  --help        Show this help message"
+            echo "  --once           Run once and exit (don't loop)"
+            echo "  --dry-run        Show what would be done without executing"
+            echo "  --idea ID        Process a specific idea by number or pattern"
+            echo "  --interactive    Pause for human review between phases"
+            echo "  --max-budget USD Max API cost per Claude call (default: 5.00)"
+            echo "  --help           Show this help message"
             exit 0
             ;;
         *)
@@ -256,7 +264,11 @@ run_r1_prior_art_scan() {
     local research_date
     research_date=$(date +%Y-%m-%d)
 
-    $timeout_cmd claude \
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$output_file"
+
+    $timeout_cmd claude --permission-mode acceptEdits \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         --allowedTools "mcp__idea-pool__read_idea,Write,WebSearch" \
         -p "You are conducting Phase R1: Prior Art Scan for idea ${idea_id}.
 
@@ -308,8 +320,8 @@ Determine if this idea is NOVEL or a DERIVATIVE of existing work.
 
 Be thorough but respect the time-box. Quality over quantity." 2>&1 | tee -a "$LOG_FILE"
 
-    if [[ ! -f "$output_file" ]]; then
-        log_error "R1 did not produce $output_file"
+    if [[ ! -s "$output_file" ]]; then
+        log_error "R1 did not produce content in $output_file"
         return 1
     fi
 
@@ -347,20 +359,29 @@ run_r2_sub_aspect_research() {
     local research_date
     research_date=$(date +%Y-%m-%d)
 
-    $timeout_cmd claude \
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$output_file"
+
+    local start_time end_time duration exit_code
+    start_time=$(date +%s)
+    log_info "R2 starting claude at $(date '+%H:%M:%S')"
+
+    set +e  # Don't exit on error
+    $timeout_cmd claude --permission-mode acceptEdits \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         --allowedTools "mcp__idea-pool__read_idea,Read,Write,WebSearch" \
         -p "You are conducting Phase R2: Sub-Aspect Research for idea ${idea_id}.
 
 ## Goal
 Decompose the idea into components and find existing research on each.
 
-## Context
-- Read the idea: mcp__idea-pool__read_idea with identifier ${idea_id}
-- Read prior art scan: ${r1_file}
-
 ## Instructions
 
-1. Decompose the idea into 3-6 distinct sub-aspects/components
+1. First, read the required context:
+   - Use mcp__idea-pool__read_idea with identifier ${idea_id} to read the idea
+   - Use the Read tool to read the prior art scan: ${r1_file}
+
+2. Decompose the idea into 3-6 distinct sub-aspects/components
    Example: An idea about 'AI code review' might decompose into:
    - Static analysis techniques
    - LLM prompt engineering for code
@@ -412,9 +433,21 @@ Decompose the idea into components and find existing research on each.
    ...
 
 Cite sources properly: Author (Year). Title. Venue/URL." 2>&1 | tee -a "$LOG_FILE"
+    exit_code=${PIPESTATUS[0]}
+    set -e  # Re-enable exit on error
 
-    if [[ ! -f "$output_file" ]]; then
-        log_error "R2 did not produce $output_file"
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    log_info "R2 claude finished at $(date '+%H:%M:%S') after ${duration}s with exit code ${exit_code}"
+
+    if [[ $exit_code -eq 124 ]]; then
+        log_error "R2 TIMEOUT after ${R2_SUB_ASPECT_MINUTES} minutes"
+    elif [[ $exit_code -ne 0 ]]; then
+        log_error "R2 claude failed with exit code ${exit_code}"
+    fi
+
+    if [[ ! -s "$output_file" ]]; then
+        log_error "R2 did not produce content in $output_file"
         return 1
     fi
 
@@ -444,29 +477,38 @@ run_r3_rq_formulation() {
     local research_date
     research_date=$(date +%Y-%m-%d)
 
-    $timeout_cmd claude \
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$output_file"
+
+    local start_time end_time duration exit_code
+    start_time=$(date +%s)
+    log_info "R3 starting claude at $(date '+%H:%M:%S')"
+
+    set +e  # Don't exit on error
+    $timeout_cmd claude --permission-mode acceptEdits \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         --allowedTools "mcp__idea-pool__read_idea,Read,Write" \
         -p "You are conducting Phase R3: Research Question Formulation for idea ${idea_id}.
 
 ## Goal
 Define 2-4 precise, falsifiable research questions that must be answered to realize this idea.
 
-## Context
-- Read the idea: mcp__idea-pool__read_idea with identifier ${idea_id}
-- Read prior art scan: ${r1_file}
-- Read sub-aspect research: ${r2_file}
-
 ## Instructions
 
-1. Identify knowledge gaps from R1 and R2 that block implementation
-2. Formulate 2-4 research questions (RQs) that address these gaps
-3. Each RQ must be:
+1. First, read the required context:
+   - Use mcp__idea-pool__read_idea with identifier ${idea_id} to read the idea
+   - Use the Read tool to read the prior art scan: ${r1_file}
+   - Use the Read tool to read the sub-aspect research: ${r2_file}
+
+2. Identify knowledge gaps from R1 and R2 that block implementation
+3. Formulate 2-4 research questions (RQs) that address these gaps
+4. Each RQ must be:
    - **Specific**: Clear scope, not vague
    - **Falsifiable**: Can be answered yes/no or with measurable data
    - **Actionable**: Answering it directly informs implementation
    - **Scoped**: Answerable within the research time budget
 
-4. Write to: ${output_file}
+5. Write to: ${output_file}
 
    Structure:
 
@@ -509,9 +551,21 @@ Define 2-4 precise, falsifiable research questions that must be answered to real
    | RQ1 | ... | ... | High/Medium/Low |
 
 Good research questions are the foundation of good research. Be precise." 2>&1 | tee -a "$LOG_FILE"
+    exit_code=${PIPESTATUS[0]}
+    set -e  # Re-enable exit on error
 
-    if [[ ! -f "$output_file" ]]; then
-        log_error "R3 did not produce $output_file"
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    log_info "R3 claude finished at $(date '+%H:%M:%S') after ${duration}s with exit code ${exit_code}"
+
+    if [[ $exit_code -eq 124 ]]; then
+        log_error "R3 TIMEOUT after ${R3_RQ_FORMULATION_MINUTES} minutes"
+    elif [[ $exit_code -ne 0 ]]; then
+        log_error "R3 claude failed with exit code ${exit_code}"
+    fi
+
+    if [[ ! -s "$output_file" ]]; then
+        log_error "R3 did not produce content in $output_file"
         return 1
     fi
 
@@ -540,26 +594,34 @@ run_r4_deep_literature_review() {
     local research_date
     research_date=$(date +%Y-%m-%d)
 
-    $timeout_cmd claude \
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$output_file"
+
+    local start_time end_time duration exit_code
+    start_time=$(date +%s)
+    log_info "R4 starting claude at $(date '+%H:%M:%S')"
+
+    set +e  # Don't exit on error
+    $timeout_cmd claude --permission-mode acceptEdits \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         --allowedTools "mcp__idea-pool__read_idea,Read,Write,WebSearch" \
         -p "You are conducting Phase R4: Deep Literature Review for idea ${idea_id}.
 
 ## Goal
 Comprehensive literature review focused on answering the research questions from R3.
 
-## Context
-- Read the research questions: ${r3_file}
-
 ## Instructions
 
-1. For EACH research question, conduct targeted literature search:
+1. First, read the research questions using the Read tool: ${r3_file}
+
+2. For EACH research question, conduct targeted literature search:
    - Academic databases: arXiv, Google Scholar, ACM DL, IEEE Xplore
    - Search for: theoretical foundations, methodologies, empirical results
    - Find contradictory findings and debates in the field
 
-2. Aim for 10+ relevant sources total (not per RQ)
+3. Aim for 10+ relevant sources total (not per RQ)
 
-3. Write to: ${output_file}
+4. Write to: ${output_file}
 
    Structure:
 
@@ -612,9 +674,21 @@ Comprehensive literature review focused on answering the research questions from
    ...
 
 Quality matters: cite properly, summarize accurately, note limitations." 2>&1 | tee -a "$LOG_FILE"
+    exit_code=${PIPESTATUS[0]}
+    set -e  # Re-enable exit on error
 
-    if [[ ! -f "$output_file" ]]; then
-        log_error "R4 did not produce $output_file"
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    log_info "R4 claude finished at $(date '+%H:%M:%S') after ${duration}s with exit code ${exit_code}"
+
+    if [[ $exit_code -eq 124 ]]; then
+        log_error "R4 TIMEOUT after ${R4_LITERATURE_REVIEW_MINUTES} minutes"
+    elif [[ $exit_code -ne 0 ]]; then
+        log_error "R4 claude failed with exit code ${exit_code}"
+    fi
+
+    if [[ ! -s "$output_file" ]]; then
+        log_error "R4 did not produce content in $output_file"
         return 1
     fi
 
@@ -644,24 +718,40 @@ run_r5_research_execution() {
     local research_date
     research_date=$(date +%Y-%m-%d)
 
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$output_file"
+
     # Create experiments subdirectory
     mkdir -p "$idea_work_dir/experiments"
 
-    $timeout_cmd claude \
-        --allowedTools "mcp__idea-pool__read_idea,Read,Write,Edit,Bash,Glob,Grep,WebSearch" \
+    local start_time end_time duration exit_code
+    start_time=$(date +%s)
+    log_info "R5 starting claude at $(date '+%H:%M:%S')"
+
+    # Run claude and capture exit code separately from tee
+    set +e  # Don't exit on error
+    $timeout_cmd claude --permission-mode acceptEdits \
+        --max-budget-usd "$MAX_BUDGET_USD" \
+        --allowedTools "mcp__idea-pool__read_idea,mcp__nano-banana__generate,mcp__nano-banana__get_budget,mcp__nano-banana__get_models,Read,Write,Edit,Bash,Glob,Grep,WebSearch" \
         -p "You are conducting Phase R5: Research Execution for idea ${idea_id}.
 
 ## Goal
 Answer the research questions through empirical investigation: experiments, proofs, prototypes, or comparisons.
 
-## Context
-- Read research questions: ${r3_file}
-- Read literature review: ${r4_file}
-- Experiments directory: ${idea_work_dir}/experiments/
+## CRITICAL: Language Requirement
+**ALWAYS use Python** for all code, experiments, prototypes, and scripts.
+Do NOT use TypeScript, JavaScript, or any other language.
+Python 3.11+ is the target runtime.
 
 ## Instructions
 
-For EACH research question, execute the appropriate validation approach:
+1. First, read the required context files:
+   - Use the Read tool to read research questions: ${r3_file}
+   - Use the Read tool to read literature review: ${r4_file}
+   - If it exists, read implementation context: ${idea_work_dir}/implementation-context.md
+   - Experiments directory for your code: ${idea_work_dir}/experiments/
+
+2. For EACH research question, execute the appropriate validation approach:
 
 | RQ Type | Approach |
 |---------|----------|
@@ -670,15 +760,15 @@ For EACH research question, execute the appropriate validation approach:
 | Engineering | Build minimal prototype → Benchmark → Measure |
 | Comparative | Systematic comparison with defined criteria |
 
-For each RQ:
-1. **Setup**: Define methodology, tools, data sources, success criteria
-2. **Execution**: Run the experiment/proof/prototype
-3. **Results**: Raw data, measurements, observations
-4. **Evaluation**: Analyze against hypotheses
-5. **Discussion**: Interpret, note limitations
+3. For each RQ:
+   - **Setup**: Define methodology, tools, data sources, success criteria
+   - **Execution**: Run the experiment/proof/prototype
+   - **Results**: Raw data, measurements, observations
+   - **Evaluation**: Analyze against hypotheses
+   - **Discussion**: Interpret, note limitations
 
-Write code/scripts to: ${idea_work_dir}/experiments/
-Write findings to: ${output_file}
+4. Write code/scripts to: ${idea_work_dir}/experiments/
+5. Write findings to: ${output_file}
 
 Structure:
 
@@ -741,9 +831,23 @@ Structure:
 | experiments/... | ... |
 
 This is the core of the research. Be rigorous, honest about limitations, and let data drive conclusions." 2>&1 | tee -a "$LOG_FILE"
+    exit_code=${PIPESTATUS[0]}
+    set -e  # Re-enable exit on error
 
-    if [[ ! -f "$output_file" ]]; then
-        log_error "R5 did not produce $output_file"
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    log_info "R5 claude finished at $(date '+%H:%M:%S') after ${duration}s with exit code ${exit_code}"
+
+    # Log specific failure reasons
+    if [[ $exit_code -eq 124 ]]; then
+        log_error "R5 TIMEOUT after ${R5_RESEARCH_EXECUTION_MINUTES} minutes"
+    elif [[ $exit_code -ne 0 ]]; then
+        log_error "R5 claude failed with exit code ${exit_code}"
+    fi
+
+    if [[ ! -s "$output_file" ]]; then
+        log_error "R5 did not produce content in $output_file"
+        log_error "R5 experiments dir contents: $(ls -la "$idea_work_dir/experiments/" 2>&1 || echo 'empty/missing')"
         return 1
     fi
 
@@ -772,25 +876,29 @@ run_r6_synthesis() {
     local research_date
     research_date=$(date +%Y-%m-%d)
 
-    $timeout_cmd claude \
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$output_file"
+
+    $timeout_cmd claude --permission-mode acceptEdits \
+        --max-budget-usd "$MAX_BUDGET_USD" \
         --allowedTools "Read,Write" \
         -p "You are conducting Phase R6: Synthesis & Conclusion for idea ${idea_id}.
 
 ## Goal
 Consolidate all research findings into actionable conclusions and a go/no-go decision.
 
-## Context - Read all previous phases:
-- ${idea_work_dir}/r1-prior-art-scan.md
-- ${idea_work_dir}/r2-sub-aspect-research.md
-- ${idea_work_dir}/r3-research-questions.md
-- ${idea_work_dir}/r4-literature-review.md
-- ${idea_work_dir}/r5-research-findings.md
-
 ## Instructions
 
-Synthesize all research into a final report with clear conclusions.
+1. First, use the Read tool to read ALL previous phase outputs:
+   - ${idea_work_dir}/r1-prior-art-scan.md
+   - ${idea_work_dir}/r2-sub-aspect-research.md
+   - ${idea_work_dir}/r3-research-questions.md
+   - ${idea_work_dir}/r4-literature-review.md
+   - ${idea_work_dir}/r5-research-findings.md
 
-Write to: ${output_file}
+2. Synthesize all research into a final report with clear conclusions.
+
+3. Write to: ${output_file}
 
 Structure:
 
@@ -876,8 +984,8 @@ Based on this research:
 
 Final output: State ONLY one word on the last line: proceed, invalidate, or park" 2>&1 | tee -a "$LOG_FILE"
 
-    if [[ ! -f "$output_file" ]]; then
-        log_error "R6 did not produce $output_file"
+    if [[ ! -s "$output_file" ]]; then
+        log_error "R6 did not produce content in $output_file"
         return 1
     fi
 
@@ -995,26 +1103,32 @@ create_prd() {
 
     local prd_file="$idea_work_dir/prd.md"
 
-    claude \
+    # Pre-create output file to avoid permission prompts in subprocess
+    touch "$prd_file"
+
+    claude --permission-mode acceptEdits \
         --allowedTools "mcp__idea-pool__read_idea,mcp__idea-pool__append_to_idea,Read,Write" \
         -p "Create a PRD (Product Requirements Document) for idea ${idea_id}.
 
-## Context
-
-You have access to PhD-level research conducted in 6 phases. Read ALL of these:
-
-1. **Prior Art Scan**: ${idea_work_dir}/r1-prior-art-scan.md
-2. **Sub-Aspect Research**: ${idea_work_dir}/r2-sub-aspect-research.md
-3. **Research Questions**: ${idea_work_dir}/r3-research-questions.md
-4. **Literature Review**: ${idea_work_dir}/r4-literature-review.md
-5. **Research Findings**: ${idea_work_dir}/r5-research-findings.md
-6. **Research Synthesis**: ${idea_work_dir}/r6-research-synthesis.md
-
-Also read the original idea: mcp__idea-pool__read_idea with identifier ${idea_id}
+## CRITICAL: Technology Requirements
+- **Implementation Language**: Python 3.11+ ONLY (no TypeScript/JavaScript)
+- **Ontology Integration**: Use existing ontology-server MCP tools
+- Align with existing infrastructure as specified in implementation-context.md
 
 ## Instructions
 
-Create a comprehensive PRD grounded in the research findings. Write to: ${prd_file}
+1. First, read ALL the research outputs using the Read tool:
+   - ${idea_work_dir}/r1-prior-art-scan.md
+   - ${idea_work_dir}/r2-sub-aspect-research.md
+   - ${idea_work_dir}/r3-research-questions.md
+   - ${idea_work_dir}/r4-literature-review.md
+   - ${idea_work_dir}/r5-research-findings.md
+   - ${idea_work_dir}/r6-research-synthesis.md
+   - ${idea_work_dir}/implementation-context.md (if it exists)
+
+2. Read the original idea using mcp__idea-pool__read_idea with identifier ${idea_id}
+
+3. Create a comprehensive PRD grounded in the research findings. Write to: ${prd_file}
 
 Structure:
 
@@ -1101,8 +1215,8 @@ After writing the PRD, append a summary to the idea using mcp__idea-pool__append
 
 The PRD must be actionable and grounded in research. Avoid speculation not supported by findings." 2>&1 | tee -a "$LOG_FILE"
 
-    if [[ ! -f "$prd_file" ]]; then
-        log_error "PRD creation failed - $prd_file not created"
+    if [[ ! -s "$prd_file" ]]; then
+        log_error "PRD creation failed - $prd_file not created or empty"
         return 1
     fi
 
@@ -1129,8 +1243,8 @@ run_implementation() {
     local prd_file="$idea_work_dir/prd.md"
     local done_file="$idea_work_dir/DONE"
 
-    if [[ ! -f "$prd_file" ]]; then
-        log_error "PRD not found at $prd_file"
+    if [[ ! -s "$prd_file" ]]; then
+        log_error "PRD not found or empty at $prd_file"
         return 1
     fi
 
@@ -1144,11 +1258,16 @@ run_implementation() {
         ((retries++))
         log_info "Implementation attempt $retries/$MAX_IMPLEMENTATION_RETRIES"
 
-        claude \
+        claude --permission-mode acceptEdits \
             --allowedTools "Read,Write,Edit,Bash,Glob,Grep" \
             -p "## Implementation Task
 
 You are implementing a PRD. Work in the current directory: ${idea_work_dir}
+
+## CRITICAL: Language Requirement
+**ALWAYS use Python** for all code and implementation.
+Do NOT use TypeScript, JavaScript, or any other language.
+Python 3.11+ is the target runtime.
 
 ## PRD Content:
 ${prd_content}
@@ -1156,7 +1275,7 @@ ${prd_content}
 ## Instructions
 
 1. Review the PRD and any existing implementation progress
-2. Implement the solution - create files, write code, etc.
+2. Implement the solution using PYTHON ONLY - create files, write code, etc.
 3. Test your implementation
 4. Check each success criterion
 

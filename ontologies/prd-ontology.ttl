@@ -1,0 +1,270 @@
+@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix trace: <http://impl-ralph.io/trace#> .
+@prefix code: <http://impl-ralph.io/code#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+# =============================================================================
+# PRD Ontology for Implementation-Ralph
+# =============================================================================
+#
+# This ontology defines the schema for requirements that Planning-Ralph creates
+# and Implementation-Ralph consumes.
+#
+# Usage:
+#   - Planning-Ralph: Creates prd:Requirement instances with dependencies
+#   - Implementation-Ralph: Reads requirements, creates trace links, validates completion
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Ontology Metadata
+# -----------------------------------------------------------------------------
+
+<http://impl-ralph.io/prd> a owl:Ontology ;
+    rdfs:label "PRD Ontology" ;
+    rdfs:comment "Requirements ontology for Implementation-Ralph" ;
+    owl:versionInfo "1.0.0" .
+
+# -----------------------------------------------------------------------------
+# Classes
+# -----------------------------------------------------------------------------
+
+prd:Requirement a rdfs:Class, owl:Class ;
+    rdfs:label "Requirement" ;
+    rdfs:comment "A single implementable requirement or task from the PRD" .
+
+prd:AcceptanceCriteria a rdfs:Class, owl:Class ;
+    rdfs:label "Acceptance Criteria" ;
+    rdfs:comment "A specific success condition for requirement verification" .
+
+# -----------------------------------------------------------------------------
+# Status Values (Individuals)
+# -----------------------------------------------------------------------------
+
+prd:Pending a prd:Status ;
+    rdfs:label "Pending" ;
+    rdfs:comment "Requirement has not been started" .
+
+prd:InProgress a prd:Status ;
+    rdfs:label "In Progress" ;
+    rdfs:comment "Requirement is currently being implemented" .
+
+prd:Complete a prd:Status ;
+    rdfs:label "Complete" ;
+    rdfs:comment "Requirement has been implemented and verified" .
+
+prd:Blocked a prd:Status ;
+    rdfs:label "Blocked" ;
+    rdfs:comment "Requirement cannot proceed due to unmet dependencies or issues" .
+
+# -----------------------------------------------------------------------------
+# Priority Values (Individuals)
+# -----------------------------------------------------------------------------
+
+prd:P0 a prd:Priority ;
+    rdfs:label "P0 - Critical" ;
+    rdfs:comment "Must be implemented first (critical path)" .
+
+prd:P1 a prd:Priority ;
+    rdfs:label "P1 - Important" ;
+    rdfs:comment "Should be implemented after P0 items" .
+
+prd:P2 a prd:Priority ;
+    rdfs:label "P2 - Nice to Have" ;
+    rdfs:comment "Can be deferred if time is limited" .
+
+# -----------------------------------------------------------------------------
+# Properties - Core
+# -----------------------------------------------------------------------------
+
+prd:title a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "title" ;
+    rdfs:comment "Short name/title for the requirement" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+prd:description a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "description" ;
+    rdfs:comment "Full description of what needs to be implemented" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+prd:status a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "status" ;
+    rdfs:comment "Current implementation status" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range prd:Status .
+
+prd:priority a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "priority" ;
+    rdfs:comment "Implementation priority level" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range prd:Priority .
+
+# -----------------------------------------------------------------------------
+# Properties - Dependencies
+# -----------------------------------------------------------------------------
+
+prd:dependsOn a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "depends on" ;
+    rdfs:comment "This requirement depends on another being complete first" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range prd:Requirement .
+
+prd:blocks a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "blocks" ;
+    rdfs:comment "This requirement blocks another from starting" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range prd:Requirement ;
+    owl:inverseOf prd:dependsOn .
+
+# -----------------------------------------------------------------------------
+# Properties - Metadata
+# -----------------------------------------------------------------------------
+
+prd:taskId a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "task ID" ;
+    rdfs:comment "Original task identifier from planning (e.g., '1.1', '2.3')" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+prd:phase a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "phase" ;
+    rdfs:comment "Implementation phase number (1, 2, 3, ...)" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:integer .
+
+prd:files a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "files" ;
+    rdfs:comment "File paths to create or modify for this requirement" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+prd:action a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "action" ;
+    rdfs:comment "What to do with the target files: 'create' for new files, 'modify' for editing existing files in their native language. When action is 'modify', the implementation agent MUST read the file first and edit it in place using the file's own language (bash for .sh, markdown for .md, Typst for .typ, etc.). When action is 'create', use Python unless specified otherwise." ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+prd:verification a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "verification" ;
+    rdfs:comment "How to verify the requirement is complete" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+prd:ideaId a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "idea ID" ;
+    rdfs:comment "Reference to the source idea in idea-pool" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
+# -----------------------------------------------------------------------------
+# Properties - Acceptance Criteria
+# -----------------------------------------------------------------------------
+
+prd:hasCriteria a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "has criteria" ;
+    rdfs:comment "Links requirement to its acceptance criteria" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range prd:AcceptanceCriteria .
+
+prd:criteriaText a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "criteria text" ;
+    rdfs:comment "Text description of the acceptance criterion" ;
+    rdfs:domain prd:AcceptanceCriteria ;
+    rdfs:range xsd:string .
+
+prd:criteriaMet a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "criteria met" ;
+    rdfs:comment "Whether this criterion has been satisfied" ;
+    rdfs:domain prd:AcceptanceCriteria ;
+    rdfs:range xsd:boolean .
+
+# =============================================================================
+# Trace Ontology (links code to requirements)
+# =============================================================================
+
+trace:implements a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "implements" ;
+    rdfs:comment "Code component implements this requirement" ;
+    rdfs:domain code:Function, code:Class ;
+    rdfs:range prd:Requirement .
+
+trace:verifies a rdf:Property, owl:ObjectProperty ;
+    rdfs:label "verifies" ;
+    rdfs:comment "Test verifies this requirement" ;
+    rdfs:domain code:Test ;
+    rdfs:range prd:Requirement .
+
+trace:createdAt a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "created at" ;
+    rdfs:comment "Timestamp when trace link was created" ;
+    rdfs:domain owl:Thing ;
+    rdfs:range xsd:dateTime .
+
+trace:createdBy a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "created by" ;
+    rdfs:comment "Agent/process that created the trace link" ;
+    rdfs:domain owl:Thing ;
+    rdfs:range xsd:string .
+
+# =============================================================================
+# SHACL Shapes for Validation
+# =============================================================================
+
+# Shape: Requirement must have title, description, status
+prd:RequirementShape a sh:NodeShape ;
+    sh:targetClass prd:Requirement ;
+    sh:property [
+        sh:path prd:title ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Requirement must have exactly one title"
+    ] ;
+    sh:property [
+        sh:path prd:description ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message "Requirement must have a description"
+    ] ;
+    sh:property [
+        sh:path prd:status ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "Requirement must have exactly one status"
+    ] .
+
+# Shape: Complete requirement must have implementing code
+prd:FullyImplementedShape a sh:NodeShape ;
+    sh:targetClass prd:Requirement ;
+    sh:property [
+        sh:path [ sh:inversePath trace:implements ] ;
+        sh:minCount 1 ;
+        sh:message "Complete requirement must have at least one implementing component"
+    ] ;
+    sh:property [
+        sh:path prd:status ;
+        sh:hasValue prd:Complete ;
+        sh:message "Status must be Complete"
+    ] .
+
+# Shape: Ready requirement (all dependencies satisfied)
+prd:ReadyRequirementShape a sh:NodeShape ;
+    sh:targetClass prd:Requirement ;
+    sh:sparql [
+        sh:message "Requirement has unsatisfied dependencies" ;
+        sh:prefixes prd: ;
+        sh:select """
+            SELECT $this
+            WHERE {
+                $this prd:dependsOn ?dep .
+                ?dep prd:status ?status .
+                FILTER(?status != prd:Complete)
+            }
+        """
+    ] .
