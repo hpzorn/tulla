@@ -21,19 +21,16 @@ run_preflight_hygiene() {
     local hygiene_result
     hygiene_result=$(timeout 5m claude --permission-mode acceptEdits \
         --max-budget-usd "$budget" \
-        --allowedTools "mcp__ontology-server__recall_facts,mcp__ontology-server__forget_fact,mcp__ontology-server__store_fact" \
-        -p "You are a hygiene agent. Surgically reset non-Pending requirement statuses in context '${prd_context}'.
+        --allowedTools "mcp__ontology-server__recall_facts,mcp__ontology-server__forget_by_context,mcp__ontology-server__store_fact" \
+        -p "You are a hygiene agent. Your task is to reset all requirement statuses in ontology-server context '${prd_context}' to Pending.
 
 ## Steps:
-1. Use mcp__ontology-server__recall_facts with context='${prd_context}' and predicate='prd:status' to get ONLY status facts.
-2. For each status fact that is NOT already 'prd:Pending':
-   a. Use mcp__ontology-server__forget_fact with the fact_id to remove the old status.
-   b. Use mcp__ontology-server__store_fact to store a new fact with the same subject, predicate='prd:status', object='prd:Pending', context='${prd_context}'.
-3. Also forget any prd:verificationVerdict facts: recall_facts with predicate='prd:verificationVerdict' and context='${prd_context}', then forget_fact each one.
-4. Skip facts that are already 'prd:Pending' — do NOT touch them.
-5. On the FINAL line, output exactly: HYGIENE_COMPLETE or HYGIENE_ERROR.
+1. Use mcp__ontology-server__recall_facts with context='${prd_context}' to get ALL facts.
+2. Use mcp__ontology-server__forget_by_context with context='${prd_context}' to wipe the entire context.
+3. Re-store ALL facts using mcp__ontology-server__store_fact, but set every prd:status to 'prd:Pending' (overriding any Complete/InProgress statuses). Preserve all other properties exactly as they were (rdf:type, prd:title, prd:taskId, prd:description, prd:priority, prd:phase, prd:files, prd:action, prd:dependsOn, etc.).
+4. On the FINAL line, output exactly: HYGIENE_COMPLETE if all facts were re-stored successfully, or HYGIENE_ERROR if anything failed.
 
-This is a surgical update — only touch status/verdict facts that need changing, not the entire context." 2>&1 | tee -a "$log_file")
+Be thorough — every single fact must be re-stored." 2>&1 | tee -a "$log_file")
 
     if echo "$hygiene_result" | grep -q "HYGIENE_COMPLETE"; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] Pre-flight hygiene completed successfully" | tee -a "$log_file"
