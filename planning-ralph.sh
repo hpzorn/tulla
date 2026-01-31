@@ -476,8 +476,18 @@ run_p3_architecture_design() {
     local p1_file="$planning_work_dir/p1-discovery-context.md"
     local p2_file="$planning_work_dir/p2-codebase-analysis.md"
     local output_file="$planning_work_dir/p3-architecture-design.md"
+    local schema_context_file="$SCRIPT_DIR/prompts/isaqb-schema-context.md"
 
     log_info "P3: Architecture Design (${P3_ARCHITECTURE_DESIGN_MINUTES} min time-box)"
+
+    # Load iSAQB schema context if available
+    local schema_context_block=""
+    if [[ -f "$schema_context_file" ]]; then
+        schema_context_block=$(cat "$schema_context_file")
+        log_info "P3: Loaded iSAQB schema context from $schema_context_file"
+    else
+        log_warn "P3: iSAQB schema context not found at $schema_context_file — proceeding without"
+    fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY RUN] Would design architecture"
@@ -491,7 +501,7 @@ run_p3_architecture_design() {
 
     $timeout_cmd claude \
         --max-budget-usd "$MAX_BUDGET_USD" \
-        --allowedTools "Read,Write" \
+        --allowedTools "Read,Write,mcp__ontology-server__query_ontology,mcp__ontology-server__sparql_query" \
         -p "You are conducting Phase P3: Architecture Design for idea ${idea_id}.
 
 ## Goal
@@ -503,6 +513,15 @@ Minimize new code; maximize reuse of existing capabilities.
 - Codebase analysis: ${p2_file}
 
 Read both files thoroughly before designing.
+
+## iSAQB Architecture Schema
+
+${schema_context_block}
+
+Use the iSAQB schema above to inform your architecture design. You can query
+the ontology-server via SPARQL (mcp__ontology-server__query_ontology or
+mcp__ontology-server__sparql_query) to look up patterns, quality attributes,
+tradeoffs, and design principles relevant to this idea.
 
 ## Instructions
 
