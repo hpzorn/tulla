@@ -15,7 +15,7 @@
 #   R5: Research Execution    (60 min) - Experiments/proofs/prototypes
 #   R6: Synthesis             (15 min) - Conclusions + go/no-go
 #
-# Usage: ./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID] [--interactive]
+# Usage: ./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID] [--interactive] [--start-from R#]
 #
 # Reference: https://ghuntley.com/ralph/
 
@@ -42,6 +42,8 @@ DRY_RUN="${DRY_RUN:-false}"
 SINGLE_RUN="${SINGLE_RUN:-false}"
 SPECIFIC_IDEA="${SPECIFIC_IDEA:-}"
 INTERACTIVE="${INTERACTIVE:-false}"
+START_FROM_PHASE="${START_FROM_PHASE:-R1}"
+WORK_DIR_OVERRIDE="${WORK_DIR_OVERRIDE:-}"
 
 # Budget Control (for --print mode API calls)
 MAX_BUDGET_USD="${MAX_BUDGET_USD:-5.00}"
@@ -80,8 +82,16 @@ while [[ $# -gt 0 ]]; do
             MAX_BUDGET_USD="$2"
             shift 2
             ;;
+        --start-from)
+            START_FROM_PHASE="$2"
+            shift 2
+            ;;
+        --work-dir)
+            WORK_DIR_OVERRIDE="$2"
+            shift 2
+            ;;
         --help|-h)
-            echo "Usage: $0 [--once] [--dry-run] [--idea IDEA_ID] [--interactive] [--max-budget USD]"
+            echo "Usage: $0 [--once] [--dry-run] [--idea IDEA_ID] [--interactive] [--max-budget USD] [--start-from PHASE]"
             echo ""
             echo "Options:"
             echo "  --once           Run once and exit (don't loop)"
@@ -89,6 +99,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --idea ID        Process a specific idea by number or pattern"
             echo "  --interactive    Pause for human review between phases"
             echo "  --max-budget USD Max API cost per Claude call (default: 5.00)"
+            echo "  --start-from R#  Skip phases before R# (R1-R6), requires pre-seeded output files"
+            echo "  --work-dir DIR   Use existing work directory (for pre-seeded phase outputs)"
             echo "  --help           Show this help message"
             exit 0
             ;;
@@ -1003,6 +1015,42 @@ Final output: State ONLY one word on the last line: proceed, invalidate, or park
 }
 
 # -----------------------------------------------------------------------------
+# Phase Skip Logic (--start-from support)
+# -----------------------------------------------------------------------------
+
+# Convert phase name to numeric order for comparison
+phase_to_num() {
+    case "$1" in
+        R1) echo 1 ;; R2) echo 2 ;; R3) echo 3 ;;
+        R4) echo 4 ;; R5) echo 5 ;; R6) echo 6 ;;
+        *) log_error "Invalid phase: $1 (must be R1-R6)"; exit 1 ;;
+    esac
+}
+
+# Returns 0 (true) if phase should be skipped, 1 (false) if it should run.
+# Skips when: phase < START_FROM_PHASE AND output file exists.
+# Exits fatally if: phase < START_FROM_PHASE but output file is missing.
+should_skip_phase() {
+    local phase="$1"
+    local output_file="$2"
+    local phase_num start_num
+
+    phase_num=$(phase_to_num "$phase")
+    start_num=$(phase_to_num "$START_FROM_PHASE")
+
+    if [[ "$phase_num" -lt "$start_num" ]]; then
+        if [[ -s "$output_file" ]]; then
+            return 0  # skip
+        else
+            log_error "$phase: --start-from $START_FROM_PHASE requires pre-seeded output at $output_file"
+            exit 1  # fatal — missing prerequisite
+        fi
+    fi
+
+    return 1  # don't skip, run the phase
+}
+
+# -----------------------------------------------------------------------------
 # Main Research Protocol Orchestrator
 # -----------------------------------------------------------------------------
 run_research_protocol() {
@@ -1011,37 +1059,53 @@ run_research_protocol() {
 
     log_phase "2. RESEARCH PROTOCOL - PhD-Level Investigation"
     log_info "Total estimated time: ~$((R1_PRIOR_ART_MINUTES + R2_SUB_ASPECT_MINUTES + R3_RQ_FORMULATION_MINUTES + R4_LITERATURE_REVIEW_MINUTES + R5_RESEARCH_EXECUTION_MINUTES + R6_SYNTHESIS_MINUTES)) minutes"
+    if [[ "$START_FROM_PHASE" != "R1" ]]; then
+        log_info "Starting from phase $START_FROM_PHASE (skipping earlier phases with pre-seeded outputs)"
+    fi
 
     # R1: Prior Art Scan
     local r1_verdict
-    r1_verdict=$(run_r1_prior_art_scan "$idea_id" "$idea_work_dir")
+    if should_skip_phase "R1" "$idea_work_dir/r1-prior-art-scan.md"; then
+        log_info "R1: Skipping (output exists, --start-from $START_FROM_PHASE)"
+        r1_verdict="novel"
+    else
+        r1_verdict=$(run_r1_prior_art_scan "$idea_id" "$idea_work_dir")
 
-    if [[ "$r1_verdict" == "derivative" ]]; then
-        log_warn "R1 found idea is derivative of existing work"
-        set_lifecycle "$idea_id" "invalidated" "Prior art scan found idea is derivative"
-        return 1
+        if [[ "$r1_verdict" == "derivative" ]]; then
+            log_warn "R1 found idea is derivative of existing work"
+            set_lifecycle "$idea_id" "invalidated" "Prior art scan found idea is derivative"
+            return 1
+        fi
     fi
 
     # R2: Sub-Aspect Research
-    if ! run_r2_sub_aspect_research "$idea_id" "$idea_work_dir"; then
+    if should_skip_phase "R2" "$idea_work_dir/r2-sub-aspect-research.md"; then
+        log_info "R2: Skipping (output exists, --start-from $START_FROM_PHASE)"
+    elif ! run_r2_sub_aspect_research "$idea_id" "$idea_work_dir"; then
         log_error "R2 failed"
         return 1
     fi
 
     # R3: Research Question Formulation
-    if ! run_r3_rq_formulation "$idea_id" "$idea_work_dir"; then
+    if should_skip_phase "R3" "$idea_work_dir/r3-research-questions.md"; then
+        log_info "R3: Skipping (output exists, --start-from $START_FROM_PHASE)"
+    elif ! run_r3_rq_formulation "$idea_id" "$idea_work_dir"; then
         log_error "R3 failed"
         return 1
     fi
 
     # R4: Deep Literature Review
-    if ! run_r4_deep_literature_review "$idea_id" "$idea_work_dir"; then
+    if should_skip_phase "R4" "$idea_work_dir/r4-literature-review.md"; then
+        log_info "R4: Skipping (output exists, --start-from $START_FROM_PHASE)"
+    elif ! run_r4_deep_literature_review "$idea_id" "$idea_work_dir"; then
         log_error "R4 failed"
         return 1
     fi
 
     # R5: Research Execution
-    if ! run_r5_research_execution "$idea_id" "$idea_work_dir"; then
+    if should_skip_phase "R5" "$idea_work_dir/r5-research-findings.md"; then
+        log_info "R5: Skipping (output exists, --start-from $START_FROM_PHASE)"
+    elif ! run_r5_research_execution "$idea_id" "$idea_work_dir"; then
         log_error "R5 failed"
         return 1
     fi
@@ -1372,8 +1436,13 @@ $(cat "$idea_work_dir/DONE" 2>/dev/null || echo "See work directory for details"
 process_idea() {
     local idea_id="$1"
 
-    # Create work directory for this idea run
-    local idea_work_dir="$WORK_DIR/idea-$idea_id-$(date +%Y%m%d-%H%M%S)"
+    # Create or reuse work directory for this idea run
+    local idea_work_dir
+    if [[ -n "$WORK_DIR_OVERRIDE" ]]; then
+        idea_work_dir="$WORK_DIR_OVERRIDE"
+    else
+        idea_work_dir="$WORK_DIR/idea-$idea_id-$(date +%Y%m%d-%H%M%S)"
+    fi
     mkdir -p "$idea_work_dir"
 
     log_info "Processing idea: $idea_id"

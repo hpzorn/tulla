@@ -209,6 +209,40 @@ find_discovery_dir() {
 }
 
 # =============================================================================
+# Helper: Find research directory (optional — only for downstream research
+# that answered discovery's RQs)
+# =============================================================================
+
+find_research_dir() {
+    local idea_id="$1"
+
+    local candidates=()
+
+    # Look for custom-named research directories
+    for dir in "$WORK_DIR"/idea-"${idea_id}"-research "$WORK_DIR"/idea-"${idea_id}"-[0-9]*; do
+        if [[ -d "$dir" ]]; then
+            candidates+=("$dir")
+        fi
+    done
+
+    # Pick the most recent directory that has an r3 (RQ) file — this confirms
+    # it was a research run, not just a work directory
+    local best=""
+    for dir in "${candidates[@]}"; do
+        if [[ -f "$dir/r3-research-questions.md" ]]; then
+            best="$dir"
+        fi
+    done
+
+    if [[ -n "$best" ]]; then
+        echo "$best"
+        return 0
+    fi
+
+    return 1  # no research dir found — not an error, research is optional
+}
+
+# =============================================================================
 # Helper: Get timeout command
 # =============================================================================
 
@@ -231,12 +265,19 @@ run_p1_discovery_load() {
     local idea_id="$1"
     local planning_work_dir="$2"
     local discovery_dir="$3"
+    local research_dir="${4:-}"
     local output_file="$planning_work_dir/p1-discovery-context.md"
 
     log_info "P1: Load Discovery Context (${P1_DISCOVERY_LOAD_MINUTES} min time-box)"
+    if [[ -n "$research_dir" ]]; then
+        log_info "P1: Including downstream research findings from $research_dir"
+    fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY RUN] Would load discovery from $discovery_dir"
+        if [[ -n "$research_dir" ]]; then
+            log_info "[DRY RUN] Would also load research from $research_dir"
+        fi
         return 0
     fi
 
@@ -245,13 +286,47 @@ run_p1_discovery_load() {
     local planning_date
     planning_date=$(date +%Y-%m-%d)
 
+    # Build research loading instructions (only if research dir exists)
+    local research_instructions=""
+    local research_output_section=""
+    if [[ -n "$research_dir" ]]; then
+        research_instructions="
+3. Read downstream research findings from: ${research_dir}
+   These are answers to the research questions identified in discovery (D4/D5).
+   - r3-research-questions.md (the RQs that were investigated)
+   - r4-literature-review.md (literature review per RQ)
+   - r5-research-findings.md (experiments and prototypes)
+   - r6-research-synthesis.md (conclusions and recommendations)
+
+   Use Glob to find files if names vary slightly.
+   These findings SUPERSEDE the open questions from D5 — the RQs have been answered.
+"
+        research_output_section="
+   ## Research Findings (answers to discovery RQs)
+   **Research Source**: ${research_dir}
+
+   For each RQ that was investigated:
+   ### RQ: [question]
+   **Answer**: [key finding from R4/R5/R6]
+   **Implication for planning**: [how this constrains or informs the architecture]
+
+   ## Resolved Blockers
+   [List blockers from D4 that are now resolved by research, with the resolution]
+"
+    fi
+
+    local step_after_discovery="3"
+    if [[ -n "$research_dir" ]]; then
+        step_after_discovery="4"
+    fi
+
     $timeout_cmd claude \
         --max-budget-usd "$MAX_BUDGET_USD" \
         --allowedTools "mcp__idea-pool__read_idea,Read,Write,Glob" \
         -p "You are conducting Phase P1: Load Discovery Context for idea ${idea_id}.
 
 ## Goal
-Load and synthesize all discovery documents into a unified planning context.
+Load and synthesize all discovery documents$(if [[ -n "$research_dir" ]]; then echo " and downstream research findings"; fi) into a unified planning context.
 
 ## Instructions
 
@@ -266,8 +341,8 @@ Load and synthesize all discovery documents into a unified planning context.
    - DISCOVERY-SUMMARY.md (summary)
 
    Use Glob to find files if names vary slightly.
-
-3. Write a consolidated context to: ${output_file}
+${research_instructions}
+${step_after_discovery}. Write a consolidated context to: ${output_file}
 
    Structure:
 
@@ -300,9 +375,9 @@ Load and synthesize all discovery documents into a unified planning context.
    | Gap | Priority | Type |
    |-----|----------|------|
    | ... | P0/P1/P2 | Implementation/Research/Design |
-
+${research_output_section}
    ## Open Research Questions (from D5)
-   [List any questions that need research-ralph, or 'None' if all clear]
+   [List any questions that still need research-ralph, or 'None — all resolved by downstream research' if research answered them]
 
    ## Planning Constraints
    - Must use: [existing tools/patterns]
@@ -1137,6 +1212,16 @@ process_idea() {
 
     log_info "Found discovery at: $discovery_dir"
 
+    # Find research directory (optional — only exists if research-ralph ran
+    # downstream of discovery to answer RQs from D4/D5)
+    local research_dir=""
+    if research_dir=$(find_research_dir "$idea_id"); then
+        log_info "Found downstream research at: $research_dir"
+    else
+        log_info "No downstream research found (proceeding with discovery only)"
+        research_dir=""
+    fi
+
     # Create planning work directory
     local planning_work_dir="$WORK_DIR/planning-$idea_id-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$planning_work_dir"
@@ -1144,9 +1229,9 @@ process_idea() {
     log_info "Processing idea: $idea_id"
     log_info "Planning work directory: $planning_work_dir"
 
-    # Phase P1: Load Discovery Context
+    # Phase P1: Load Discovery Context (+ research findings if available)
     log_phase "P1. DISCOVERY LOAD"
-    if ! run_p1_discovery_load "$idea_id" "$planning_work_dir" "$discovery_dir"; then
+    if ! run_p1_discovery_load "$idea_id" "$planning_work_dir" "$discovery_dir" "$research_dir"; then
         log_error "P1 failed"
         return 1
     fi
