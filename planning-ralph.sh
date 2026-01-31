@@ -539,11 +539,38 @@ Structure:
 **Idea**: ${idea_id}
 **Date**: ${planning_date}
 
-## Design Principles
+## Quality Goals (isaqb:QualityGoal)
 
-1. [Principle 1 from the analysis]
-2. [Principle 2]
-...
+Select the top-3-to-5 quality attributes (from ISO 25010:2023 via the schema) for this project.
+Query isaqb:conflictsWith to identify tradeoffs between them.
+
+| Priority | Quality Attribute | Sub-Attributes | Rationale |
+|----------|-------------------|----------------|-----------|
+| 1 | [e.g. Maintainability] | [Modularity, Testability] | [Why this matters for this idea] |
+| 2 | [e.g. Reliability] | [FaultTolerance] | [Why] |
+| ... | ... | ... | ... |
+
+### Quality Tradeoffs
+
+| Attribute A | conflicts with | Attribute B | Resolution |
+|-------------|---------------|-------------|------------|
+| [e.g. PerformanceEfficiency] | ↔ | [e.g. Maintainability] | [How we resolve this tension] |
+
+## Design Principles (isaqb:DesignPrinciple)
+
+For each principle, note which isaqb:PrincipleCategory it belongs to.
+
+1. **[Principle Name]** (Category: [Abstraction/Modularization/...]) — [How it applies here]
+2. ...
+
+## Architectural Patterns (isaqb:ArchitecturalPattern)
+
+Query isaqb:addresses and isaqb:embodies to select patterns that match our quality goals and principles.
+
+| Pattern | Addresses Quality | Embodies Principle | Relevance |
+|---------|------------------|--------------------|-----------|
+| [e.g. Ports & Adapters] | [Maintainability, Testability] | [Separation of Concerns] | R1 |
+| ... | ... | ... | ... |
 
 ## System Architecture
 
@@ -555,7 +582,7 @@ Structure:
               [Component C]
 \`\`\`
 
-### Components
+### Building Blocks (isaqb:ArchitecturalView — BuildingBlock)
 
 #### Component: [Name]
 **Type**: [New/Existing/Extended]
@@ -564,8 +591,13 @@ Structure:
 **Inputs**: [What it receives]
 **Outputs**: [What it produces]
 **Dependencies**: [What it needs]
+**Realizes Pattern**: [isaqb:ArchitecturalPattern or DesignPattern if applicable]
 
 [Repeat for each component...]
+
+### Runtime View (isaqb:ArchitecturalView — Runtime)
+
+[Sequence of interactions between building blocks at runtime]
 
 ## Data Flow
 
@@ -586,6 +618,42 @@ Structure:
 ### New Orchestration Layer
 [What new code is needed to connect things]
 
+## Cross-Cutting Concerns (isaqb:CrossCuttingConcern)
+
+| Concern | Category | Governed By (Decision) | Affected Components |
+|---------|----------|----------------------|---------------------|
+| [e.g. Error Handling] | [Architecture/Design] | [ADR-N] | [Component list] |
+| [e.g. Logging] | [Under-the-Hood] | [ADR-N] | [Component list] |
+
+## Architecture Decisions (isaqb:ArchitectureDecision)
+
+For each key decision, create an ADR with context, options, rationale, and consequences.
+Link to quality attributes via isaqb:addresses/isaqb:challenges.
+
+### ADR-1: [Decision Title]
+**Status**: Proposed
+**Context**: [Why this decision is needed]
+**Options Considered**:
+1. [Option A] — [pros/cons]
+2. [Option B] — [pros/cons]
+**Decision**: [Chosen option]
+**Rationale**: [Why this option was chosen]
+**Consequences**:
+- Addresses: [quality attributes positively affected]
+- Challenges: [quality attributes negatively affected]
+- Mitigates: [risks addressed]
+
+[Repeat for each major decision...]
+
+## Quality Scenarios (isaqb:QualityScenario)
+
+Write testable quality scenarios for the top quality goals.
+
+| ID | Quality Attribute | Stimulus | Environment | Response | Measure |
+|----|-------------------|----------|-------------|----------|---------|
+| QS-1 | [e.g. Reliability] | [Trigger event] | [Under what conditions] | [System behavior] | [Measurable threshold] |
+| QS-2 | ... | ... | ... | ... | ... |
+
 ## File Structure
 
 \`\`\`
@@ -597,12 +665,11 @@ Structure:
     └── [file4] - [purpose]
 \`\`\`
 
-## Key Decisions
+## Risk Assessment (isaqb:Risk)
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| [Decision 1] | [Choice] | [Why] |
-| [Decision 2] | [Choice] | [Why] |
+| Risk | Severity | Likelihood | Mitigation | Mitigated By (Decision) |
+|------|----------|------------|------------|------------------------|
+| [Risk 1] | [Critical/High/Medium/Low] | [High/Medium/Low] | [How to handle] | [ADR-N if applicable] |
 
 ## Unknowns Requiring Research
 
@@ -612,13 +679,8 @@ Structure:
 
 If 'Yes' to any blocking unknown, we will emit research requests in P5.
 
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|------------|
-| [Risk 1] | [How to handle] |
-
-Be concrete and specific. This design will be translated directly into implementation tasks." 2>&1 | tee -a "$LOG_FILE"
+Be concrete and specific. This design will be translated directly into implementation tasks.
+Link requirements to quality attributes (isaqb:addressesQuality) and decisions (isaqb:justifiedBy) where applicable." 2>&1 | tee -a "$LOG_FILE"
 
     if [[ ! -f "$output_file" ]]; then
         log_error "P3 did not produce $output_file"
