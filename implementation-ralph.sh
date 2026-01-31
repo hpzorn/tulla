@@ -323,6 +323,7 @@ git_commit_requirement() {
 #   Returns 0 on PASS, 1 on FAIL.
 run_verifier() {
     local req_id="$1"
+    local schema_context_file="$SCRIPT_DIR/prompts/isaqb-schema-context.md"
     log "--- Phase 4: Verifying $req_id ---"
 
     if [[ "$NO_VERIFY" == "true" ]]; then
@@ -331,11 +332,24 @@ run_verifier() {
         return 0
     fi
 
+    # Load iSAQB schema context if available
+    local schema_context_block=""
+    if [[ -f "$schema_context_file" ]]; then
+        schema_context_block=$(cat "$schema_context_file")
+        log "Loaded iSAQB schema context for verification from $schema_context_file"
+    else
+        log "WARNING: iSAQB schema context not found at $schema_context_file — proceeding without"
+    fi
+
     local verify_result
     verify_result=$(timeout 5m claude --permission-mode acceptEdits \
         --max-budget-usd 2.00 \
-        --allowedTools "mcp__ontology-server__recall_facts,Read,Glob,Bash" \
+        --allowedTools "mcp__ontology-server__recall_facts,mcp__ontology-server__query_ontology,mcp__ontology-server__sparql_query,Read,Glob,Bash" \
         -p "You are a verification agent. Verify that requirement ${req_id} from PRD context '${PRD_CONTEXT}' has been correctly implemented.
+
+## iSAQB Architecture Schema
+
+${schema_context_block}
 
 ## Steps:
 1. Use mcp__ontology-server__recall_facts with subject='${req_id}' and context='${PRD_CONTEXT}' to get the requirement details.
@@ -345,11 +359,21 @@ run_verifier() {
 5. Perform the verification checks described in prd:verification.
    - Use Read to inspect files.
    - Use Bash ONLY for read-only commands (grep, bash -n, etc.) — NEVER modify files.
-6. On the FINAL line, output exactly one of:
+6. Perform iSAQB-aware verification:
+   - If the implementation involves architecture decisions, verify they reference
+     isaqb:ArchitectureDecision properties (context, options, rationale, consequences).
+   - If the implementation involves quality attributes, verify they align with
+     isaqb:QualityAttribute and isaqb:QualityScenario structures.
+   - If the implementation involves design patterns or architectural patterns, verify
+     they reference isaqb:ArchitecturalPattern or isaqb:DesignPattern correctly.
+   - Use mcp__ontology-server__query_ontology or mcp__ontology-server__sparql_query
+     to cross-check referenced iSAQB concepts exist in the ontology.
+7. On the FINAL line, output exactly one of:
    - VERIFY_PASS: ${req_id} — if the implementation matches the requirement
    - VERIFY_FAIL: ${req_id} [specific reason for failure]
 
-Be strict — the implementation must match the requirement exactly." 2>&1)
+Be strict — the implementation must match the requirement exactly.
+Use the iSAQB schema to validate architectural consistency where applicable." 2>&1)
 
     echo "$verify_result" | tee -a "$LOG_FILE"
 
