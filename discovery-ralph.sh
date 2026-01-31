@@ -613,8 +613,18 @@ run_d4_gap_analysis() {
     local idea_id="$1"
     local work_dir="$2"
     local output_file="$work_dir/d4-gap-analysis.md"
+    local schema_context_file="$SCRIPT_DIR/prompts/isaqb-schema-context.md"
 
     log_info "D4: Gap Analysis (${D4_GAP_MINUTES} min time-box)"
+
+    # Load iSAQB schema context if available
+    local schema_context_block=""
+    if [[ -f "$schema_context_file" ]]; then
+        schema_context_block=$(cat "$schema_context_file")
+        log_info "D4: Loaded iSAQB schema context from $schema_context_file"
+    else
+        log_warn "D4: iSAQB schema context not found at $schema_context_file — proceeding without"
+    fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[DRY RUN] Would run gap analysis"
@@ -628,11 +638,13 @@ run_d4_gap_analysis() {
 
     $timeout_cmd claude \
         --max-budget-usd "$MAX_BUDGET_USD" \
-        --allowedTools "mcp__idea-pool__read_idea,Read,Write" \
+        --allowedTools "mcp__idea-pool__read_idea,Read,Write,mcp__ontology-server__query_ontology,mcp__ontology-server__sparql_query" \
         -p "You are conducting Phase D4: Gap Analysis for idea ${idea_id}.
 
 ## Goal
 Identify what's missing to move this idea forward and prioritize opportunities.
+Use the iSAQB architecture schema to identify quality-attribute gaps and
+architectural risks systematically.
 
 ## Context
 Read all previous discovery phases:
@@ -640,11 +652,20 @@ Read all previous discovery phases:
 - ${work_dir}/d2-personas.md
 - ${work_dir}/d3-value-mapping.md
 
+## iSAQB Architecture Schema
+
+${schema_context_block}
+
+Use the iSAQB schema above to inform your gap analysis. You can query
+the ontology-server via SPARQL (mcp__ontology-server__query_ontology or
+mcp__ontology-server__sparql_query) to look up quality attributes, architectural
+patterns, risks, and design principles relevant to identifying gaps.
+
 ## Instructions
 
 1. Identify all gaps between current state and desired state
-2. Categorize gaps by type
-3. Prioritize based on value mapping
+2. Categorize gaps by type, including quality-attribute gaps from iSAQB
+3. Prioritize based on value mapping and quality goal impact
 
 Write to: ${output_file}
 
@@ -669,6 +690,12 @@ Structure:
 |-----|--------|-------------------|
 | ... | [what it blocks] | Build/Buy/Integrate |
 
+### Quality-Attribute Gaps (isaqb:QualityGoal)
+[Gaps identified by mapping against ISO 25010:2023 quality attributes]
+| Quality Attribute | Current State | Desired State | Gap Severity |
+|-------------------|---------------|---------------|--------------|
+| [e.g. Maintainability] | [What exists] | [What's needed] | High/Med/Low |
+
 ### Resource Gaps
 [What resources are missing]
 | Gap | Type | Mitigation |
@@ -681,17 +708,25 @@ Structure:
 |-----|------------------|------------|
 | ... | ... | High/Med/Low |
 
+## Architectural Risk Assessment (isaqb:Risk)
+
+[Risks identified through iSAQB schema analysis]
+| Risk | Severity | Likelihood | Affected Quality | Mitigation |
+|------|----------|------------|------------------|------------|
+| ... | Critical/High/Med/Low | High/Med/Low | [Quality attribute] | [Strategy] |
+
 ## Priority Matrix
 
-| Gap | Value Impact | Effort to Close | Priority |
-|-----|--------------|-----------------|----------|
-| ... | High/Med/Low | High/Med/Low | P0/P1/P2/P3 |
+| Gap | Value Impact | Effort to Close | Quality Impact | Priority |
+|-----|--------------|-----------------|----------------|----------|
+| ... | High/Med/Low | High/Med/Low | [Quality attributes affected] | P0/P1/P2/P3 |
 
 ## Research Questions Identified
 [Questions that need research-ralph investigation]
 
 1. **RQ**: [Question]
    **Why it matters**: [Impact on idea]
+   **Quality attributes at stake**: [From iSAQB analysis]
    **Suggested approach**: [Empirical/Theoretical/Engineering]
 
 2. **RQ**: [Question]
@@ -719,7 +754,8 @@ Structure:
 1. [Step 1]
 2. [Step 2]
 
-Be specific about gaps - vague gaps can't be closed." 2>&1 | tee -a "$LOG_FILE"
+Be specific about gaps - vague gaps can't be closed.
+Use iSAQB quality attributes and risk categories to ensure completeness." 2>&1 | tee -a "$LOG_FILE"
 
     if [[ ! -f "$output_file" ]]; then
         log_error "D4 did not produce $output_file"
