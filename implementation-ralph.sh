@@ -227,14 +227,39 @@ Be precise and thorough." 2>&1)
     fi
 }
 
-# run_implementer REQ_ID
+# run_implementer REQ_ID [PREVIOUS_FAILURE_REASON]
 #   Spawns an implementer Claude subprocess to implement the requirement.
 #   Does NOT mark the requirement Complete (that's a separate step).
+#   If PREVIOUS_FAILURE_REASON is provided, includes it in the prompt so the
+#   implementer can address the specific issues found by the verifier.
 #   Outputs IMPLEMENTED: [req-id] on success.
 #   Returns 0 on success, 1 on failure.
 run_implementer() {
     local req_id="$1"
+    local previous_failure="${2:-}"
     log "--- Phase 2: Implementing $req_id ---"
+
+    # Build retry feedback block if this is a retry after verification failure
+    local retry_feedback_block=""
+    if [[ -n "$previous_failure" ]]; then
+        retry_feedback_block="
+## PREVIOUS ATTEMPT FAILED VERIFICATION
+
+Your previous implementation was rejected by the verifier. You MUST address the
+specific issues listed below. Do NOT just repeat the same implementation — fix
+the problems identified.
+
+**Verification failure reason:**
+${previous_failure}
+
+Read the failure reason carefully. Common issues include:
+- Missing tests that the prd:verification field requires
+- Files created in the wrong location
+- Missing acceptance criteria
+Address ALL issues before outputting IMPLEMENTED.
+"
+        log "Including verification feedback from previous attempt"
+    fi
 
     local impl_result
     impl_result=$(timeout 10m claude --permission-mode acceptEdits \
@@ -245,13 +270,14 @@ run_implementer() {
 ## Your Task
 Implement ONE specific requirement from the PRD stored in ontology-server context '${PRD_CONTEXT}'.
 The requirement to implement is: ${req_id}
-
+${retry_feedback_block}
 ## CRITICAL RULES
 1. You must ONLY read requirements from ontology-server using recall_facts
 2. You must NOT look at any markdown files - all info comes from the ontology
 3. For NEW files, use Python 3.11+ unless the requirement specifies otherwise
 4. For EXISTING files, use the file's own language (bash for .sh, markdown for .md, etc.)
 5. Do NOT update the requirement status - just implement the code changes
+6. Read the prd:verification field — you must ensure your implementation SATISFIES the verification criteria (e.g., if it says 'Unit test for X', you must create that test)
 
 ## Steps:
 1. Use mcp__ontology-server__recall_facts with subject='${req_id}' and context='${PRD_CONTEXT}' to get all properties of this requirement.
@@ -261,8 +287,9 @@ The requirement to implement is: ${req_id}
    - 'modify': Read the existing file first, then Edit it in place using the file's native language.
    - 'create': Write a new file to ${WORK_DIR}/[filepath]. Use Python 3.11+ unless specified otherwise.
    - If absent, infer from description.
-5. For modifications to files OUTSIDE ${WORK_DIR}: edit the actual file at its real path.
-6. NEVER create a Python module as a substitute for modifying an existing non-Python file.
+5. Read the prd:verification field and ensure your implementation will PASS those checks.
+6. For modifications to files OUTSIDE ${WORK_DIR}: edit the actual file at its real path.
+7. NEVER create a Python module as a substitute for modifying an existing non-Python file.
 
 ## Output
 On the FINAL line, output exactly:
@@ -288,30 +315,36 @@ git_commit_requirement() {
     local req_id="$1"
     local title="$2"
 
-    log "--- Phase 3: Committing $req_id ---"
+    # NOTE: This function is called inside $(), so only the commit SHA
+    # should go to stdout. All log messages go directly to the log file
+    # (and stderr for visibility) to avoid polluting the captured output.
+
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] --- Phase 3: Committing $req_id ---" >> "$LOG_FILE"
 
     # Stage all changes
     if ! git add -A 2>/dev/null; then
-        log "WARNING: git add failed"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: git add failed" | tee -a "$LOG_FILE" >&2
         return 1
     fi
 
     # Check if there are staged changes
     if git diff --cached --quiet 2>/dev/null; then
-        log "WARNING: No changes to commit for $req_id"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: No changes to commit for $req_id" | tee -a "$LOG_FILE" >&2
         return 1
     fi
 
     # Create commit with structured message
     local commit_msg="impl(${req_id}): ${title}"
-    local commit_sha
-    if commit_sha=$(git commit -m "$commit_msg" 2>&1); then
+    local commit_result
+    if commit_result=$(git commit -m "$commit_msg" 2>&1); then
+        local commit_sha
         commit_sha=$(git rev-parse --short HEAD)
-        log "Committed: $commit_sha - $commit_msg"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Committed: $commit_sha - $commit_msg" | tee -a "$LOG_FILE" >&2
+        # Only the SHA goes to stdout (captured by caller)
         echo "$commit_sha"
         return 0
     else
-        log "WARNING: git commit failed: $commit_sha"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] WARNING: git commit failed: $commit_result" | tee -a "$LOG_FILE" >&2
         return 1
     fi
 }
@@ -506,14 +539,15 @@ while [[ $iteration -lt $MAX_ITERATIONS ]]; do
     # Phase 2-4: Implement, Commit, Verify (with retry loop)
     retry=0
     impl_succeeded=false
+    last_verify_failure=""
 
     while [[ $retry -lt $MAX_RETRIES ]]; do
         ((retry++))
         log ""
         log "--- Attempt $retry of $MAX_RETRIES for $REQ_ID ---"
 
-        # Phase 2: Implement
-        if ! run_implementer "$REQ_ID"; then
+        # Phase 2: Implement (pass previous failure reason if retrying)
+        if ! run_implementer "$REQ_ID" "$last_verify_failure"; then
             log "ERROR: Implementation failed for $REQ_ID (attempt $retry)"
             if [[ $retry -lt $MAX_RETRIES ]]; then
                 log "Retrying implementation..."
@@ -542,8 +576,12 @@ while [[ $iteration -lt $MAX_ITERATIONS ]]; do
             log "VERIFY_PASS: $REQ_ID"
             break
         else
-            verify_verdict="FAIL: verification failed on attempt $retry"
+            # Extract the specific failure reason from the verifier output
+            # (the log file was just appended to by run_verifier via tee)
+            last_verify_failure=$(grep "VERIFY_FAIL:" "$LOG_FILE" | tail -1 | sed "s/.*VERIFY_FAIL: [^ ]* *//" || echo "verification failed")
+            verify_verdict="FAIL: $last_verify_failure"
             log "VERIFY_FAIL: $REQ_ID (attempt $retry)"
+            log "Failure reason captured for retry feedback: $last_verify_failure"
 
             # Revert the failed implementation commit if one was created
             if [[ -n "$commit_sha" ]]; then
@@ -551,7 +589,7 @@ while [[ $iteration -lt $MAX_ITERATIONS ]]; do
             fi
 
             if [[ $retry -lt $MAX_RETRIES ]]; then
-                log "Retrying after verification failure..."
+                log "Retrying after verification failure — feedback will be passed to implementer..."
                 sleep 2
             else
                 log "ERROR: Max retries exhausted for $REQ_ID after verification failure"
