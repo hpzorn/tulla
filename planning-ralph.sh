@@ -1060,7 +1060,7 @@ run_p6_rdf_export() {
 
     $timeout_cmd claude --permission-mode acceptEdits \
         --max-budget-usd "$MAX_BUDGET_USD" \
-        --allowedTools "Read,Write,mcp__ontology-server__add_triple,mcp__ontology-server__store_fact" \
+        --allowedTools "Read,Write,mcp__ontology-server__store_fact" \
         -p "You are conducting Phase P6: Export PRD to RDF for idea ${idea_id}.
 
 ## Goal
@@ -1143,9 +1143,15 @@ Use these namespaces:
    # Continue for all tasks...
    \`\`\`
 
-4. After writing the Turtle file, use mcp__ontology-server__add_triple to add each requirement to the ontology-server
-   - Context/graph: \"prd-${idea_id}\"
-   - Add each triple from the Turtle file
+4. After writing the Turtle file, use mcp__ontology-server__store_fact to add each requirement to the A-box fact store.
+   - Context: \"prd-${idea_id}\"
+   - For each triple (subject, predicate, object) in the Turtle file, call store_fact with:
+     subject=the requirement URI (e.g. \"prd:req-${idea_id}-1-1\")
+     predicate=the property (e.g. \"rdf:type\", \"prd:title\", \"prd:status\", etc.)
+     object=the value
+     context=\"prd-${idea_id}\"
+   - Do NOT use add_triple — that writes to the T-box (ontology schema), not the A-box (fact store).
+     Implementation-Ralph reads requirements via recall_facts, which only sees the A-box.
 
 5. Write a summary to: ${summary_file}
 
