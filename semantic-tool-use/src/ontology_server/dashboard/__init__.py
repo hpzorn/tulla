@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 if TYPE_CHECKING:
+    from knowledge_graph import AgentMemory, IdeasStore, KnowledgeGraphStore
     from ontology_server.core.store import OntologyStore
 
 logger = logging.getLogger(__name__)
@@ -24,9 +25,9 @@ _PACKAGE_DIR = Path(__file__).resolve().parent
 
 def create_dashboard_app(
     ontology_store: "OntologyStore",
-    kg_store: object,
-    agent_memory: object,
-    ideas_store: object,
+    kg_store: "KnowledgeGraphStore",
+    agent_memory: "AgentMemory",
+    ideas_store: "IdeasStore",
 ) -> FastAPI:
     """Create the Ontology Dashboard FastAPI sub-application.
 

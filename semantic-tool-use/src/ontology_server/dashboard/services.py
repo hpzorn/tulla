@@ -18,6 +18,9 @@ from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from knowledge_graph.core.memory import AgentMemory
+    from knowledge_graph.core.ideas import IdeasStore
+    from knowledge_graph.core.store import KnowledgeGraphStore
     from ontology_server.core.store import OntologyStore
 
 logger = logging.getLogger(__name__)
@@ -41,9 +44,9 @@ class DashboardService:
     def __init__(
         self,
         ontology_store: "OntologyStore",
-        kg_store: object,
-        agent_memory: object,
-        ideas_store: object,
+        kg_store: "KnowledgeGraphStore",
+        agent_memory: "AgentMemory",
+        ideas_store: "IdeasStore",
     ) -> None:
         self._ontology_store = ontology_store
         self._kg_store = kg_store
