@@ -285,10 +285,10 @@ ${retry_feedback_block}
 3. Read the prd:files for which file(s) to create or modify.
 4. Read the prd:action:
    - 'modify': Read the existing file first, then Edit it in place using the file's native language.
-   - 'create': Write a new file to ${WORK_DIR}/[filepath]. Use Python 3.11+ unless specified otherwise.
+   - 'create': Resolve the prd:files path relative to the project root (${SCRIPT_DIR}). Use Glob to locate the parent package if needed. Use Python 3.11+ unless specified otherwise.
    - If absent, infer from description.
 5. Read the prd:verification field and ensure your implementation will PASS those checks.
-6. For modifications to files OUTSIDE ${WORK_DIR}: edit the actual file at its real path.
+6. IMPORTANT: All files MUST be written to the actual codebase at their real paths, NOT under ${WORK_DIR}. The work directory is only for logs. Files written there are gitignored and will fail verification.
 7. NEVER create a Python module as a substitute for modifying an existing non-Python file.
 
 ## Output
