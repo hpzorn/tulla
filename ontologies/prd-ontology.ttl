@@ -156,6 +156,12 @@ prd:verification a rdf:Property, owl:DatatypeProperty ;
     rdfs:domain prd:Requirement ;
     rdfs:range xsd:string .
 
+prd:verificationVerdict a rdf:Property, owl:DatatypeProperty ;
+    rdfs:label "verification verdict" ;
+    rdfs:comment "Structured PASS/FAIL+reason verdict from the verifier" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range xsd:string .
+
 prd:ideaId a rdf:Property, owl:DatatypeProperty ;
     rdfs:label "idea ID" ;
     rdfs:comment "Reference to the source idea in idea-pool" ;

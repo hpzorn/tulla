@@ -19,6 +19,8 @@ MAX_BUDGET_USD="${MAX_BUDGET_USD:-5.00}"
 MAX_ITERATIONS="${MAX_ITERATIONS:-20}"
 CLEAN="${CLEAN:-true}"
 CHECK_ONLY="${CHECK_ONLY:-false}"
+NO_VERIFY="${NO_VERIFY:-false}"
+MAX_RETRIES="${MAX_RETRIES:-2}"
 
 # =============================================================================
 # Argument Parsing
@@ -48,6 +50,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --clean           Reset all statuses to Pending before running (default)"
             echo "  --no-clean        Skip pre-flight hygiene, resume from current state"
             echo "  --check           Audit ontology state without implementing (exits after report)"
+            echo "  --no-verify       Skip verification step (implementer marks Complete directly)"
+            echo "  --max-retries N   Max retry attempts per requirement on verification failure (default: 2)"
             echo "  --help            Show this help"
             exit 0
             ;;
@@ -62,6 +66,14 @@ while [[ $# -gt 0 ]]; do
         --check)
             CHECK_ONLY=true
             shift
+            ;;
+        --no-verify)
+            NO_VERIFY=true
+            shift
+            ;;
+        --max-retries)
+            MAX_RETRIES="$2"
+            shift 2
             ;;
         *)
             echo "Unknown option: $1"
@@ -92,11 +104,25 @@ cleanup() {
     local exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         log "INTERRUPTED: Exit code $exit_code"
+        if [[ -n "${REQ_ID:-}" ]]; then
+            log "Last requirement in progress: $REQ_ID"
+            log "Check git log and ontology state before resuming."
+        fi
         log "To audit ontology state: $0 --prd $PRD_CONTEXT --check"
         log "To re-run with clean state: $0 --prd $PRD_CONTEXT --clean"
+        log "To resume from current state: $0 --prd $PRD_CONTEXT --no-clean"
     fi
 }
 trap cleanup EXIT
+
+# Crash Recovery Notes:
+# - If the script crashes between implement and verify, the git commit exists
+#   but ontology still shows Pending. Re-running with --no-clean resumes safely:
+#   the implementer may re-implement (creating a new commit) and the verifier runs.
+# - If the script crashes after verify but before status update, re-running with
+#   --no-clean may re-verify (harmless). Use --check to audit state.
+# - Use 'git log --grep="impl("' to see all implementation commits.
+# - Use --check to audit ontology state at any time.
 
 log "=============================================="
 log "Implementation-Ralph starting"
@@ -105,6 +131,8 @@ log "Work Directory: $WORK_DIR"
 log "=============================================="
 log "Clean mode: $CLEAN"
 log "Check-only mode: $CHECK_ONLY"
+log "No-verify mode: $NO_VERIFY"
+log "Max retries: $MAX_RETRIES"
 
 # =============================================================================
 # Pre-flight Hygiene (delegates to hygiene-lib.sh)
@@ -142,98 +170,386 @@ else
 fi
 
 # =============================================================================
-# Main Implementation Loop
+# Helper Functions (Implementer/Verifier Pattern)
 # =============================================================================
 
-iteration=0
+# find_ready_requirement()
+#   Spawns a read-only Claude subprocess to query ontology and find the next
+#   READY requirement (Pending with all deps Complete).
+#   Outputs structured KEY: value lines to stdout.
+#   Returns 0 if found, 1 if ALL_COMPLETE or BLOCKED.
+find_ready_requirement() {
+    local finder_result
+    finder_result=$(timeout 5m claude --permission-mode acceptEdits \
+        --max-budget-usd 1.00 \
+        --allowedTools "mcp__ontology-server__recall_facts" \
+        -p "You are a requirement finder agent. Query the ontology to find the next READY requirement.
 
-while [[ $iteration -lt $MAX_ITERATIONS ]]; do
-    ((iteration++))
-    log ""
-    log "=== Iteration $iteration ==="
+## Steps:
+1. Use mcp__ontology-server__recall_facts with context='${PRD_CONTEXT}' to get all facts.
+2. Identify all requirements (rdf:type = prd:Requirement).
+3. A requirement is READY if:
+   - Its prd:status is 'prd:Pending'
+   - All requirements it prd:dependsOn have prd:status = 'prd:Complete'
+   - If no dependsOn, it's ready
+4. Select the first READY requirement by priority (P0 before P1 before P2), then by taskId.
+5. Output structured data on separate lines:
+   REQ_ID: [requirement subject, e.g., prd:req-idea-40-3-1]
+   TASK_ID: [taskId value]
+   TITLE: [title]
+   DESCRIPTION: [full description]
+   FILES: [files value]
+   ACTION: [action value or 'infer']
+   PRIORITY: [priority]
+   PHASE: [phase]
+   VERIFICATION: [verification criteria]
+6. On the FINAL line, output exactly one of:
+   - FOUND_READY if a ready requirement was found
+   - ALL_COMPLETE if all requirements have status prd:Complete
+   - BLOCKED if no ready requirements exist (all pending have unmet deps)
 
-    # Ask Claude to:
-    # 1. Query requirements from ontology-server
-    # 2. Find a ready requirement (Pending with all deps Complete)
-    # 3. Implement it
-    # 4. Update status to Complete
+Be precise and thorough." 2>&1)
 
-    result=$(timeout 10m claude --permission-mode acceptEdits \
+    echo "$finder_result" | tee -a "$LOG_FILE"
+
+    if echo "$finder_result" | grep -q "FOUND_READY"; then
+        # Extract key fields into global variables for the caller
+        REQ_ID=$(echo "$finder_result" | grep "^REQ_ID:" | head -1 | sed 's/^REQ_ID: *//')
+        REQ_TASK_ID=$(echo "$finder_result" | grep "^TASK_ID:" | head -1 | sed 's/^TASK_ID: *//')
+        REQ_TITLE=$(echo "$finder_result" | grep "^TITLE:" | head -1 | sed 's/^TITLE: *//')
+        REQ_ACTION=$(echo "$finder_result" | grep "^ACTION:" | head -1 | sed 's/^ACTION: *//')
+        REQ_FILES=$(echo "$finder_result" | grep "^FILES:" | head -1 | sed 's/^FILES: *//')
+        return 0
+    elif echo "$finder_result" | grep -q "ALL_COMPLETE"; then
+        return 2
+    else
+        return 1
+    fi
+}
+
+# run_implementer REQ_ID
+#   Spawns an implementer Claude subprocess to implement the requirement.
+#   Does NOT mark the requirement Complete (that's a separate step).
+#   Outputs IMPLEMENTED: [req-id] on success.
+#   Returns 0 on success, 1 on failure.
+run_implementer() {
+    local req_id="$1"
+    log "--- Phase 2: Implementing $req_id ---"
+
+    local impl_result
+    impl_result=$(timeout 10m claude --permission-mode acceptEdits \
         --max-budget-usd "$MAX_BUDGET_USD" \
-        --allowedTools "mcp__ontology-server__recall_facts,mcp__ontology-server__store_fact,mcp__ontology-server__forget_fact,Read,Write,Edit,Bash,Glob" \
+        --allowedTools "mcp__ontology-server__recall_facts,Read,Write,Edit,Bash,Glob" \
         -p "You are Implementation-Ralph, an ontology-driven implementation agent.
 
 ## Your Task
-Implement ONE requirement from the PRD stored in ontology-server context '${PRD_CONTEXT}'.
+Implement ONE specific requirement from the PRD stored in ontology-server context '${PRD_CONTEXT}'.
+The requirement to implement is: ${req_id}
 
 ## CRITICAL RULES
 1. You must ONLY read requirements from ontology-server using recall_facts
 2. You must NOT look at any markdown files - all info comes from the ontology
 3. For NEW files, use Python 3.11+ unless the requirement specifies otherwise
 4. For EXISTING files, use the file's own language (bash for .sh, markdown for .md, etc.)
-5. After implementing, update the requirement status to Complete
+5. Do NOT update the requirement status - just implement the code changes
 
-## Step 1: Load Requirements
-Use mcp__ontology-server__recall_facts with context='${PRD_CONTEXT}' to get all requirements.
+## Steps:
+1. Use mcp__ontology-server__recall_facts with subject='${req_id}' and context='${PRD_CONTEXT}' to get all properties of this requirement.
+2. Read the prd:description for EXACTLY what to do.
+3. Read the prd:files for which file(s) to create or modify.
+4. Read the prd:action:
+   - 'modify': Read the existing file first, then Edit it in place using the file's native language.
+   - 'create': Write a new file to ${WORK_DIR}/[filepath]. Use Python 3.11+ unless specified otherwise.
+   - If absent, infer from description.
+5. For modifications to files OUTSIDE ${WORK_DIR}: edit the actual file at its real path.
+6. NEVER create a Python module as a substitute for modifying an existing non-Python file.
 
-## Step 2: Find Ready Requirement
-A requirement is READY if:
-- Its prd:status is 'prd:Pending'
-- All requirements it prd:dependsOn have prd:status = 'prd:Complete'
-- If no dependsOn, it's ready
+## Output
+On the FINAL line, output exactly:
+- IMPLEMENTED: ${req_id} — if you successfully implemented the requirement
+- IMPLEMENT_FAIL: ${req_id} [reason] — if implementation failed
 
-Select the first ready requirement by priority (P0 before P1 before P2).
+Be precise and implement exactly what the requirement describes." 2>&1)
 
-## Step 3: Implement
-- Read the prd:description for EXACTLY what to do — it contains precise instructions
-- Read the prd:files for which file(s) to create or modify
-- Read the prd:action if present:
-  - 'modify': You MUST Read the existing file first, then Edit it in place using the file's native language (bash for .sh, markdown for .md, Typst for .typ, YAML for .yaml). The prd:description contains exact insertion points and code to add. Do NOT rewrite the file in Python.
-  - 'create': Write a new file to ${WORK_DIR}/[filepath]. Use Python 3.11+ unless prd:description specifies another language.
-- If prd:action is absent, infer from prd:description: if it says 'Modify [file]' or 'Replace [section]' or 'Add [thing] to [file]', treat as modify. If it says 'Create [file]', treat as create.
-- For modifications to files OUTSIDE ${WORK_DIR}: edit the actual file at its real path
-- NEVER create a Python module as a substitute for modifying an existing non-Python file
-- Use best practices: docstrings/comments, type hints, error handling
+    echo "$impl_result" | tee -a "$LOG_FILE"
 
-## Step 4: Mark Complete (MUST forget before storing)
-Update the requirement status using strict forget-then-store ordering:
+    if echo "$impl_result" | grep -q "IMPLEMENTED:"; then
+        return 0
+    else
+        return 1
+    fi
+}
 
-Step 4a: Use mcp__ontology-server__recall_facts with subject=[requirement id] and predicate='prd:status' and context='${PRD_CONTEXT}' to find the fact_id of the current Pending status.
+# git_commit_requirement REQ_ID TITLE
+#   Stages all changes and creates a git commit with structured message.
+#   Prints commit SHA on success.
+#   Returns 0 on success, 1 if nothing to commit.
+git_commit_requirement() {
+    local req_id="$1"
+    local title="$2"
 
-Step 4b: Use mcp__ontology-server__forget_fact with the fact_id from Step 4a to REMOVE the old Pending status. If forget fails, do NOT proceed to Step 4c — report an error instead.
+    log "--- Phase 3: Committing $req_id ---"
 
-Step 4c: Only after forget succeeds, use mcp__ontology-server__store_fact to SET the new status:
-- subject: [requirement id, e.g., 'prd:req-42-1']
-- predicate: 'prd:status'
-- object: 'prd:Complete'
-- context: '${PRD_CONTEXT}'
+    # Stage all changes
+    if ! git add -A 2>/dev/null; then
+        log "WARNING: git add failed"
+        return 1
+    fi
 
-CRITICAL: You MUST forget before storing, never store before forgetting. If forget fails, do NOT store.
+    # Check if there are staged changes
+    if git diff --cached --quiet 2>/dev/null; then
+        log "WARNING: No changes to commit for $req_id"
+        return 1
+    fi
 
-## Step 5: Report
-Output one of these on the FINAL line:
-- 'IMPLEMENTED: [req-id]' if you implemented a requirement
-- 'ALL_COMPLETE' if all requirements have status Complete
-- 'BLOCKED' if no ready requirements found (circular dep or error)
+    # Create commit with structured message
+    local commit_msg="impl(${req_id}): ${title}"
+    local commit_sha
+    if commit_sha=$(git commit -m "$commit_msg" 2>&1); then
+        commit_sha=$(git rev-parse --short HEAD)
+        log "Committed: $commit_sha - $commit_msg"
+        echo "$commit_sha"
+        return 0
+    else
+        log "WARNING: git commit failed: $commit_sha"
+        return 1
+    fi
+}
 
-Be precise and implement exactly what the requirement describes." 2>&1 | tee -a "$LOG_FILE")
+# run_verifier REQ_ID
+#   Spawns a fresh-context Claude subprocess to verify the implementation.
+#   Read-only tools only — verifier cannot modify files.
+#   Outputs VERIFY_PASS: [req-id] or VERIFY_FAIL: [req-id] [reason].
+#   Returns 0 on PASS, 1 on FAIL.
+run_verifier() {
+    local req_id="$1"
+    log "--- Phase 4: Verifying $req_id ---"
 
-    # Check result
-    if echo "$result" | grep -q "ALL_COMPLETE"; then
+    if [[ "$NO_VERIFY" == "true" ]]; then
+        log "SKIPPED (--no-verify mode)"
+        echo "VERIFY_PASS: $req_id (skipped)"
+        return 0
+    fi
+
+    local verify_result
+    verify_result=$(timeout 5m claude --permission-mode acceptEdits \
+        --max-budget-usd 2.00 \
+        --allowedTools "mcp__ontology-server__recall_facts,Read,Glob,Bash" \
+        -p "You are a verification agent. Verify that requirement ${req_id} from PRD context '${PRD_CONTEXT}' has been correctly implemented.
+
+## Steps:
+1. Use mcp__ontology-server__recall_facts with subject='${req_id}' and context='${PRD_CONTEXT}' to get the requirement details.
+2. Read the prd:verification field — it describes how to verify.
+3. Read the prd:files field to know which files to check.
+4. Read the prd:description to understand what was supposed to be implemented.
+5. Perform the verification checks described in prd:verification.
+   - Use Read to inspect files.
+   - Use Bash ONLY for read-only commands (grep, bash -n, etc.) — NEVER modify files.
+6. On the FINAL line, output exactly one of:
+   - VERIFY_PASS: ${req_id} — if the implementation matches the requirement
+   - VERIFY_FAIL: ${req_id} [specific reason for failure]
+
+Be strict — the implementation must match the requirement exactly." 2>&1)
+
+    echo "$verify_result" | tee -a "$LOG_FILE"
+
+    if echo "$verify_result" | grep -q "VERIFY_PASS:"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# update_requirement_status REQ_ID NEW_STATUS [VERDICT]
+#   Spawns a minimal Claude subprocess to update the ontology status
+#   using strict forget-then-store protocol.
+#   NEW_STATUS: 'prd:Complete' or 'prd:Blocked'
+#   VERDICT: optional verification verdict string
+#   Returns 0 on success, 1 on failure.
+update_requirement_status() {
+    local req_id="$1"
+    local new_status="$2"
+    local verdict="${3:-}"
+    log "--- Phase 5: Updating status of $req_id to $new_status ---"
+
+    local verdict_instruction=""
+    if [[ -n "$verdict" ]]; then
+        verdict_instruction="
+Also store the verification verdict:
+- subject: '${req_id}'
+- predicate: 'prd:verificationVerdict'
+- object: '${verdict}'
+- context: '${PRD_CONTEXT}'"
+    fi
+
+    local status_result
+    status_result=$(timeout 3m claude --permission-mode acceptEdits \
+        --max-budget-usd 1.00 \
+        --allowedTools "mcp__ontology-server__recall_facts,mcp__ontology-server__store_fact,mcp__ontology-server__forget_fact" \
+        -p "You are a status update agent. Update the status of requirement ${req_id} in ontology-server.
+
+## Steps (strict forget-then-store ordering):
+1. Use mcp__ontology-server__recall_facts with subject='${req_id}' and predicate='prd:status' and context='${PRD_CONTEXT}' to find the fact_id of the current status.
+2. Use mcp__ontology-server__forget_fact with that fact_id to REMOVE the old status. If forget fails, do NOT proceed — output STATUS_ERROR.
+3. Only after forget succeeds, use mcp__ontology-server__store_fact to set:
+   - subject: '${req_id}'
+   - predicate: 'prd:status'
+   - object: '${new_status}'
+   - context: '${PRD_CONTEXT}'
+${verdict_instruction}
+
+CRITICAL: You MUST forget before storing. Never store before forgetting.
+
+On the FINAL line, output exactly:
+- STATUS_UPDATED: ${req_id} — if the update succeeded
+- STATUS_ERROR: ${req_id} [reason] — if the update failed" 2>&1)
+
+    echo "$status_result" | tee -a "$LOG_FILE"
+
+    if echo "$status_result" | grep -q "STATUS_UPDATED:"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# revert_failed_implementation COMMIT_SHA
+#   Reverts the given commit non-interactively to clean up a failed implementation.
+#   Returns 0 on success, 1 on failure.
+revert_failed_implementation() {
+    local commit_sha="$1"
+    log "Reverting failed implementation commit: $commit_sha"
+
+    if git revert --no-edit "$commit_sha" 2>&1 | tee -a "$LOG_FILE"; then
+        log "Successfully reverted $commit_sha"
+        return 0
+    else
+        log "ERROR: Failed to revert $commit_sha — manual cleanup may be needed"
+        # Abort the revert if it's stuck
+        git revert --abort 2>/dev/null || true
+        return 1
+    fi
+}
+
+# =============================================================================
+# Main Implementation Loop (Five-Phase Pattern)
+# =============================================================================
+#
+# Each iteration:
+#   Phase 1 (Find):    find_ready_requirement -> next READY requirement
+#   Phase 2 (Implement): run_implementer with retry loop up to MAX_RETRIES
+#   Phase 3 (Commit):  git_commit_requirement -> per-requirement commit
+#   Phase 4 (Verify):  run_verifier (skipped if --no-verify or no criteria)
+#   Phase 5 (Status):  update_requirement_status -> Complete or Blocked
+#
+# On VERIFY_FAIL: revert commit, retry implementation. After max retries, mark Blocked.
+
+iteration=0
+
+while [[ $iteration -lt $MAX_ITERATIONS ]]; do
+    ((iteration++))
+    log ""
+    log "=============================================="
+    log "=== Iteration $iteration of $MAX_ITERATIONS ==="
+    log "=============================================="
+
+    # Phase 1: Find the next ready requirement
+    log "--- Phase 1: Finding next ready requirement ---"
+    REQ_ID=""
+    REQ_TASK_ID=""
+    REQ_TITLE=""
+    REQ_ACTION=""
+    REQ_FILES=""
+
+    find_ready_requirement
+    find_status=$?
+
+    if [[ $find_status -eq 2 ]]; then
         log ""
         log "=============================================="
         log "ALL REQUIREMENTS COMPLETE!"
         log "=============================================="
         break
-    elif echo "$result" | grep -q "BLOCKED"; then
+    elif [[ $find_status -ne 0 ]]; then
         log ""
-        log "ERROR: Implementation blocked - check dependencies"
+        log "ERROR: Implementation blocked - no ready requirements found"
+        log "Check dependencies or use --check to audit ontology state."
         exit 1
-    elif echo "$result" | grep -q "IMPLEMENTED:"; then
-        req_id=$(echo "$result" | grep "IMPLEMENTED:" | tail -1 | sed 's/.*IMPLEMENTED: *//')
-        log "Completed: $req_id"
+    fi
+
+    log "Found ready requirement: $REQ_ID ($REQ_TASK_ID) - $REQ_TITLE"
+
+    # Phase 2-4: Implement, Commit, Verify (with retry loop)
+    retry=0
+    impl_succeeded=false
+
+    while [[ $retry -lt $MAX_RETRIES ]]; do
+        ((retry++))
+        log ""
+        log "--- Attempt $retry of $MAX_RETRIES for $REQ_ID ---"
+
+        # Phase 2: Implement
+        if ! run_implementer "$REQ_ID"; then
+            log "ERROR: Implementation failed for $REQ_ID (attempt $retry)"
+            if [[ $retry -lt $MAX_RETRIES ]]; then
+                log "Retrying implementation..."
+                sleep 2
+                continue
+            else
+                log "ERROR: Max retries exhausted for $REQ_ID"
+                break
+            fi
+        fi
+
+        # Phase 3: Commit
+        commit_sha=""
+        commit_sha=$(git_commit_requirement "$REQ_ID" "$REQ_TITLE") || true
+
+        if [[ -z "$commit_sha" ]]; then
+            log "WARNING: No commit created for $REQ_ID (no changes detected)"
+            # Proceed anyway — implementation may have been idempotent
+        fi
+
+        # Phase 4: Verify
+        verify_verdict=""
+        if run_verifier "$REQ_ID"; then
+            verify_verdict="PASS"
+            impl_succeeded=true
+            log "VERIFY_PASS: $REQ_ID"
+            break
+        else
+            verify_verdict="FAIL: verification failed on attempt $retry"
+            log "VERIFY_FAIL: $REQ_ID (attempt $retry)"
+
+            # Revert the failed implementation commit if one was created
+            if [[ -n "$commit_sha" ]]; then
+                revert_failed_implementation "$commit_sha" || true
+            fi
+
+            if [[ $retry -lt $MAX_RETRIES ]]; then
+                log "Retrying after verification failure..."
+                sleep 2
+            else
+                log "ERROR: Max retries exhausted for $REQ_ID after verification failure"
+            fi
+        fi
+    done
+
+    # Phase 5: Update requirement status
+    if [[ "$impl_succeeded" == "true" ]]; then
+        log "--- Phase 5: Marking $REQ_ID as Complete ---"
+        if ! update_requirement_status "$REQ_ID" "prd:Complete" "$verify_verdict"; then
+            log "ERROR: Failed to update status for $REQ_ID"
+            log "Implementation was successful but ontology update failed."
+            log "Use --check to audit state. Manual intervention may be needed."
+        fi
+        log "Completed: $REQ_ID"
     else
-        log "WARNING: Unclear result, continuing..."
+        log "--- Phase 5: Marking $REQ_ID as Blocked ---"
+        if ! update_requirement_status "$REQ_ID" "prd:Blocked" "$verify_verdict"; then
+            log "ERROR: Failed to update status for $REQ_ID"
+        fi
+        log "BLOCKED: $REQ_ID after $MAX_RETRIES failed attempts"
     fi
 
     # Brief pause between iterations
@@ -241,6 +557,7 @@ Be precise and implement exactly what the requirement describes." 2>&1 | tee -a 
 done
 
 if [[ $iteration -ge $MAX_ITERATIONS ]]; then
+    log ""
     log "ERROR: Max iterations ($MAX_ITERATIONS) reached"
     exit 1
 fi
