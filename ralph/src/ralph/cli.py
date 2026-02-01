@@ -67,10 +67,22 @@ def _build_pipeline(
             mode=effective_mode,
         )
 
+    if agent == "research":
+        from ralph.phases.research.pipeline import research_pipeline
+
+        effective_planning_dir = mode if mode else ""
+        return research_pipeline(
+            claude_port=claude_port,
+            work_dir=work_dir,
+            idea_id=idea_str,
+            config=config,
+            planning_dir=effective_planning_dir,
+        )
+
     # Placeholder for future agents
     raise click.ClickException(
         f"Agent '{agent}' pipeline is not yet implemented. "
-        f"Available: discovery"
+        f"Available: discovery, research"
     )
 
 
