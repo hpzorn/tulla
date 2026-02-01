@@ -59,6 +59,7 @@ P1_DISCOVERY_LOAD_MINUTES="${P1_DISCOVERY_LOAD_MINUTES:-5}"
 P2_CODEBASE_ANALYSIS_MINUTES="${P2_CODEBASE_ANALYSIS_MINUTES:-20}"
 P3_ARCHITECTURE_DESIGN_MINUTES="${P3_ARCHITECTURE_DESIGN_MINUTES:-15}"
 P4_IMPLEMENTATION_PLAN_MINUTES="${P4_IMPLEMENTATION_PLAN_MINUTES:-20}"
+P4B_PERSONA_WALKTHROUGH_MINUTES="${P4B_PERSONA_WALKTHROUGH_MINUTES:-15}"
 P5_RESEARCH_REQUESTS_MINUTES="${P5_RESEARCH_REQUESTS_MINUTES:-5}"
 P6_RDF_EXPORT_MINUTES="${P6_RDF_EXPORT_MINUTES:-10}"
 
@@ -917,6 +918,166 @@ Be extremely specific. Include actual file paths, function names, and code struc
 }
 
 # =============================================================================
+# Phase P4b: Persona Walkthrough — Simulate User Journeys
+# =============================================================================
+
+run_p4b_persona_walkthrough() {
+    local idea_id="$1"
+    local planning_work_dir="$2"
+    local p1_file="$planning_work_dir/p1-discovery-context.md"
+    local p3_file="$planning_work_dir/p3-architecture-design.md"
+    local p4_file="$planning_work_dir/p4-implementation-plan.md"
+    local output_file="$planning_work_dir/p4b-persona-walkthrough.md"
+
+    log_info "P4b: Persona Walkthrough (${P4B_PERSONA_WALKTHROUGH_MINUTES} min time-box)"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[DRY RUN] Would run persona walkthrough"
+        return 0
+    fi
+
+    local timeout_cmd
+    timeout_cmd=$(get_timeout_cmd "$P4B_PERSONA_WALKTHROUGH_MINUTES")
+    local planning_date
+    planning_date=$(date +%Y-%m-%d)
+
+    # Find discovery directory for D2 personas
+    local discovery_dir
+    discovery_dir=$(find_discovery_dir "$idea_id" 2>/dev/null || echo "")
+    local d2_file=""
+    if [[ -n "$discovery_dir" ]]; then
+        # Try both naming conventions
+        for candidate in "$discovery_dir/d2-personas.md" "$discovery_dir/D2-personas.md"; do
+            if [[ -f "$candidate" ]]; then
+                d2_file="$candidate"
+                break
+            fi
+        done
+    fi
+
+    local d2_instruction=""
+    if [[ -n "$d2_file" ]]; then
+        d2_instruction="- Original persona definitions: ${d2_file}"
+    fi
+
+    $timeout_cmd claude \
+        --max-budget-usd "$MAX_BUDGET_USD" \
+        --allowedTools "Read,Write" \
+        -p "You are conducting Phase P4b: Persona Walkthrough for idea ${idea_id}.
+
+## Goal
+Simulate a concrete, step-by-step user journey for EACH persona from discovery.
+Walk through the ACTUAL implementation plan (P4) as if you are each persona
+using the finished product. Identify gaps where the plan breaks the user
+experience — especially mismatches between architecture decisions and how
+real users interact with the system.
+
+## Context
+Read ALL of these:
+- Discovery context (contains persona summaries): ${p1_file}
+${d2_instruction}
+- Architecture design: ${p3_file}
+- Implementation plan: ${p4_file}
+
+## Instructions
+
+For each persona identified in D2/P1, simulate their primary user journey
+step by step. Be concrete — name the actual tools, URLs, commands, and
+interfaces they would use. At each step, verify the implementation plan
+supports it.
+
+Write to: ${output_file}
+
+Structure:
+
+# P4b: Persona Walkthrough
+**Idea**: ${idea_id}
+**Date**: ${planning_date}
+
+## Walkthrough Method
+
+For each persona, simulate their PRIMARY user journey (from D2's JTBD)
+against the P4 implementation plan. At each step ask:
+1. What does the persona physically do? (click, type, run)
+2. What system component handles it? (from P3/P4)
+3. Does the implementation plan cover this interaction?
+4. What could go wrong at this step?
+
+---
+
+## Persona 1: [Name from D2]
+
+**Journey**: [Primary JTBD from D2]
+
+### Step 1: [Concrete action, e.g., 'Opens Chrome, navigates to http://localhost:8100/dashboard/']
+**System path**: [Which P4 components handle this: route, middleware, template...]
+**Covered by plan?**: YES/NO — [cite specific P4 task]
+**Gap?**: [If NO or partial — describe what breaks]
+
+### Step 2: [Next action]
+**System path**: [...]
+**Covered by plan?**: YES/NO
+**Gap?**: [...]
+
+[Continue for all steps in the journey...]
+
+### Persona 1 Verdict: PASS / GAPS FOUND
+**Gaps found**:
+- [Gap 1: what breaks, which P4 task should address it but doesn't]
+- [Gap 2: ...]
+
+---
+
+## Persona 2: [Name from D2]
+[Same structure...]
+
+---
+
+## Cross-Persona Gap Summary
+
+| # | Gap | Affected Personas | Severity | Blocks Implementation? |
+|---|-----|-------------------|----------|----------------------|
+| 1 | [Description] | [Which personas] | Critical/High/Medium/Low | Yes/No |
+| 2 | ... | ... | ... | ... |
+
+## Blocking Gaps (must fix before implementation)
+
+For each gap with 'Blocks Implementation = Yes':
+
+### Gap N: [Title]
+**Problem**: [What breaks in the user journey]
+**Root cause**: [Why P4 doesn't cover this — architecture assumption? Missing requirement?]
+**Proposed fix**: [New task or modification to existing P4 task]
+**Affected P4 tasks**: [Which tasks need updating]
+
+## Non-Blocking Gaps (should fix, but can proceed)
+
+[Same structure, lower priority]
+
+## Verdict
+
+**PASS** — All persona journeys are fully supported by the implementation plan.
+or
+**GAPS_FOUND: N blocking, M non-blocking** — Implementation plan needs updates before proceeding.
+
+---
+On the FINAL line, output exactly: WALKTHROUGH_PASS or WALKTHROUGH_GAPS
+
+Be ruthlessly concrete. Do not accept hand-wavy 'auth is handled at the perimeter' —
+trace exactly how each persona authenticates, what protocol they use, what UI they see.
+The whole point of this phase is to catch abstraction-level mismatches between
+architecture and real user interaction." 2>&1 | tee -a "$LOG_FILE"
+
+    if [[ ! -f "$output_file" ]]; then
+        log_error "P4b did not produce $output_file"
+        return 1
+    fi
+
+    pause_if_interactive "P4b-persona-walkthrough"
+    return 0
+}
+
+# =============================================================================
 # Phase P5: Research Requests (if needed)
 # =============================================================================
 
@@ -924,6 +1085,7 @@ run_p5_research_requests() {
     local idea_id="$1"
     local planning_work_dir="$2"
     local p4_file="$planning_work_dir/p4-implementation-plan.md"
+    local p4b_file="$planning_work_dir/p4b-persona-walkthrough.md"
     local output_file="$planning_work_dir/p5-research-requests.md"
 
     log_info "P5: Research Requests (${P5_RESEARCH_REQUESTS_MINUTES} min time-box)"
@@ -948,9 +1110,13 @@ run_p5_research_requests() {
 Determine if implementation can proceed, or if research is needed first.
 
 ## Context
-Read the implementation plan: ${p4_file}
+Read BOTH of these:
+- Implementation plan: ${p4_file} — look for the 'Blocked Tasks (Need Research)' section.
+- Persona walkthrough: ${p4b_file} — look for 'Blocking Gaps' and the verdict line.
 
-Look for the 'Blocked Tasks (Need Research)' section.
+The implementation is BLOCKED if EITHER source has blockers:
+- P4 has blocked tasks needing research, OR
+- P4b found blocking persona gaps (WALKTHROUGH_GAPS with blocking items)
 
 ## Instructions
 
@@ -1263,6 +1429,13 @@ process_idea() {
         return 1
     fi
 
+    # Phase P4b: Persona Walkthrough
+    log_phase "P4b. PERSONA WALKTHROUGH"
+    if ! run_p4b_persona_walkthrough "$idea_id" "$planning_work_dir"; then
+        log_error "P4b failed"
+        return 1
+    fi
+
     # Phase P5: Research Requests
     log_phase "P5. RESEARCH REQUESTS"
     local status
@@ -1301,6 +1474,7 @@ process_idea() {
 | P2 | p2-codebase-analysis.md | Internal codebase analysis |
 | P3 | p3-architecture-design.md | Architecture design |
 | P4 | p4-implementation-plan.md | Detailed implementation plan |
+| P4b | p4b-persona-walkthrough.md | Persona journey validation |
 | P5 | p5-research-requests.md | Research needs (if any) |
 | P6 | p6-prd-ontology.ttl | PRD as RDF (for Implementation-Ralph) |
 

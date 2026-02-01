@@ -64,7 +64,7 @@
     <h2>Related Ideas</h2>
     <div class="related-links">
         {% for rel_id in related %}
-        <a href="{{ dashboard_url(request, 'idea_detail', idea_id='idea-' ~ rel_id) }}" class="dep-link">idea-{{ rel_id }}</a>
+        <a href="{{ dashboard_url(request, 'idea_detail', idea_id=rel_id) }}" class="dep-link">{{ rel_id }}</a>
         {% endfor %}
     </div>
     {% endif %}

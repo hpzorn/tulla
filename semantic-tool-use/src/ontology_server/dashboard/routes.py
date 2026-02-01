@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from .services import DashboardService
 
@@ -158,9 +158,14 @@ async def idea_detail(request: Request, idea_id: str) -> HTMLResponse:
     service = _get_service(request)
     detail = service.get_idea_detail(idea_id)
     templates = request.app.state.templates
+    if detail is None:
+        return templates.TemplateResponse(
+            "idea_detail.html",
+            {"request": request, "error": f"Idea not found: {idea_id}"},
+        )
     return templates.TemplateResponse(
         "idea_detail.html",
-        {"request": request, "idea": detail},
+        {"request": request, **detail},
     )
 
 
@@ -229,7 +234,38 @@ async def prd_list(request: Request) -> HTMLResponse:
 async def prd_detail(request: Request, context: str) -> HTMLResponse:
     """Render the requirement list / dependency graph for a PRD."""
     service = _get_service(request)
-    requirements = service.get_prd_requirements(context)
+    raw_requirements = service.get_prd_requirements(context)
+
+    # Transform raw fact-property dicts into template-friendly format.
+    # Raw keys are predicates like "prd:title", "prd:status", etc.
+    # Multi-valued predicates may be lists; take the first value.
+    def _first(val: str | list | None, default: str = "") -> str:
+        if isinstance(val, list):
+            return val[0] if val else default
+        return val if val is not None else default
+
+    requirements = []
+    for raw in raw_requirements:
+        deps = raw.get("prd:dependsOn", [])
+        if isinstance(deps, str):
+            deps = [deps] if deps else []
+        requirements.append({
+            "subject": raw.get("subject", ""),
+            "taskId": _first(raw.get("prd:taskId")),
+            "title": _first(raw.get("prd:title")),
+            "phase": _first(raw.get("prd:phase"), "1"),
+            "priority": _first(raw.get("prd:priority")).removeprefix("prd:"),
+            "status": _first(raw.get("prd:status"), "Pending").removeprefix("prd:"),
+            "action": _first(raw.get("prd:action")),
+            "depends_on": deps,
+        })
+
+    # Group by phase number for the dependency graph
+    phases: dict[str, list] = {}
+    for req in sorted(requirements, key=lambda r: r["taskId"]):
+        phase = req["phase"]
+        phases.setdefault(phase, []).append(req)
+
     templates = request.app.state.templates
     return templates.TemplateResponse(
         "prd_detail.html",
@@ -237,6 +273,7 @@ async def prd_detail(request: Request, context: str) -> HTMLResponse:
             "request": request,
             "context": context,
             "requirements": requirements,
+            "phases": phases,
         },
     )
 
@@ -299,3 +336,55 @@ async def partial_instance_properties(
         "partials/instance_properties.html",
         {"request": request, **detail},
     )
+
+
+# ---------------------------------------------------------------------------
+# Authentication (cookie session for browser access)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request, error: str | None = None) -> HTMLResponse:
+    """Render the login form."""
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": error},
+    )
+
+
+@router.post("/login")
+async def login_submit(request: Request, api_key: str = Form(...)):
+    """Validate the API key and set a session cookie."""
+    verifier = getattr(request.app.state, "token_verifier", None)
+    if verifier is None:
+        # Auth not enabled on parent app — shouldn't reach here
+        return RedirectResponse(url="/dashboard/", status_code=302)
+
+    access_token = await verifier.verify_token(api_key)
+    if access_token is None:
+        templates = request.app.state.templates
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": "Invalid API key"},
+            status_code=401,
+        )
+
+    cookie_value = request.app.state.session_cookie_value
+    response = RedirectResponse(url="/dashboard/", status_code=302)
+    response.set_cookie(
+        key="dashboard_session",
+        value=cookie_value,
+        httponly=True,
+        samesite="lax",
+        path="/dashboard",
+    )
+    return response
+
+
+@router.post("/logout")
+async def logout(request: Request):
+    """Clear the session cookie."""
+    response = RedirectResponse(url="/dashboard/login", status_code=302)
+    response.delete_cookie(key="dashboard_session", path="/dashboard")
+    return response

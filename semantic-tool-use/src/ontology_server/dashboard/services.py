@@ -86,6 +86,7 @@ class DashboardService:
             {
                 "uri": str(row[0]),
                 "label": str(row[1]) if row[1] else None,
+                "class_uri": class_uri,
             }
             for row in results
         ]
@@ -139,9 +140,10 @@ class DashboardService:
         if idea is None:
             return None
         data = asdict(idea)
-        # Convert datetime objects to ISO strings for JSON serialisation
-        if data.get("created") is not None:
-            data["created"] = data["created"].isoformat()
+        # Convert datetime objects to ISO strings for template rendering
+        for key in ("created", "lifecycle_updated", "captured_at"):
+            if data.get(key) is not None:
+                data[key] = data[key].isoformat()
         return data
 
     def get_idea_lifecycle_summary(self) -> dict[str, int]:
@@ -176,31 +178,60 @@ class DashboardService:
             limit=limit,
         )
 
-    def get_fact_subjects(self, context: str) -> list[str]:
-        """Return distinct subjects within *context*.
+    def get_fact_subjects(self, context: str) -> list[dict[str, Any]]:
+        """Return distinct subjects within *context* with counts.
 
-        Fetches facts for the context and extracts unique subjects.
+        Each entry includes the subject string, fact count, and
+        distinct predicate count.
         """
         facts = self._agent_memory.recall(context=context, limit=10000)
-        seen: set[str] = set()
-        subjects: list[str] = []
+        subject_facts: dict[str, list] = {}
         for fact in facts:
             subj = fact.get("subject")
-            if subj and subj not in seen:
-                seen.add(subj)
-                subjects.append(subj)
-        return sorted(subjects)
+            if subj:
+                subject_facts.setdefault(subj, []).append(fact)
+        result = []
+        for subj in sorted(subject_facts):
+            subj_list = subject_facts[subj]
+            predicates = {f.get("predicate") for f in subj_list if f.get("predicate")}
+            result.append({
+                "subject": subj,
+                "fact_count": len(subj_list),
+                "predicate_count": len(predicates),
+            })
+        return result
 
     # ------------------------------------------------------------------
     # PRD / Requirements (stored as facts in Agent Memory)
     # ------------------------------------------------------------------
 
-    def list_prd_contexts(self) -> list[str]:
-        """Return memory contexts that look like PRD contexts (``prd-*``)."""
-        return [
+    def list_prd_contexts(self) -> list[dict[str, Any]]:
+        """Return memory contexts that look like PRD contexts (``prd-*``).
+
+        Each entry includes the context name, extracted PRD number,
+        requirement count, and total fact count.
+        """
+        contexts = [
             ctx for ctx in self._agent_memory.get_all_contexts()
             if ctx.startswith("prd-")
         ]
+        result = []
+        for ctx in sorted(contexts):
+            facts = self._agent_memory.recall(context=ctx, limit=10000)
+            req_count = sum(
+                1 for f in facts
+                if f.get("predicate") == "rdf:type"
+                and f.get("object") == "prd:Requirement"
+            )
+            # Extract number from "prd-idea-50" → "idea-50"
+            prd_number = ctx.removeprefix("prd-")
+            result.append({
+                "context": ctx,
+                "prd_number": prd_number,
+                "requirement_count": req_count,
+                "fact_count": len(facts),
+            })
+        return result
 
     def get_prd_requirements(self, context: str) -> list[dict[str, Any]]:
         """Return all requirements stored under a PRD *context*.
@@ -280,14 +311,32 @@ class DashboardService:
         idea_count = self._ideas_store.count_ideas()
         fact_count = self._agent_memory.count_facts()
         contexts = self._agent_memory.get_all_contexts()
+        prd_contexts = [c for c in contexts if c.startswith("prd-")]
+
+        # Count classes across all ontologies
+        all_classes = self._ontology_store.get_classes(None)
+        class_count = len(all_classes)
+
+        # Count instances (named individuals) across all ontologies
+        try:
+            instance_results = self._ontology_store.query(
+                "SELECT (COUNT(DISTINCT ?i) AS ?c) WHERE { ?i a ?cls . ?cls a owl:Class }"
+            )
+            instance_count = int(list(instance_results)[0][0])
+        except Exception:
+            instance_count = 0
 
         return {
             "ontology_count": len(ontologies),
+            "ontologies": ontologies,
             "total_tbox_triples": sum(
                 o.get("triple_count", 0) for o in ontologies
             ),
+            "class_count": class_count,
+            "instance_count": instance_count,
             "idea_count": idea_count,
             "idea_lifecycle": self.get_idea_lifecycle_summary(),
+            "prd_count": len(prd_contexts),
             "fact_count": fact_count,
             "fact_context_count": len(contexts),
             "kg_stats": kg_stats,

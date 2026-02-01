@@ -273,6 +273,10 @@ def create_app(
             agent_memory=agent_memory,
             ideas_store=ideas_store,
         )
+        # Pass auth state so login route can verify tokens and set cookies
+        if settings.api_key:
+            dashboard_app.state.token_verifier = verifier
+            dashboard_app.state.session_cookie_value = _session_cookie
         app.mount("/dashboard", dashboard_app)
         logger.info("Dashboard sub-application mounted at /dashboard")
 
