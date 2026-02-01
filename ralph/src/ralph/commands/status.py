@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from pydantic import BaseModel, Field
 
@@ -40,6 +41,10 @@ class RequirementRow(BaseModel):
     display_status: str = Field(
         default="Pending",
         description="Human-readable status string.",
+    )
+    deps: list[str] = Field(
+        default_factory=list,
+        description="Dependency requirement IDs (prd:dependsOn).",
     )
 
 
@@ -180,6 +185,7 @@ def query_prd_status(
             title=str(r["title"]),
             status=status,
             display_status=display_status,
+            deps=deps,
         ))
 
     return StatusSummary(
@@ -187,3 +193,123 @@ def query_prd_status(
         total=len(rows),
         **counts,
     )
+
+
+# ---------------------------------------------------------------------------
+# Formatting
+# ---------------------------------------------------------------------------
+
+
+def _truncate(text: str, width: int) -> str:
+    """Truncate *text* to *width*, adding ellipsis if needed."""
+    if width <= 0:
+        return ""
+    if len(text) <= width:
+        return text
+    if width <= 1:
+        return "…"
+    return text[: width - 1] + "…"
+
+
+def format_status_table(
+    summary: StatusSummary,
+    idea_number: int | None = None,
+    *,
+    terminal_width: int | None = None,
+) -> str:
+    """Render *summary* as a Unicode box-drawing table string.
+
+    Parameters
+    ----------
+    summary:
+        The :class:`StatusSummary` to render.
+    idea_number:
+        Used in the empty-list guard message.
+    terminal_width:
+        Override terminal width (for testing). Falls back to
+        ``os.get_terminal_size().columns`` then 80.
+    """
+    if not summary.rows:
+        n = idea_number if idea_number is not None else "?"
+        return f"No requirements found for idea {n}."
+
+    # Determine terminal width
+    if terminal_width is None:
+        try:
+            terminal_width = os.get_terminal_size().columns
+        except (ValueError, OSError):
+            terminal_width = 80
+
+    # Fixed-width columns
+    col_id = "Requirement"
+    col_status = "Status"
+    col_title = "Title"
+    col_deps = "Deps"
+
+    id_width = max(len(col_id), *(len(r.requirement_id) for r in summary.rows))
+    status_width = max(
+        len(col_status),
+        *(len(r.display_status) for r in summary.rows),
+    )
+
+    # Separators and padding: "│ " + " │ " * 3 + " │" = 2 + 9 + 2 = 13 chars
+    #   outer: 2 (left "│ ") + 2 (right " │") = 4
+    #   inner: 3 separators × 3 chars (" │ ") = 9
+    chrome = 4 + 3 * 3  # = 13
+
+    remaining = terminal_width - id_width - status_width - chrome
+    if remaining < 4:
+        # Minimal: at least 2 chars per variable column
+        remaining = 4
+
+    title_width = max(len(col_title), int(remaining * 0.6))
+    deps_width = max(len(col_deps), remaining - title_width)
+
+    # Ensure we don't exceed terminal width: recalculate if needed
+    total = id_width + title_width + status_width + deps_width + chrome
+    if total > terminal_width:
+        overflow = total - terminal_width
+        # Shrink deps first, then title
+        deps_shrink = min(overflow, deps_width - len(col_deps))
+        if deps_shrink < 0:
+            deps_shrink = 0
+        deps_width -= deps_shrink
+        overflow -= deps_shrink
+        if overflow > 0:
+            title_width -= overflow
+
+    # Build format helpers
+    def fmt_row(req_id: str, title: str, status: str, deps: str) -> str:
+        return (
+            f"│ {req_id.ljust(id_width)}"
+            f" │ {_truncate(title, title_width).ljust(title_width)}"
+            f" │ {status.ljust(status_width)}"
+            f" │ {_truncate(deps, deps_width).ljust(deps_width)} │"
+        )
+
+    # Box-drawing lines
+    top = f"┌{'─' * (id_width + 2)}┬{'─' * (title_width + 2)}┬{'─' * (status_width + 2)}┬{'─' * (deps_width + 2)}┐"
+    sep = f"├{'─' * (id_width + 2)}┼{'─' * (title_width + 2)}┼{'─' * (status_width + 2)}┼{'─' * (deps_width + 2)}┤"
+    bot = f"└{'─' * (id_width + 2)}┴{'─' * (title_width + 2)}┴{'─' * (status_width + 2)}┴{'─' * (deps_width + 2)}┘"
+
+    # Header
+    header = fmt_row(col_id, col_title, col_status, col_deps)
+
+    # Data rows
+    lines = [top, header, sep]
+    for row in summary.rows:
+        deps_str = ", ".join(row.deps) if row.deps else ""
+        lines.append(fmt_row(row.requirement_id, row.title, row.display_status, deps_str))
+    lines.append(bot)
+
+    # Summary line
+    lines.append(
+        f"Total: {summary.total}"
+        f"  Complete: {summary.complete}"
+        f"  In Progress: {summary.in_progress}"
+        f"  Pending: {summary.pending}"
+        f"  Blocked: {summary.blocked}"
+        f"  Failed: {summary.failed}"
+    )
+
+    return "\n".join(lines)
