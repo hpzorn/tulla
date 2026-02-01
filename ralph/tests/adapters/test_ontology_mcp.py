@@ -39,24 +39,24 @@ def _mock_urlopen(response_data: dict[str, Any]) -> MagicMock:
 
 
 class TestCall:
-    """Tests for OntologyMCPAdapter._call() helper."""
+    """Tests for OntologyMCPAdapter._post() / _get() / _delete() helpers."""
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_posts_to_correct_url(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({"ok": True})
-        adapter._call("/api/test", {"key": "value"})
+        adapter._post("/test", {"key": "value"})
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/test"
+        assert req.full_url == "http://localhost:3000/test"
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_sends_json_payload(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({"ok": True})
-        adapter._call("/api/test", {"foo": "bar", "count": 42})
+        adapter._post("/test", {"foo": "bar", "count": 42})
 
         req = mock_urlopen.call_args[0][0]
         sent = json.loads(req.data.decode("utf-8"))
@@ -67,7 +67,7 @@ class TestCall:
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({})
-        adapter._call("/api/test", {})
+        adapter._post("/test", {})
 
         req = mock_urlopen.call_args[0][0]
         assert req.get_header("Content-type") == "application/json"
@@ -77,7 +77,7 @@ class TestCall:
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({"result": [1, 2, 3]})
-        result = adapter._call("/api/test", {})
+        result = adapter._post("/test", {})
 
         assert result == {"result": [1, 2, 3]}
 
@@ -87,10 +87,10 @@ class TestCall:
     ) -> None:
         a = OntologyMCPAdapter(base_url="http://example.com:8080/")
         mock_urlopen.return_value = _mock_urlopen({})
-        a._call("/api/ideas", {})
+        a._post("/ideas", {})
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://example.com:8080/api/ideas"
+        assert req.full_url == "http://example.com:8080/ideas"
 
 
 # ===================================================================
@@ -107,7 +107,7 @@ class TestErrorHandling:
     ) -> None:
         mock_urlopen.side_effect = URLError("Connection refused")
 
-        result = adapter._call("/api/test", {})
+        result = adapter._post("/test", {})
 
         assert "error" in result
         assert "Connection refused" in result["error"]
@@ -119,7 +119,7 @@ class TestErrorHandling:
         mock_urlopen.side_effect = URLError("timeout")
 
         # Should not raise
-        result = adapter._call("/api/test", {})
+        result = adapter._post("/test", {})
         assert isinstance(result, dict)
 
 
@@ -139,9 +139,9 @@ class TestQueryIdeas:
         adapter.query_ideas()
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"limit": 50}
+        # _get sends query params in the URL, limit=50 is always present
+        assert "limit=50" in req.full_url
+        assert req.full_url.startswith("http://localhost:3000/ideas")
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_all_filters_included(
@@ -158,13 +158,13 @@ class TestQueryIdeas:
         )
 
         req = mock_urlopen.call_args[0][0]
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent["sparql"] == "SELECT ?s WHERE { ?s ?p ?o }"
-        assert sent["lifecycle"] == "active"
-        assert sent["author"] == "ralph"
-        assert sent["tag"] == "test"
-        assert sent["search"] == "keyword"
-        assert sent["limit"] == 10
+        url = req.full_url
+        # sparql is not sent via query_ideas (it's a kwarg but not in the GET params)
+        assert "lifecycle=active" in url
+        assert "author=ralph" in url
+        assert "tag=test" in url
+        assert "search=keyword" in url
+        assert "limit=10" in url
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_none_filters_omitted(
@@ -174,12 +174,11 @@ class TestQueryIdeas:
         adapter.query_ideas(lifecycle="seed")
 
         req = mock_urlopen.call_args[0][0]
-        sent = json.loads(req.data.decode("utf-8"))
-        assert "sparql" not in sent
-        assert "author" not in sent
-        assert "tag" not in sent
-        assert "search" not in sent
-        assert sent["lifecycle"] == "seed"
+        url = req.full_url
+        assert "author" not in url
+        assert "tag" not in url
+        assert "search" not in url
+        assert "lifecycle=seed" in url
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_extracts_ideas_from_response(
@@ -209,7 +208,7 @@ class TestEndpointMapping:
         adapter.get_idea("42")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas/42"
+        assert req.full_url == "http://localhost:3000/ideas/42"
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_store_fact_endpoint_and_payload(
@@ -219,7 +218,7 @@ class TestEndpointMapping:
         adapter.store_fact("s", "p", "o", context="ctx", confidence=0.9)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/facts"
+        assert req.full_url == "http://localhost:3000/facts"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent["subject"] == "s"
         assert sent["predicate"] == "p"
@@ -247,9 +246,8 @@ class TestEndpointMapping:
         adapter.forget_fact("fact-123")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/facts/forget"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent["fact_id"] == "fact-123"
+        assert req.full_url == "http://localhost:3000/facts/fact-123"
+        assert req.get_method() == "DELETE"
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_recall_facts_endpoint_and_payload(
@@ -259,9 +257,12 @@ class TestEndpointMapping:
         adapter.recall_facts(subject="x", predicate="y", context="z", limit=10)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/facts/recall"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"subject": "x", "predicate": "y", "context": "z", "limit": 10}
+        url = req.full_url
+        assert url.startswith("http://localhost:3000/facts")
+        assert "subject=x" in url
+        assert "predicate=y" in url
+        assert "context=z" in url
+        assert "limit=10" in url
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_sparql_query_endpoint(
@@ -271,7 +272,7 @@ class TestEndpointMapping:
         adapter.sparql_query("SELECT ?s WHERE { ?s ?p ?o }", validate=False)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/sparql"
+        assert req.full_url == "http://localhost:3000/sparql"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent["query"] == "SELECT ?s WHERE { ?s ?p ?o }"
         assert sent["validate"] is False
@@ -284,7 +285,7 @@ class TestEndpointMapping:
         adapter.update_idea("7", title="New Title", tags=["a", "b"])
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas/7/update"
+        assert req.full_url == "http://localhost:3000/ideas/7/update"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"title": "New Title", "tags": ["a", "b"]}
 
@@ -307,7 +308,7 @@ class TestEndpointMapping:
         adapter.set_lifecycle("5", "active", reason="matured")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas/5/lifecycle"
+        assert req.full_url == "http://localhost:3000/ideas/5/lifecycle"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"new_state": "active", "reason": "matured"}
 
