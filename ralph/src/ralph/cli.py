@@ -91,10 +91,44 @@ def _build_pipeline(
             planning_dir=effective_planning_dir,
         )
 
+    if agent == "epistemology":
+        from ralph.phases.epistemology.contradiction import ContradictionPhase
+        from ralph.phases.epistemology.domain import DomainPhase
+        from ralph.phases.epistemology.idea import IdeaPhase
+        from ralph.phases.epistemology.pool import PoolPhase
+        from ralph.phases.epistemology.problem import ProblemPhase
+        from ralph.phases.epistemology.signal import SignalPhase
+
+        ep_modes: dict[str, tuple[str, Any]] = {
+            "pool": ("ep-pool", PoolPhase()),
+            "idea": ("ep-idea", IdeaPhase()),
+            "domain": ("ep-domain", DomainPhase()),
+            "problem": ("ep-problem", ProblemPhase()),
+            "contradiction": ("ep-contradiction", ContradictionPhase()),
+            "signal": ("ep-signal", SignalPhase()),
+        }
+
+        effective_mode = mode if mode else "pool"
+        if effective_mode not in ep_modes:
+            raise click.ClickException(
+                f"Unknown epistemology mode '{effective_mode}'. "
+                f"Available: {', '.join(ep_modes)}"
+            )
+
+        phase_id, phase = ep_modes[effective_mode]
+        return Pipeline(
+            phases=[(phase_id, phase)],
+            claude_port=claude_port,
+            work_dir=work_dir,
+            idea_id=idea_str,
+            config={"mode": effective_mode},
+            total_budget_usd=config.epistemology.budget_usd,
+        )
+
     # Implementation uses a loop, not a pipeline — handled separately in run()
     raise click.ClickException(
         f"Agent '{agent}' pipeline is not yet implemented. "
-        f"Available: discovery, planning, research, implementation"
+        f"Available: discovery, planning, research, implementation, epistemology"
     )
 
 
