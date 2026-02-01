@@ -1,0 +1,48 @@
+# D4: Gap Analysis
+**Idea**: idea-42
+**Date**: 2026-02-01
+**Time-box**: 15 minutes
+
+## Gap Categories
+
+### Knowledge Gaps
+| Gap | Impact | Research Question |
+|-----|--------|-------------------|
+| Unknown scaling limits | High | "How does X scale?" |
+
+### Technical Gaps
+| Gap | Blocks | Solution Approach |
+|-----|--------|-------------------|
+| No API endpoint | Core feature | Build |
+| Missing auth layer | Security | Integrate |
+
+### Quality-Attribute Gaps
+| Quality Attribute | Current State | Desired State | Gap Severity |
+|-------------------|---------------|---------------|--------------|
+| Maintainability | Low | High | High |
+
+### Resource Gaps
+| Gap | Type | Mitigation |
+|-----|------|------------|
+| No frontend dev | Skills | Hire/Train |
+
+### Integration Gaps
+| Gap | Systems Involved | Complexity |
+|-----|------------------|------------|
+| ontology-server link | ontology-server, idea-pool | Medium |
+
+## Priority Matrix
+| Gap | Value Impact | Effort to Close | Priority |
+|-----|--------------|-----------------|----------|
+| No API endpoint | High | Medium | P0 |
+| Missing auth layer | High | Low | P0 |
+| Unknown scaling limits | Medium | High | P1 |
+| No frontend dev | Low | High | P2 |
+| ontology-server link | Medium | Medium | P1 |
+
+## Blockers
+1. No API endpoint: blocks core functionality
+2. Missing auth layer: blocks security review
+
+## Opportunities
+1. ontology-server integration: enables semantic queries

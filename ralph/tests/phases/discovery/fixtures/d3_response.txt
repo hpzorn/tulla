@@ -1,0 +1,57 @@
+# D3: Value Mapping
+**Idea**: idea-42
+**Date**: 2026-02-01
+**Time-box**: 20 minutes
+
+## Value Dimensions
+
+### User Value
+| Dimension | Rating (1-5) | Evidence |
+|-----------|--------------|----------|
+| Pain reduction | 4 | From D2: manual data collection |
+| Time savings | 3 | Reduces pipeline setup |
+| Quality improvement | 4 | Better data quality |
+| New capability | 5 | Automated monitoring |
+
+**User value score**: 16/20
+
+### Business Value
+| Dimension | Rating (1-5) | Rationale |
+|-----------|--------------|-----------|
+| Revenue potential | 2 | Internal tool |
+| Cost reduction | 4 | Less manual work |
+| Competitive advantage | 3 | Better tooling |
+| Strategic alignment | 5 | Core platform |
+
+**Business value score**: 14/20
+
+### Technical Value
+| Dimension | Rating (1-5) | Rationale |
+|-----------|--------------|-----------|
+| Reusability | 4 | Cross-project |
+| Technical debt reduction | 3 | Replaces scripts |
+| Platform enhancement | 5 | Core capability |
+| Learning/capability building | 3 | New patterns |
+
+**Technical value score**: 15/20
+
+## Effort vs. Impact Matrix
+
+**Estimated Effort**: Medium
+**Estimated Impact**: High
+**Quadrant**: Major Project
+
+## Strategic Fit
+
+**Alignment with existing systems**:
+- ontology-server: high alignment
+
+## ROI Assessment
+
+**ROI verdict**: Strong
+
+## Value Summary
+
+**Total value score**: 45/60
+**Priority recommendation**: P1-High
+**Confidence**: High

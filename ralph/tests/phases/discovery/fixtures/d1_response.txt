@@ -1,0 +1,29 @@
+# D1: Inventory
+**Idea**: idea-42
+**Date**: 2026-02-01
+**Time-box**: 15 minutes
+
+## The Idea
+A sample idea for testing.
+
+## Related Ideas in Pool
+| ID | Title | Lifecycle | Relationship |
+|----|-------|-----------|--------------|
+| idea-10 | Related A | active | builds-on |
+| idea-11 | Related B | draft | complements |
+
+## Existing Systems & Tools
+| Component | Location | Relevance |
+|-----------|----------|-----------|
+| mcp__idea-pool__read_idea | MCP | high |
+| mcp__ontology-server__query | MCP | medium |
+| Glob | built-in | high |
+
+## Prior Work
+Some prior work was done.
+
+## Current Gaps
+Missing integration tests.
+
+## Ecosystem Context
+Fits into the Ralph pipeline.

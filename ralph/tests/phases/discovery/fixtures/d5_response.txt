@@ -1,0 +1,31 @@
+# D5: Research Brief
+**Idea**: idea-42
+**Date**: 2026-02-01
+**Mode**: Upstream (Discovery -> Research)
+
+## Discovery Summary
+
+### What We Learned
+- **Users**: Data-Driven Developer needing automation
+- **Value**: High strategic alignment (45/60)
+- **Gaps**: Missing API endpoint, auth layer
+
+### Priority Score
+From D3 value mapping: 45/60 - P1-High
+
+## Research Questions (Prioritized by Value)
+
+### High Priority (Must answer before implementation)
+1. **RQ**: How should the API authenticate?
+   **Business rationale**: Security is a blocker
+   **Success criteria**: Auth pattern selected
+
+## Constraints for Research
+- **User constraints**: Must be simple CLI-first
+- **Technical constraints**: Python 3.11+
+- **Business constraints**: Internal tool budget
+
+## Success Definition
+Research is successful if it answers auth and scaling questions.
+
+research

@@ -1,0 +1,30 @@
+# D2: Persona Discovery
+**Idea**: idea-42
+**Date**: 2026-02-01
+**Time-box**: 20 minutes
+
+## Persona Overview
+| Persona | Role | Primary JTBD | Frequency |
+|---------|------|--------------|-----------|
+| Data-Driven Developer | Backend Engineer | Automate data pipelines | Daily |
+| Product Manager | PM | Track feature impact | Weekly |
+| DevOps Engineer | SRE | Monitor system health | Daily |
+
+## Detailed Personas
+
+### Persona 1: Data-Driven Developer
+**Who they are**: Mid-level backend engineer.
+
+### Persona 2: Product Manager
+**Who they are**: Senior PM focused on metrics.
+
+### Persona 3: DevOps Engineer
+**Who they are**: SRE with monitoring focus.
+
+## Cross-Persona Insights
+
+**Common pain points**:
+- Manual data collection
+
+## JTBD Summary
+When I am building features, I want to track impact, so I can prioritise.
