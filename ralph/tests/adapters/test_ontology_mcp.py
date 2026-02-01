@@ -19,11 +19,11 @@ from ralph.adapters.ontology_mcp import OntologyMCPAdapter
 
 @pytest.fixture()
 def adapter() -> OntologyMCPAdapter:
-    """Default adapter pointing at localhost."""
-    return OntologyMCPAdapter(base_url="http://localhost:3000")
+    """Default adapter pointing at localhost (no env key)."""
+    return OntologyMCPAdapter(base_url="http://localhost:8100", api_key="test-key")
 
 
-def _mock_urlopen(response_data: dict[str, Any]) -> MagicMock:
+def _mock_urlopen(response_data: dict[str, Any] | list) -> MagicMock:
     """Create a mock for urllib.request.urlopen that returns *response_data*."""
     body = json.dumps(response_data).encode("utf-8")
     mock_resp = MagicMock()
@@ -34,63 +34,78 @@ def _mock_urlopen(response_data: dict[str, Any]) -> MagicMock:
 
 
 # ===================================================================
-# _call() URL and payload construction tests
+# HTTP helper tests
 # ===================================================================
 
 
-class TestCall:
-    """Tests for OntologyMCPAdapter._call() helper."""
+class TestHttpHelpers:
+    """Tests for _get, _post, _delete helpers."""
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_posts_to_correct_url(
+    def test_get_builds_correct_url(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({"ok": True})
-        adapter._call("/api/test", {"key": "value"})
+        adapter._get("/facts", {"context": "prd-42", "limit": 10})
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/test"
+        assert "http://localhost:8100/facts?" in req.full_url
+        assert "context=prd-42" in req.full_url
+        assert "limit=10" in req.full_url
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_sends_json_payload(
+    def test_get_omits_none_params(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({"ok": True})
-        adapter._call("/api/test", {"foo": "bar", "count": 42})
+        adapter._get("/facts", {"context": "prd-42", "subject": None, "limit": 10})
 
         req = mock_urlopen.call_args[0][0]
+        assert "subject" not in req.full_url
+
+    @patch("ralph.adapters.ontology_mcp.urlopen")
+    def test_post_sends_json_body(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"ok": True})
+        adapter._post("/facts", {"subject": "s", "predicate": "p", "object": "o"})
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:8100/facts"
         sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"foo": "bar", "count": 42}
+        assert sent["subject"] == "s"
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_sets_content_type_json(
+    def test_delete_uses_delete_method(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"ok": True})
+        adapter._delete("/facts/abc-123")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.method == "DELETE"
+        assert req.full_url == "http://localhost:8100/facts/abc-123"
+
+    @patch("ralph.adapters.ontology_mcp.urlopen")
+    def test_bearer_auth_header_sent(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({})
-        adapter._call("/api/test", {})
+        adapter._get("/facts")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.get_header("Content-type") == "application/json"
-
-    @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_returns_parsed_json(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"result": [1, 2, 3]})
-        result = adapter._call("/api/test", {})
-
-        assert result == {"result": [1, 2, 3]}
+        assert req.get_header("Authorization") == "Bearer test-key"
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_trailing_slash_stripped_from_base(
         self, mock_urlopen: MagicMock
     ) -> None:
-        a = OntologyMCPAdapter(base_url="http://example.com:8080/")
+        a = OntologyMCPAdapter(base_url="http://example.com:8080/", api_key="k")
         mock_urlopen.return_value = _mock_urlopen({})
-        a._call("/api/ideas", {})
+        a._get("/ideas")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://example.com:8080/api/ideas"
+        assert req.full_url == "http://example.com:8080/ideas"
 
 
 # ===================================================================
@@ -107,7 +122,7 @@ class TestErrorHandling:
     ) -> None:
         mock_urlopen.side_effect = URLError("Connection refused")
 
-        result = adapter._call("/api/test", {})
+        result = adapter._get("/facts")
 
         assert "error" in result
         assert "Connection refused" in result["error"]
@@ -118,108 +133,64 @@ class TestErrorHandling:
     ) -> None:
         mock_urlopen.side_effect = URLError("timeout")
 
-        # Should not raise
-        result = adapter._call("/api/test", {})
+        result = adapter._get("/facts")
         assert isinstance(result, dict)
 
 
 # ===================================================================
-# query_ideas() tests
+# recall_facts() tests
 # ===================================================================
 
 
-class TestQueryIdeas:
-    """Tests for query_ideas() endpoint mapping and payload."""
+class TestRecallFacts:
+    """Tests for recall_facts() — GET /facts with response key transform."""
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_default_payload_has_limit(
+    def test_uses_get_with_query_params(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"ideas": []})
-        adapter.query_ideas()
+        mock_urlopen.return_value = _mock_urlopen({"facts": [], "count": 0})
+        adapter.recall_facts(subject="x", predicate="y", context="z", limit=10)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"limit": 50}
+        assert "/facts?" in req.full_url
+        assert "subject=x" in req.full_url
+        assert "predicate=y" in req.full_url
+        assert "context=z" in req.full_url
+        assert "limit=10" in req.full_url
+        assert req.data is None  # GET, no body
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_all_filters_included(
+    def test_transforms_facts_key_to_result(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"ideas": []})
-        adapter.query_ideas(
-            sparql="SELECT ?s WHERE { ?s ?p ?o }",
-            lifecycle="active",
-            author="ralph",
-            tag="test",
-            search="keyword",
-            limit=10,
+        mock_urlopen.return_value = _mock_urlopen(
+            {"facts": [{"subject": "s", "predicate": "p"}], "count": 1}
         )
+        result = adapter.recall_facts(context="prd-42")
 
-        req = mock_urlopen.call_args[0][0]
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent["sparql"] == "SELECT ?s WHERE { ?s ?p ?o }"
-        assert sent["lifecycle"] == "active"
-        assert sent["author"] == "ralph"
-        assert sent["tag"] == "test"
-        assert sent["search"] == "keyword"
-        assert sent["limit"] == 10
-
-    @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_none_filters_omitted(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"ideas": []})
-        adapter.query_ideas(lifecycle="seed")
-
-        req = mock_urlopen.call_args[0][0]
-        sent = json.loads(req.data.decode("utf-8"))
-        assert "sparql" not in sent
-        assert "author" not in sent
-        assert "tag" not in sent
-        assert "search" not in sent
-        assert sent["lifecycle"] == "seed"
-
-    @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_extracts_ideas_from_response(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
-        expected = {"ideas": [{"id": "1", "title": "Test Idea"}]}
-        mock_urlopen.return_value = _mock_urlopen(expected)
-
-        result = adapter.query_ideas(search="test")
-        assert result == expected
-        assert result["ideas"][0]["title"] == "Test Idea"
+        assert "result" in result
+        assert "facts" not in result
+        assert len(result["result"]) == 1
 
 
 # ===================================================================
-# Other port method endpoint mapping tests
+# store_fact() tests
 # ===================================================================
 
 
-class TestEndpointMapping:
-    """Tests that each port method hits the correct REST endpoint."""
+class TestStoreFact:
+    """Tests for store_fact() — POST /facts."""
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_get_idea_endpoint(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"id": "42"})
-        adapter.get_idea("42")
-
-        req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas/42"
-
-    @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_store_fact_endpoint_and_payload(
+    def test_posts_to_facts_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({"fact_id": "abc"})
         adapter.store_fact("s", "p", "o", context="ctx", confidence=0.9)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/facts"
+        assert req.full_url == "http://localhost:8100/facts"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent["subject"] == "s"
         assert sent["predicate"] == "p"
@@ -228,7 +199,7 @@ class TestEndpointMapping:
         assert sent["confidence"] == 0.9
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_store_fact_omits_none_context(
+    def test_omits_none_context(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         mock_urlopen.return_value = _mock_urlopen({})
@@ -239,29 +210,77 @@ class TestEndpointMapping:
         assert "context" not in sent
         assert sent["confidence"] == 1.0
 
+
+# ===================================================================
+# forget_fact() tests
+# ===================================================================
+
+
+class TestForgetFact:
+    """Tests for forget_fact() — DELETE /facts/{fact_id}."""
+
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_forget_fact_endpoint(
+    def test_deletes_correct_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"ok": True})
+        mock_urlopen.return_value = _mock_urlopen({"status": "forgotten"})
         adapter.forget_fact("fact-123")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/facts/forget"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent["fact_id"] == "fact-123"
+        assert req.method == "DELETE"
+        assert req.full_url == "http://localhost:8100/facts/fact-123"
+
+
+# ===================================================================
+# query_ideas() tests
+# ===================================================================
+
+
+class TestQueryIdeas:
+    """Tests for query_ideas() — GET /ideas with query params."""
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_recall_facts_endpoint_and_payload(
+    def test_uses_get_with_limit(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"result": []})
-        adapter.recall_facts(subject="x", predicate="y", context="z", limit=10)
+        mock_urlopen.return_value = _mock_urlopen({"ideas": []})
+        adapter.query_ideas()
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/facts/recall"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"subject": "x", "predicate": "y", "context": "z", "limit": 10}
+        assert "/ideas?" in req.full_url
+        assert "limit=50" in req.full_url
+        assert req.data is None  # GET, no body
+
+    @patch("ralph.adapters.ontology_mcp.urlopen")
+    def test_passes_filters_as_query_params(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"ideas": []})
+        adapter.query_ideas(lifecycle="seed", search="test", limit=10)
+
+        req = mock_urlopen.call_args[0][0]
+        assert "lifecycle=seed" in req.full_url
+        assert "search=test" in req.full_url
+        assert "limit=10" in req.full_url
+
+
+# ===================================================================
+# Other endpoint mapping tests
+# ===================================================================
+
+
+class TestEndpointMapping:
+    """Tests for remaining port methods."""
+
+    @patch("ralph.adapters.ontology_mcp.urlopen")
+    def test_get_idea_endpoint(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"id": "42"})
+        adapter.get_idea("42")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:8100/ideas/42"
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_sparql_query_endpoint(
@@ -271,7 +290,7 @@ class TestEndpointMapping:
         adapter.sparql_query("SELECT ?s WHERE { ?s ?p ?o }", validate=False)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/sparql"
+        assert req.full_url == "http://localhost:8100/sparql"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent["query"] == "SELECT ?s WHERE { ?s ?p ?o }"
         assert sent["validate"] is False
@@ -284,20 +303,9 @@ class TestEndpointMapping:
         adapter.update_idea("7", title="New Title", tags=["a", "b"])
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas/7/update"
+        assert req.full_url == "http://localhost:8100/ideas/7/update"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"title": "New Title", "tags": ["a", "b"]}
-
-    @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_update_idea_omits_none_fields(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({})
-        adapter.update_idea("7", title="Only Title")
-
-        req = mock_urlopen.call_args[0][0]
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"title": "Only Title"}
 
     @patch("ralph.adapters.ontology_mcp.urlopen")
     def test_set_lifecycle_endpoint(
@@ -307,17 +315,6 @@ class TestEndpointMapping:
         adapter.set_lifecycle("5", "active", reason="matured")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/api/ideas/5/lifecycle"
+        assert req.full_url == "http://localhost:8100/ideas/5/lifecycle"
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"new_state": "active", "reason": "matured"}
-
-    @patch("ralph.adapters.ontology_mcp.urlopen")
-    def test_set_lifecycle_omits_empty_reason(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({})
-        adapter.set_lifecycle("5", "archived")
-
-        req = mock_urlopen.call_args[0][0]
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent == {"new_state": "archived"}

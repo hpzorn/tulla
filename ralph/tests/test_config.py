@@ -50,7 +50,7 @@ class TestRalphConfigDefaults:
 
     def test_default_ontology_server_url(self) -> None:
         cfg = RalphConfig()
-        assert cfg.ontology_server_url == "http://localhost:3000"
+        assert cfg.ontology_server_url == "http://localhost:8100"
 
     def test_discovery_defaults(self) -> None:
         cfg = RalphConfig()
