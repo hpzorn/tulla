@@ -22,6 +22,9 @@ dev = [
     "types-PyYAML>=6.0",
 ]
 
+[project.scripts]
+ralph = "ralph.cli:main"
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
