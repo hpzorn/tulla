@@ -451,3 +451,33 @@ def run(
     exit_code = _report_result(result)
     if exit_code != EXIT_SUCCESS:
         sys.exit(exit_code)
+
+
+@main.command()
+@click.option(
+    "--idea",
+    required=True,
+    type=int,
+    help="Idea ID to query status for (required).",
+)
+def status(idea: int) -> None:
+    """Show PRD requirement status for a given idea."""
+    from ralph.commands.status import format_status_table, query_prd_status
+
+    ontology = OntologyMCPAdapter()
+    prd_context = f"prd-idea-{idea}"
+
+    try:
+        summary = query_prd_status(ontology, prd_context)
+    except Exception as exc:
+        click.echo(f"Error querying status: {exc}", err=True)
+        sys.exit(EXIT_FAILURE)
+
+    table = format_status_table(summary, idea_number=idea)
+    click.echo(table)
+
+    # Exit 0 if all complete or no requirements; 2 if work remains
+    if summary.total == 0 or summary.complete == summary.total:
+        sys.exit(EXIT_SUCCESS)
+    else:
+        sys.exit(EXIT_INCOMPLETE)
