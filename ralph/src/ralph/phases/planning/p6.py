@@ -88,6 +88,8 @@ class P6Phase(Phase[P6Output]):
             "- `prd:files` (string) - Files to create/modify\n"
             "- `prd:action` (string) - Either 'create' (new file) or 'modify' (edit existing)\n"
             "- `prd:verification` (string) - How to verify completion\n"
+            "- `prd:relatedADR` (string, multi-valued) - Links requirement to an architecture decision (e.g. \"arch:adr-{idea_id}-1\")\n"
+            "- `prd:qualityFocus` (string) - Quality attribute this requirement primarily addresses (e.g. \"Testability\")\n"
             "\n"
             "## Instructions\n"
             "\n"
@@ -119,6 +121,18 @@ class P6Phase(Phase[P6Output]):
             '       prd:action "create" ;\n'
             '       prd:verification "[How to verify]" .\n'
             "   ```\n"
+            "\n"
+            "3.5. **Link requirements to architecture**\n"
+            f'   - Use mcp__ontology-server__recall_facts with context="arch-idea-{idea_id}" '
+            "to see what ADRs exist\n"
+            "   - For each requirement clearly related to an ADR, store a "
+            "prd:relatedADR fact:\n"
+            f'     subject="prd:req-{idea_id}-X-Y", predicate="prd:relatedADR", '
+            f'object="arch:adr-{idea_id}-N", context="prd-idea-{idea_id}"\n'
+            "   - For requirements focused on a specific quality attribute, store:\n"
+            f'     subject="prd:req-{idea_id}-X-Y", predicate="prd:qualityFocus", '
+            f'object="[Attribute]", context="prd-idea-{idea_id}"\n'
+            "   - Only link when the relationship is clear — don't force links\n"
             "\n"
             "4. After writing the Turtle file, use mcp__ontology-server__store_fact "
             "to add each requirement to the A-box fact store.\n"
@@ -177,6 +191,7 @@ class P6Phase(Phase[P6Output]):
             {"name": "Read"},
             {"name": "Write"},
             {"name": "mcp__ontology-server__store_fact"},
+            {"name": "mcp__ontology-server__recall_facts"},
         ]
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> P6Output:

@@ -121,6 +121,28 @@ class P3Phase(Phase[P3Output]):
             "|---------|----------------|----------|\n"
             "| ... | ... | Yes/No |\n"
             "\n"
+            "## Architecture Fact Storage\n"
+            "\n"
+            "After writing the architecture design file, store key decisions as facts\n"
+            "in the ontology A-box so the Implementation phase can use them.\n"
+            f'Use context: "arch-idea-{ctx.idea_id}"\n'
+            "\n"
+            "Store the following using mcp__ontology-server__store_fact:\n"
+            "\n"
+            "1. **Quality Goals** (top 3):\n"
+            f'   - subject="arch:idea-{ctx.idea_id}", predicate="arch:qualityGoal",\n'
+            '     object="[Attribute]: [rationale in 1 sentence]"\n'
+            "\n"
+            "2. **Design Principles** (top 3):\n"
+            f'   - subject="arch:idea-{ctx.idea_id}", predicate="arch:designPrinciple",\n'
+            '     object="[Principle Name]: [how it applies in 1 sentence]"\n'
+            "\n"
+            "3. **Architecture Decisions** (each ADR):\n"
+            f'   - subject="arch:adr-{ctx.idea_id}-{{N}}", predicate="arch:decision",\n'
+            '     object="[ADR title]: [decision + rationale in 1-2 sentences]"\n'
+            "\n"
+            "Keep total facts under 15. Be concise — no markdown formatting in values.\n"
+            "\n"
             "Be concrete and specific. This design will be translated directly into implementation tasks."
         )
 
@@ -134,6 +156,7 @@ class P3Phase(Phase[P3Output]):
             {"name": "Write"},
             {"name": "mcp__ontology-server__query_ontology"},
             {"name": "mcp__ontology-server__sparql_query"},
+            {"name": "mcp__ontology-server__store_fact"},
         ]
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> P3Output:

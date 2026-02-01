@@ -56,6 +56,14 @@ class FindOutput(BaseModel):
     action: str = ""
     verification: str = ""
     all_complete: bool = False
+    related_adrs: list[str] = Field(
+        default_factory=list,
+        description="ADR identifiers linked to this requirement via prd:relatedADR.",
+    )
+    quality_focus: str = Field(
+        default="",
+        description="Quality attribute focus for this requirement (prd:qualityFocus).",
+    )
 
 
 class ImplementOutput(BaseModel):

@@ -87,6 +87,10 @@ class ImplementationLoop:
         self._verify = VerifyPhase()
         self._status = StatusPhase()
 
+        # Architecture context and lessons (loaded once at loop start)
+        self._architecture_context: dict[str, Any] | None = None
+        self._lessons: list[str] = []
+
     # ------------------------------------------------------------------
     # Properties (for dry-run introspection)
     # ------------------------------------------------------------------
@@ -113,6 +117,75 @@ class ImplementationLoop:
         return self._max_retries
 
     # ------------------------------------------------------------------
+    # Architecture & Lessons loading
+    # ------------------------------------------------------------------
+
+    def _load_architecture_and_lessons(self) -> None:
+        """Load architecture context and lessons from the ontology once.
+
+        Populates ``self._architecture_context`` and ``self._lessons``.
+        Tolerates missing data gracefully (empty dicts/lists).
+        """
+        # Derive idea id from prd_context ("prd-idea-54" → "54")
+        idea_id = self._prd_context.removeprefix("prd-idea-")
+        arch_context = f"arch-idea-{idea_id}"
+        lesson_context = f"lesson-idea-{idea_id}"
+
+        # --- Quality goals ---
+        qg_facts = self._ontology.recall_facts(
+            predicate="arch:qualityGoal",
+            context=arch_context,
+        )
+        quality_goals = [
+            f.get("object", "")
+            for f in qg_facts.get("result", [])
+            if f.get("object")
+        ]
+
+        # --- Design principles ---
+        dp_facts = self._ontology.recall_facts(
+            predicate="arch:designPrinciple",
+            context=arch_context,
+        )
+        design_principles = [
+            f.get("object", "")
+            for f in dp_facts.get("result", [])
+            if f.get("object")
+        ]
+
+        # --- ADRs ---
+        adr_facts = self._ontology.recall_facts(
+            predicate="arch:decision",
+            context=arch_context,
+        )
+        adrs: dict[str, str] = {}
+        for f in adr_facts.get("result", []):
+            subj = f.get("subject", "")
+            obj = f.get("object", "")
+            if subj and obj:
+                adrs[subj] = obj
+
+        if quality_goals or design_principles or adrs:
+            self._architecture_context = {
+                "quality_goals": quality_goals,
+                "design_principles": design_principles,
+                "adrs": adrs,
+            }
+            logger.info(
+                "Loaded architecture context: %d goals, %d principles, %d ADRs",
+                len(quality_goals),
+                len(design_principles),
+                len(adrs),
+            )
+        else:
+            logger.info("No architecture context found in %s", arch_context)
+
+        # --- Lessons ---
+        self._lessons = self._find.load_lessons(self._ontology, lesson_context)
+        if self._lessons:
+            logger.info("Loaded %d lessons from %s", len(self._lessons), lesson_context)
+
+    # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
@@ -121,6 +194,9 @@ class ImplementationLoop:
 
         Returns a :class:`LoopResult` summarising all iterations.
         """
+        # Load architecture context and lessons once before the loop
+        self._load_architecture_and_lessons()
+
         loop_result = LoopResult()
         budget_remaining = self._total_budget_usd
 
@@ -177,6 +253,8 @@ class ImplementationLoop:
                     requirement=find_output,
                     budget_usd=budget_remaining,
                     feedback=feedback,
+                    architecture_context=self._architecture_context,
+                    lessons=self._lessons or None,
                 )
                 budget_remaining -= impl_output.cost_usd
                 loop_result.total_cost_usd += impl_output.cost_usd
@@ -195,6 +273,7 @@ class ImplementationLoop:
                     requirement=find_output,
                     implementation=impl_output,
                     budget_usd=budget_remaining,
+                    architecture_context=self._architecture_context,
                 )
                 budget_remaining -= verify_output.cost_usd
                 loop_result.total_cost_usd += verify_output.cost_usd
@@ -225,6 +304,14 @@ class ImplementationLoop:
                     req_id,
                 )
 
+            # --- Store lesson after verify ---
+            if iteration.verify is not None:
+                lesson = VerifyPhase.extract_lesson(
+                    iteration.verify, iteration.retries_used,
+                )
+                if lesson:
+                    self._store_lesson(lesson)
+
             # --- STATUS ---
             if iteration.outcome == LoopOutcome.IMPLEMENTED:
                 new_status = RequirementStatus.COMPLETE
@@ -243,6 +330,22 @@ class ImplementationLoop:
             loop_result.iterations.append(iteration)
 
         return loop_result
+
+    def _store_lesson(self, lesson: str) -> None:
+        """Store a lesson fact in the ontology and append to the local cache."""
+        idea_id = self._prd_context.removeprefix("prd-idea-")
+        lesson_context = f"lesson-idea-{idea_id}"
+        try:
+            self._ontology.store_fact(
+                subject=f"lesson:{idea_id}",
+                predicate="lesson:text",
+                object=lesson,
+                context=lesson_context,
+            )
+            self._lessons.append(lesson)
+            logger.info("Stored lesson: %s", lesson[:120])
+        except Exception:
+            logger.warning("Failed to store lesson: %s", lesson[:120], exc_info=True)
 
     # ------------------------------------------------------------------
     # Dry-run display

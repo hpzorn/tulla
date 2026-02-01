@@ -34,6 +34,8 @@ class ImplementPhase:
         requirement: FindOutput,
         budget_usd: float,
         feedback: str = "",
+        architecture_context: dict[str, Any] | None = None,
+        lessons: list[str] | None = None,
     ) -> ImplementOutput:
         """Implement the requirement using Claude.
 
@@ -43,12 +45,19 @@ class ImplementPhase:
             budget_usd: Remaining budget for this invocation.
             feedback: Optional feedback from a failed verification
                 attempt, used for retry.
+            architecture_context: Optional dict with keys
+                ``quality_goals``, ``design_principles``, ``adrs``
+                loaded from the ontology's ``arch-idea-{N}`` context.
+            lessons: Optional list of lesson strings from previous
+                requirements in this run.
 
         Returns:
             An :class:`ImplementOutput` with the result.
         """
         req_id = requirement.requirement_id or "unknown"
-        prompt = self._build_prompt(requirement, feedback)
+        prompt = self._build_prompt(
+            requirement, feedback, architecture_context, lessons,
+        )
 
         request = ClaudeRequest(
             prompt=prompt,
@@ -86,6 +95,8 @@ class ImplementPhase:
         self,
         requirement: FindOutput,
         feedback: str,
+        architecture_context: dict[str, Any] | None = None,
+        lessons: list[str] | None = None,
     ) -> str:
         """Build the implementation prompt for Claude."""
         lines = [
@@ -98,9 +109,19 @@ class ImplementPhase:
             "## Description",
             requirement.description,
             "",
+        ]
+
+        # --- Architecture Context (between Description and Files) ---
+        arch_lines = self._build_architecture_section(
+            requirement, architecture_context,
+        )
+        if arch_lines:
+            lines.extend(arch_lines)
+
+        lines.extend([
             "## Files",
             f"Action: {requirement.action}",
-        ]
+        ])
 
         for f in requirement.files:
             lines.append(f"- {f}")
@@ -116,6 +137,18 @@ class ImplementPhase:
             "- Implement EXACTLY what the requirement describes",
             "- Ensure the verification criteria will PASS",
         ])
+
+        # --- Lessons from Previous Requirements ---
+        if lessons:
+            lines.extend([
+                "",
+                "## Lessons from Previous Requirements",
+                "The following lessons were learned from earlier requirements in this run:",
+            ])
+            for lesson in lessons:
+                lines.append(f"- {lesson}")
+            lines.append("")
+            lines.append("Avoid repeating these mistakes.")
 
         if feedback:
             lines.extend([
@@ -136,3 +169,46 @@ class ImplementPhase:
         ])
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _build_architecture_section(
+        requirement: FindOutput,
+        architecture_context: dict[str, Any] | None,
+    ) -> list[str]:
+        """Build the optional Architecture Context prompt section.
+
+        Returns an empty list when there is no context to inject.
+        """
+        if not architecture_context:
+            return []
+
+        lines: list[str] = ["## Architecture Context", ""]
+
+        # Quality focus for this specific requirement
+        if requirement.quality_focus:
+            lines.append(
+                f"**Quality focus for this requirement**: {requirement.quality_focus}"
+            )
+            lines.append("")
+
+        # Relevant ADRs (filtered by requirement.related_adrs)
+        all_adrs: dict[str, str] = architecture_context.get("adrs", {})
+        if requirement.related_adrs and all_adrs:
+            lines.append("**Relevant Architecture Decisions**:")
+            for adr_id in requirement.related_adrs:
+                text = all_adrs.get(adr_id, "")
+                if text:
+                    lines.append(f"- {adr_id}: {text}")
+            lines.append("")
+
+        # Design principles (always included — compact)
+        principles: list[str] = architecture_context.get("design_principles", [])
+        if principles:
+            lines.append("**Design Principles**:")
+            for p in principles:
+                lines.append(f"- {p}")
+            lines.append("")
+
+        lines.append("Respect these architecture decisions in your implementation.")
+        lines.append("")
+        return lines

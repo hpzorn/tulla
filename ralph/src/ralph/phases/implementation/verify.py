@@ -34,6 +34,7 @@ class VerifyPhase:
         requirement: FindOutput,
         implementation: ImplementOutput,
         budget_usd: float,
+        architecture_context: dict[str, Any] | None = None,
     ) -> VerifyOutput:
         """Verify the implementation against the requirement spec.
 
@@ -42,19 +43,22 @@ class VerifyPhase:
             requirement: The requirement that was implemented.
             implementation: The implementation output to verify.
             budget_usd: Remaining budget for this invocation.
+            architecture_context: Optional dict with keys
+                ``quality_goals``, ``design_principles``, ``adrs``
+                loaded from the ontology's ``arch-idea-{N}`` context.
 
         Returns:
             A :class:`VerifyOutput` with pass/fail and feedback.
         """
         req_id = requirement.requirement_id or "unknown"
-        prompt = self._build_prompt(requirement, implementation)
+        prompt = self._build_prompt(requirement, implementation, architecture_context)
 
         request = ClaudeRequest(
             prompt=prompt,
             allowed_tools=["Read", "Glob", "Grep", "Bash"],
             budget_usd=budget_usd,
             timeout_seconds=self.timeout_s,
-            permission_mode="auto",
+            permission_mode="bypassPermissions",
         )
 
         start = time.monotonic()
@@ -86,6 +90,7 @@ class VerifyPhase:
         self,
         requirement: FindOutput,
         implementation: ImplementOutput,
+        architecture_context: dict[str, Any] | None = None,
     ) -> str:
         """Build the verification prompt for Claude."""
         lines = [
@@ -101,8 +106,16 @@ class VerifyPhase:
             "## Verification Criteria",
             requirement.verification,
             "",
-            "## Files to Check",
         ]
+
+        # --- Architecture Compliance ---
+        arch_lines = self._build_architecture_compliance(
+            requirement, architecture_context,
+        )
+        if arch_lines:
+            lines.extend(arch_lines)
+
+        lines.append("## Files to Check")
 
         for f in implementation.files_changed:
             lines.append(f"- {f}")
@@ -114,6 +127,14 @@ class VerifyPhase:
             "2. Check that the implementation matches the description",
             "3. Check that the verification criteria are satisfied",
             "4. Run any verification commands if specified",
+        ])
+        if architecture_context:
+            lines.append(
+                "5. Check that the implementation respects the architecture "
+                "decisions and design principles listed above"
+            )
+
+        lines.extend([
             "",
             "## Output",
             "On the FINAL line, output exactly ONE of:",
@@ -122,3 +143,71 @@ class VerifyPhase:
         ])
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _build_architecture_compliance(
+        requirement: FindOutput,
+        architecture_context: dict[str, Any] | None,
+    ) -> list[str]:
+        """Build the optional Architecture Compliance prompt section."""
+        if not architecture_context:
+            return []
+
+        lines: list[str] = ["## Architecture Compliance", ""]
+        lines.append(
+            "In addition to functional correctness, verify that the "
+            "implementation conforms to these architecture decisions:"
+        )
+        lines.append("")
+
+        # Relevant ADRs
+        all_adrs: dict[str, str] = architecture_context.get("adrs", {})
+        if requirement.related_adrs and all_adrs:
+            for adr_id in requirement.related_adrs:
+                text = all_adrs.get(adr_id, "")
+                if text:
+                    lines.append(f"- {adr_id}: {text}")
+
+        # Design principles
+        principles: list[str] = architecture_context.get("design_principles", [])
+        if principles:
+            lines.append("")
+            lines.append("**Design Principles**:")
+            for p in principles:
+                lines.append(f"- {p}")
+
+        lines.append("")
+        return lines
+
+    @staticmethod
+    def extract_lesson(
+        verify_output: "VerifyOutput",
+        retries_used: int,
+    ) -> str | None:
+        """Extract a lesson string from a verification outcome.
+
+        Returns:
+            A lesson string if there is something to learn, or ``None``
+            if the requirement passed on the first try.
+        """
+        req_id = verify_output.requirement_id
+        feedback_first_line = (
+            verify_output.feedback.split("\n", 1)[0].strip()
+            if verify_output.feedback
+            else ""
+        )
+
+        if verify_output.passed and retries_used > 0:
+            return (
+                f"{req_id}: Fixed after {retries_used} "
+                f"{'retry' if retries_used == 1 else 'retries'}. "
+                f"Issue: {feedback_first_line}"
+            )
+
+        if not verify_output.passed:
+            return (
+                f"{req_id}: Failed. Issue: {feedback_first_line}"
+            )
+
+        # Passed on first try — no lesson to extract
+        return None

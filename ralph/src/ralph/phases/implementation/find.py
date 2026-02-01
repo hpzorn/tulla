@@ -128,10 +128,14 @@ class FindPhase:
         results = facts.get("result", [])
 
         props: dict[str, str] = {}
+        related_adrs: list[str] = []
         for f in results:
             pred = f.get("predicate", "")
             obj = f.get("object", "")
-            props[pred] = obj
+            if pred == "prd:relatedADR":
+                related_adrs.append(obj)
+            else:
+                props[pred] = obj
 
         files_str = props.get("prd:files", "")
         files = [f.strip() for f in files_str.split(",") if f.strip()]
@@ -144,4 +148,28 @@ class FindPhase:
             action=props.get("prd:action", ""),
             verification=props.get("prd:verification", ""),
             all_complete=False,
+            related_adrs=related_adrs,
+            quality_focus=props.get("prd:qualityFocus", ""),
         )
+
+    def load_lessons(
+        self,
+        ontology: OntologyPort,
+        lesson_context: str,
+    ) -> list[str]:
+        """Load implementation lessons from the ontology.
+
+        Parameters:
+            ontology: Ontology port for querying facts.
+            lesson_context: The ontology context holding lesson facts
+                (e.g. ``"lesson-idea-54"``).
+
+        Returns:
+            A list of lesson strings extracted from stored facts.
+        """
+        facts = ontology.recall_facts(
+            predicate="lesson:text",
+            context=lesson_context,
+        )
+        results = facts.get("result", [])
+        return [f.get("object", "") for f in results if f.get("object")]
