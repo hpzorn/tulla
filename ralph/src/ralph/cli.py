@@ -6,6 +6,7 @@ dispatches to agent-specific pipeline factories.
 Exit codes:
     0  — pipeline completed successfully
     1  — pipeline failed (phase error, bad input, etc.)
+    2  — pipeline incomplete (Terraform -detailed-exitcode convention)
     124 — pipeline timed out
 """
 
@@ -34,6 +35,7 @@ AGENTS = ("discovery", "planning", "research", "implementation", "epistemology")
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
+EXIT_INCOMPLETE = 2
 EXIT_TIMEOUT = 124
 
 
