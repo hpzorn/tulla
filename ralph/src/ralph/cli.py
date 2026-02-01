@@ -91,11 +91,78 @@ def _build_pipeline(
             planning_dir=effective_planning_dir,
         )
 
-    # Placeholder for future agents
+    # Implementation uses a loop, not a pipeline — handled separately in run()
     raise click.ClickException(
         f"Agent '{agent}' pipeline is not yet implemented. "
-        f"Available: discovery, planning, research"
+        f"Available: discovery, planning, research, implementation"
     )
+
+
+# ---------------------------------------------------------------------------
+# Implementation loop runner
+# ---------------------------------------------------------------------------
+
+
+def _run_implementation(
+    idea_id: int,
+    config: RalphConfig,
+    work_dir: Path,
+    dry_run: bool,
+) -> None:
+    """Build and run the implementation loop for an idea.
+
+    Unlike other agents, implementation uses a loop-based architecture
+    (Find→Implement→Commit→Verify→Status) rather than a linear pipeline.
+    """
+    from ralph.phases.implementation.loop import ImplementationLoop
+
+    claude_port = ClaudeCLIAdapter()
+    ontology_port = OntologyMCPAdapter()
+    prd_context = f"prd-idea-{idea_id}"
+    project_root = Path.cwd()
+
+    loop = ImplementationLoop(
+        claude_port=claude_port,
+        ontology_port=ontology_port,
+        project_root=project_root,
+        prd_context=prd_context,
+        config=config,
+        max_retries=config.implementation.max_retries,
+        total_budget_usd=config.implementation.budget_usd,
+    )
+
+    if dry_run:
+        loop.show_dry_run(idea_id=idea_id, work_dir=work_dir)
+        return
+
+    result = loop.run()
+
+    # Report loop results
+    click.echo()
+    click.echo("=== Implementation Loop Summary ===")
+    click.echo(f"Total cost:   ${result.total_cost_usd:.4f} USD")
+    click.echo(f"Completed:    {result.requirements_completed}")
+    click.echo(f"Blocked:      {result.requirements_blocked}")
+    click.echo(f"All complete: {result.all_complete}")
+    click.echo(f"Iterations:   {len(result.iterations)}")
+    click.echo()
+
+    for i, iteration in enumerate(result.iterations, 1):
+        req = iteration.requirement_id or "(none)"
+        click.echo(f"  [{i}] {req}: {iteration.outcome.value}")
+        if iteration.error:
+            click.echo(f"      Error: {iteration.error}")
+
+    click.echo()
+
+    if result.all_complete:
+        click.echo("All requirements implemented successfully.")
+    elif result.requirements_blocked > 0:
+        click.echo("Some requirements are blocked.")
+        sys.exit(EXIT_FAILURE)
+    else:
+        click.echo("Implementation loop ended.")
+        sys.exit(EXIT_FAILURE)
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +332,16 @@ def run(
         )
 
     resolved_work_dir.mkdir(parents=True, exist_ok=True)
+
+    # Implementation uses a loop-based orchestrator, not a linear pipeline
+    if agent == "implementation":
+        _run_implementation(
+            idea_id=idea,
+            config=config,
+            work_dir=resolved_work_dir,
+            dry_run=dry_run,
+        )
+        return
 
     # Build the pipeline
     pipeline = _build_pipeline(
