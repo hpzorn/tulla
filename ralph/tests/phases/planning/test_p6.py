@@ -1,18 +1,16 @@
-"""Tests for ralph.phases.planning.p6 -- P6Phase (hygiene gate integration)."""
+"""Tests for ralph.phases.planning.p6 -- P6Phase (Export PRD to RDF)."""
 
 from __future__ import annotations
 
 import logging
-import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from ralph.core.phase import PhaseContext, PhaseStatus
-from ralph.hygiene.preflight import HygieneReport, StaleFile
+from ralph.core.phase import ParseError, PhaseContext
 from ralph.phases.planning.models import P6Output
-from ralph.phases.planning.p6 import P6Phase
+from ralph.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +22,7 @@ from ralph.phases.planning.p6 import P6Phase
 def ctx(tmp_path: Path) -> PhaseContext:
     """Standard PhaseContext pointing at a temporary work directory."""
     return PhaseContext(
-        idea_id="idea-42",
+        idea_id="42",
         work_dir=tmp_path,
         config={},
         budget_remaining_usd=5.0,
@@ -34,7 +32,7 @@ def ctx(tmp_path: Path) -> PhaseContext:
 
 @pytest.fixture()
 def phase() -> P6Phase:
-    """A plain P6Phase instance with default (--clean) argv."""
+    """A plain P6Phase instance."""
     return P6Phase()
 
 
@@ -52,46 +50,64 @@ class TestConstruction:
 
     def test_default_timeout(self) -> None:
         p = P6Phase()
-        assert p.timeout_s == 60.0
-
-    def test_custom_work_dirs(self, tmp_path: Path) -> None:
-        dirs = [tmp_path / "a", tmp_path / "b"]
-        p = P6Phase(work_dirs=dirs)
-        assert p._work_dirs == dirs
-
-    def test_custom_argv(self) -> None:
-        p = P6Phase(argv=["--no-clean", "--extra"])
-        assert p._argv == ["--no-clean", "--extra"]
-
-    def test_custom_stale_threshold(self) -> None:
-        p = P6Phase(stale_threshold_secs=7200)
-        assert p._stale_threshold_secs == 7200
+        assert p.timeout_s == 600.0
 
 
 # ===================================================================
-# build_prompt returns empty string
+# build_prompt
 # ===================================================================
 
 
 class TestBuildPrompt:
-    """P6Phase.build_prompt() returns empty (no LLM interaction)."""
+    """P6Phase.build_prompt() generates the PRD export prompt."""
 
-    def test_returns_empty_string(self, phase: P6Phase, ctx: PhaseContext) -> None:
+    def test_contains_idea_id(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
-        assert prompt == ""
+        assert "idea 42" in prompt
+
+    def test_references_p4_file(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "p4-implementation-plan.md" in prompt
+
+    def test_references_turtle_output(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "p6-prd-export.ttl" in prompt
+
+    def test_references_summary_output(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "p6-prd-summary.md" in prompt
+
+    def test_references_prd_namespace(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert PRD_NS in prompt
+
+    def test_references_store_fact(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "mcp__ontology-server__store_fact" in prompt
+
+    def test_references_prd_context(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "prd-idea-42" in prompt
+
+    def test_warns_against_add_triple(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "Do NOT use add_triple" in prompt
 
 
 # ===================================================================
-# get_tools returns empty list
+# get_tools
 # ===================================================================
 
 
 class TestGetTools:
-    """P6Phase.get_tools() returns empty list (no LLM interaction)."""
+    """P6Phase.get_tools() returns Read, Write, and store_fact."""
 
-    def test_returns_empty_list(self, phase: P6Phase, ctx: PhaseContext) -> None:
+    def test_returns_expected_tools(self, phase: P6Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
-        assert tools == []
+        names = [t["name"] for t in tools]
+        assert "Read" in names
+        assert "Write" in names
+        assert "mcp__ontology-server__store_fact" in names
 
 
 # ===================================================================
@@ -103,263 +119,64 @@ class TestGetTimeoutSeconds:
     """P6Phase.get_timeout_seconds() returns the configured timeout."""
 
     def test_returns_timeout(self, phase: P6Phase) -> None:
-        assert phase.get_timeout_seconds() == 60.0
+        assert phase.get_timeout_seconds() == 600.0
 
 
 # ===================================================================
-# validate_input runs the hygiene gate -- CLEAN mode (default)
+# parse_output -- success
 # ===================================================================
 
 
-class TestValidateInputClean:
-    """P6Phase.validate_input() with default --clean mode."""
+SAMPLE_TURTLE = """\
+@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-    def test_gate_result_populated(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=[])
-        phase.validate_input(ctx)
-        assert phase._gate_result is not None
+prd:req-42-1-1 a prd:Requirement ;
+    prd:taskId "1.1" ;
+    prd:title "First task" ;
+    prd:status prd:Pending .
 
-    def test_gate_result_mode_is_clean(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--clean"])
-        phase.validate_input(ctx)
-        assert phase._gate_result.config.mode.value == "clean"
+prd:req-42-1-2 a prd:Requirement ;
+    prd:taskId "1.2" ;
+    prd:title "Second task" ;
+    prd:status prd:Pending ;
+    prd:dependsOn prd:req-42-1-1 .
 
-    def test_gate_result_has_report(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--clean"])
-        phase.validate_input(ctx)
-        assert phase._gate_result.report is not None
-
-
-# ===================================================================
-# validate_input -- NO_CLEAN mode
-# ===================================================================
+prd:req-42-2-1 a prd:Requirement ;
+    prd:taskId "2.1" ;
+    prd:title "Third task" ;
+    prd:status prd:Pending .
+"""
 
 
-class TestValidateInputNoClean:
-    """P6Phase.validate_input() with --no-clean mode."""
+class TestParseOutputSuccess:
+    """P6Phase.parse_output() when turtle file exists."""
 
-    def test_gate_result_mode_is_no_clean(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--no-clean"])
-        phase.validate_input(ctx)
-        assert phase._gate_result.config.mode.value == "no-clean"
+    def test_returns_p6_output(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
+        (ctx.work_dir / "p6-prd-summary.md").write_text("# Summary\n")
 
-    def test_gate_result_report_is_none(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--no-clean"])
-        phase.validate_input(ctx)
-        assert phase._gate_result.report is None
-
-
-# ===================================================================
-# validate_input -- CHECK mode
-# ===================================================================
-
-
-class TestValidateInputCheck:
-    """P6Phase.validate_input() with --check mode (captured exit)."""
-
-    def test_gate_result_mode_is_check_or_clean(self, ctx: PhaseContext) -> None:
-        # In check mode the gate calls exit_func, which we capture.
-        # The gate still returns a GateResult.
-        phase = P6Phase(argv=["--check"])
-        phase.validate_input(ctx)
-        # Gate result is populated even in check mode because we
-        # provide a non-exiting exit_func.
-        assert phase._gate_result is not None
-
-
-# ===================================================================
-# validate_input passes remaining args
-# ===================================================================
-
-
-class TestValidateInputRemainingArgs:
-    """P6Phase.validate_input() preserves non-hygiene args."""
-
-    def test_remaining_args_passed_through(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--clean", "--rounds", "3"])
-        phase.validate_input(ctx)
-        assert "--rounds" in phase._gate_result.remaining_args
-        assert "3" in phase._gate_result.remaining_args
-
-
-# ===================================================================
-# parse_output -- CLEAN mode
-# ===================================================================
-
-
-class TestParseOutputClean:
-    """P6Phase.parse_output() converts gate result to P6Output for clean mode."""
-
-    def test_returns_p6_output_clean(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--clean"])
-        phase.validate_input(ctx)
-        result = phase.parse_output(ctx, phase._gate_result)
-
-        assert isinstance(result, P6Output)
-        assert result.mode == "clean"
-        assert result.was_skipped is False
-
-    def test_clean_empty_dir_not_was_cleaned(self, ctx: PhaseContext) -> None:
-        # An empty tmp_path has nothing to clean.
-        phase = P6Phase(argv=["--clean"])
-        phase.validate_input(ctx)
-        result = phase.parse_output(ctx, phase._gate_result)
-        assert result.was_cleaned is False  # nothing to actually remove
-
-    def test_clean_with_stale_file(self, ctx: PhaseContext) -> None:
-        # Create a stale .lock file older than threshold.
-        lock_file = ctx.work_dir / "old.lock"
-        lock_file.write_text("stale")
-        # Backdate the file.
-        old_time = time.time() - 7200  # 2 hours ago
-        import os
-        os.utime(lock_file, (old_time, old_time))
-
-        phase = P6Phase(argv=["--clean"], stale_threshold_secs=3600)
-        phase.validate_input(ctx)
-        result = phase.parse_output(ctx, phase._gate_result)
-
-        assert result.was_cleaned is True
-        assert result.mode == "clean"
-        assert not lock_file.exists()  # file was removed
-
-
-# ===================================================================
-# parse_output -- NO_CLEAN mode
-# ===================================================================
-
-
-class TestParseOutputNoClean:
-    """P6Phase.parse_output() in no-clean mode marks was_skipped."""
-
-    def test_returns_p6_output_skipped(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--no-clean"])
-        phase.validate_input(ctx)
-        result = phase.parse_output(ctx, phase._gate_result)
-
-        assert isinstance(result, P6Output)
-        assert result.mode == "no-clean"
-        assert result.was_skipped is True
-        assert result.was_cleaned is False
-        assert result.hygiene_report is None
-
-
-# ===================================================================
-# parse_output -- None gate result (defensive)
-# ===================================================================
-
-
-class TestParseOutputNone:
-    """P6Phase.parse_output() with None gate result."""
-
-    def test_returns_unknown_mode(self, phase: P6Phase, ctx: PhaseContext) -> None:
         result = phase.parse_output(ctx, None)
-        assert result.mode == "unknown"
-        assert result.was_skipped is True
-        assert result.was_cleaned is False
-        assert result.remaining_args == []
+
+        assert isinstance(result, P6Output)
+        assert result.requirements_exported == 3
+        assert result.prd_context == "prd-idea-42"
+        assert result.turtle_file == ctx.work_dir / "p6-prd-export.ttl"
+
+    def test_counts_requirements(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
+        result = phase.parse_output(ctx, None)
+        assert result.requirements_exported == 3
 
 
 # ===================================================================
-# parse_output remaining args
+# parse_output -- missing file
 # ===================================================================
 
 
-class TestParseOutputRemainingArgs:
-    """P6Phase.parse_output() passes remaining args through."""
+class TestParseOutputMissing:
+    """P6Phase.parse_output() when turtle file is missing."""
 
-    def test_remaining_args_in_output(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--clean", "--idea", "42"])
-        phase.validate_input(ctx)
-        result = phase.parse_output(ctx, phase._gate_result)
-        assert "--idea" in result.remaining_args
-        assert "42" in result.remaining_args
-
-
-# ===================================================================
-# execute end-to-end -- CLEAN mode
-# ===================================================================
-
-
-class TestExecuteClean:
-    """P6Phase.execute() end-to-end in clean mode."""
-
-    def test_execute_clean_returns_success(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--clean"])
-        result = phase.execute(ctx)
-
-        assert result.status is PhaseStatus.SUCCESS
-        assert result.data is not None
-        assert isinstance(result.data, P6Output)
-        assert result.data.mode == "clean"
-        assert result.error is None
-        assert result.duration_s > 0
-
-    def test_execute_clean_with_stale_file(self, ctx: PhaseContext) -> None:
-        lock_file = ctx.work_dir / "stale.lock"
-        lock_file.write_text("lock")
-        old_time = time.time() - 7200
-        import os
-        os.utime(lock_file, (old_time, old_time))
-
-        phase = P6Phase(argv=["--clean"], stale_threshold_secs=3600)
-        result = phase.execute(ctx)
-
-        assert result.status is PhaseStatus.SUCCESS
-        assert result.data.was_cleaned is True
-        assert not lock_file.exists()
-
-
-# ===================================================================
-# execute end-to-end -- NO_CLEAN mode
-# ===================================================================
-
-
-class TestExecuteNoClean:
-    """P6Phase.execute() end-to-end in no-clean mode."""
-
-    def test_execute_no_clean_returns_success(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--no-clean"])
-        result = phase.execute(ctx)
-
-        assert result.status is PhaseStatus.SUCCESS
-        assert result.data is not None
-        assert result.data.mode == "no-clean"
-        assert result.data.was_skipped is True
-        assert result.error is None
-
-
-# ===================================================================
-# execute end-to-end -- CHECK mode
-# ===================================================================
-
-
-class TestExecuteCheck:
-    """P6Phase.execute() end-to-end in check mode (captured exit)."""
-
-    def test_execute_check_returns_success(self, ctx: PhaseContext) -> None:
-        phase = P6Phase(argv=["--check"])
-        result = phase.execute(ctx)
-
-        # Check mode still succeeds because we capture the exit.
-        assert result.status is PhaseStatus.SUCCESS
-        assert result.data is not None
-
-
-# ===================================================================
-# execute with custom work_dirs
-# ===================================================================
-
-
-class TestExecuteCustomWorkDirs:
-    """P6Phase.execute() with explicit work directories."""
-
-    def test_custom_work_dirs_used(self, ctx: PhaseContext, tmp_path: Path) -> None:
-        custom_dir = tmp_path / "custom_work"
-        custom_dir.mkdir()
-
-        phase = P6Phase(work_dirs=[custom_dir], argv=["--clean"])
-        result = phase.execute(ctx)
-
-        assert result.status is PhaseStatus.SUCCESS
-        assert result.data.mode == "clean"
+    def test_raises_parse_error(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        with pytest.raises(ParseError, match="p6-prd-export.ttl not found"):
+            phase.parse_output(ctx, None)

@@ -145,18 +145,6 @@ class D4Phase(Phase[D4Output]):
             {"name": "mcp__ontology-server__sparql_query"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "D4Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D4Output:
         """Parse D4 output by reading ``d4-gap-analysis.md`` from *work_dir*.
 

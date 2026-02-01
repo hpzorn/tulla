@@ -124,18 +124,6 @@ class D2Phase(Phase[D2Output]):
             {"name": "WebSearch"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "D2Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D2Output:
         """Parse D2 output by reading ``d2-personas.md`` from *work_dir*.
 

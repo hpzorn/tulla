@@ -101,18 +101,6 @@ class R4Phase(Phase[R4Output]):
             {"name": "Grep"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "R4Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R4Output:
         """Parse R4 output by reading ``r4-literature-review.md`` from *work_dir*.
 

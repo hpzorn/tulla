@@ -34,7 +34,7 @@ class ClaudeRequest:
     allowed_tools: list[str] = field(default_factory=list)
     budget_usd: float = 0.0
     timeout_seconds: float = 0.0
-    permission_mode: str = "auto"
+    permission_mode: str = "bypassPermissions"
 
 
 @dataclass

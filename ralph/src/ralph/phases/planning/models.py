@@ -8,9 +8,6 @@ from typing import Any, Optional
 
 from pydantic import BaseModel
 
-from ralph.hygiene.preflight import HygieneReport
-
-
 class PlanningInput(BaseModel):
     """Input parameters for a planning phase run."""
 
@@ -102,25 +99,21 @@ class P5Output(BaseModel):
 
 
 class P6Input(BaseModel):
-    """Input for P6 – Hygiene & Pre-flight."""
+    """Input for P6 – Export PRD to RDF."""
 
-    work_dirs: list[Path]
-    argv: list[str]
-    stale_threshold_secs: int = 3600
+    idea_id: str
+    work_dir: Path
+    p4_file: Path
 
 
 class P6Output(BaseModel):
-    """Output of P6 – Hygiene & Pre-flight.
+    """Output of P6 – Export PRD to RDF.
 
-    Wraps the HygieneReport from the promoted hygiene framework
-    so downstream phases can inspect cleanup results.
+    Captures the results of exporting the implementation plan (P4)
+    into RDF triples stored in the ontology A-box via ``store_fact``.
     """
 
-    class Config:
-        arbitrary_types_allowed = True
-
-    hygiene_report: Optional[HygieneReport] = None
-    mode: str
-    was_cleaned: bool
-    was_skipped: bool
-    remaining_args: list[str]
+    turtle_file: Path
+    summary_file: Path
+    requirements_exported: int
+    prd_context: str

@@ -79,13 +79,6 @@ class IdeaPhase(Phase[IdeaOutput]):
             {"name": "Grep"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        raise NotImplementedError(
-            "IdeaPhase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> IdeaOutput:
         output_file = ctx.work_dir / "ep-idea-review.md"
 

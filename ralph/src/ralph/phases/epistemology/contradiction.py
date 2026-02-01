@@ -79,13 +79,6 @@ class ContradictionPhase(Phase[ContradictionOutput]):
             {"name": "Grep"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        raise NotImplementedError(
-            "ContradictionPhase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> ContradictionOutput:
         output_file = ctx.work_dir / "ep-contradictions.md"
 

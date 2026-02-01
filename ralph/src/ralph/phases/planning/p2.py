@@ -126,18 +126,6 @@ class P2Phase(Phase[P2Output]):
             {"name": "Grep"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "P2Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> P2Output:
         """Parse P2 output by reading ``p2-codebase-analysis.md`` from *work_dir*.
 

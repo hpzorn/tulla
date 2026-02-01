@@ -122,8 +122,8 @@ class ClaudeCLIAdapter(ClaudePort):
         if output_json is None:
             return 0.0
 
-        cost_keys = ("cost_usd", "costUsd", "total_cost", "cost")
-        containers = ("usage", "metadata", "result")
+        cost_keys = ("total_cost_usd", "cost_usd", "costUsd", "total_cost", "cost")
+        containers = ("usage", "metadata", "result", "modelUsage")
 
         # Check top-level keys first.
         for key in cost_keys:

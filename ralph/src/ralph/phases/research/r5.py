@@ -126,18 +126,6 @@ class R5Phase(Phase[R5Output]):
             {"name": "Bash"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "R5Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R5Output:
         """Parse R5 output by reading ``r5-research-findings.md`` from *work_dir*.
 

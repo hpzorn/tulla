@@ -90,14 +90,6 @@ class PoolPhase(Phase[PoolOutput]):
             {"name": "Grep"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude via injected adapter."""
-        raise NotImplementedError(
-            "PoolPhase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> PoolOutput:
         """Parse pool mode output from ``ep-pool-health.md``."""
         output_file = ctx.work_dir / "ep-pool-health.md"

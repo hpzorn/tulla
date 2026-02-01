@@ -28,7 +28,7 @@ class TestAgentConfigDefaults:
 
     def test_default_permission_mode(self) -> None:
         cfg = AgentConfig()
-        assert cfg.permission_mode == "auto"
+        assert cfg.permission_mode == "bypassPermissions"
 
     def test_default_phase_timeout(self) -> None:
         cfg = AgentConfig()
@@ -40,7 +40,9 @@ class TestRalphConfigDefaults:
 
     def test_default_work_base_dir(self) -> None:
         cfg = RalphConfig()
-        assert cfg.work_base_dir == Path("./work")
+        # Relative default is resolved to absolute at creation time
+        assert cfg.work_base_dir == Path("./work").resolve()
+        assert cfg.work_base_dir.is_absolute()
 
     def test_default_ideas_dir(self) -> None:
         cfg = RalphConfig()
@@ -53,7 +55,7 @@ class TestRalphConfigDefaults:
     def test_discovery_defaults(self) -> None:
         cfg = RalphConfig()
         assert cfg.discovery.budget_usd == 5.0
-        assert cfg.discovery.permission_mode == "auto"
+        assert cfg.discovery.permission_mode == "bypassPermissions"
 
     def test_planning_defaults(self) -> None:
         cfg = RalphConfig()
@@ -148,13 +150,13 @@ class TestYamlLoading:
 
     def test_missing_yaml_file_uses_defaults(self, tmp_path: Path) -> None:
         cfg = RalphConfig.from_yaml(tmp_path / "nonexistent.yaml")
-        assert cfg.work_base_dir == Path("./work")
+        assert cfg.work_base_dir == Path("./work").resolve()
 
     def test_empty_yaml_uses_defaults(self, tmp_path: Path) -> None:
         yaml_file = tmp_path / "empty.yaml"
         yaml_file.write_text("")
         cfg = RalphConfig.from_yaml(yaml_file)
-        assert cfg.work_base_dir == Path("./work")
+        assert cfg.work_base_dir == Path("./work").resolve()
 
 
 # ---------------------------------------------------------------------------

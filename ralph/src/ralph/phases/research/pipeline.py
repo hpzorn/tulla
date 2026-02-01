@@ -27,8 +27,15 @@ def research_pipeline(
     idea_id: str,
     config: RalphConfig,
     planning_dir: str = "",
+    discovery_dir: str = "",
 ) -> Pipeline:
     """Create a research :class:`Pipeline` with phases R1 through R6.
+
+    Supports two modes (see idea-58):
+
+    - **Groundwork** (discovery_dir, no planning_dir): Full R1-R6 on a raw
+      idea, using discovery artifacts for grounding.
+    - **Spike** (planning_dir): Targeted research answering P5 questions.
 
     Parameters:
         claude_port: Claude invocation adapter forwarded to each phase.
@@ -38,7 +45,9 @@ def research_pipeline(
             is used as the pipeline's total budget and
             ``config.research.max_retries`` configures R5's retry loop.
         planning_dir: Path to the planning output directory whose
-            research requests (P5) seed the research questions.
+            research requests (P5) seed the research questions (spike mode).
+        discovery_dir: Path to the discovery output directory whose
+            artifacts (D1-D5) ground the research (groundwork mode).
 
     Returns:
         A fully configured :class:`Pipeline` instance.
@@ -57,6 +66,10 @@ def research_pipeline(
         claude_port=claude_port,
         work_dir=work_dir,
         idea_id=idea_id,
-        config={"planning_dir": planning_dir},
+        config={
+            "planning_dir": planning_dir,
+            "discovery_dir": discovery_dir,
+            "permission_mode": config.research.permission_mode,
+        },
         total_budget_usd=config.research.budget_usd,
     )

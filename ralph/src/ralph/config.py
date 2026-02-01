@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import yaml
 
@@ -37,7 +37,7 @@ class AgentConfig(BaseSettings):
 
     budget_usd: float = 5.0
     max_retries: int = 2
-    permission_mode: str = "auto"
+    permission_mode: str = "bypassPermissions"
     phase_timeout_minutes: int = 15
 
 
@@ -70,6 +70,20 @@ class RalphConfig(BaseSettings):
         default="http://localhost:3000",
         description="URL of the ontology-server MCP endpoint.",
     )
+
+    @model_validator(mode="after")
+    def _resolve_paths(self) -> RalphConfig:
+        """Resolve relative paths to absolute at creation time.
+
+        Prevents cwd-dependent path resolution when the Claude CLI
+        subprocess has a different working directory than the Python
+        process that created the config.
+        """
+        if not self.work_base_dir.is_absolute():
+            object.__setattr__(
+                self, "work_base_dir", self.work_base_dir.resolve()
+            )
+        return self
 
     # Per-agent configurations with tailored defaults
     discovery: AgentConfig = Field(default_factory=AgentConfig)

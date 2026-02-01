@@ -75,13 +75,6 @@ class ProblemPhase(Phase[ProblemOutput]):
             {"name": "Grep"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        raise NotImplementedError(
-            "ProblemPhase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> ProblemOutput:
         output_file = ctx.work_dir / "ep-problem-framing.md"
 

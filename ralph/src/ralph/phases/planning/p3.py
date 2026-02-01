@@ -136,18 +136,6 @@ class P3Phase(Phase[P3Output]):
             {"name": "mcp__ontology-server__sparql_query"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "P3Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> P3Output:
         """Parse P3 output by reading ``p3-architecture-design.md`` from *work_dir*.
 

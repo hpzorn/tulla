@@ -53,6 +53,9 @@ def discovery_pipeline(
         claude_port=claude_port,
         work_dir=work_dir,
         idea_id=idea_id,
-        config={"mode": mode},
+        config={
+            "mode": mode,
+            "permission_mode": config.discovery.permission_mode,
+        },
         total_budget_usd=config.discovery.budget_usd,
     )

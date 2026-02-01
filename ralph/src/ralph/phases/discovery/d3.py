@@ -128,18 +128,6 @@ class D3Phase(Phase[D3Output]):
             {"name": "Write"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "D3Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D3Output:
         """Parse D3 output by reading ``d3-value-mapping.md`` from *work_dir*.
 

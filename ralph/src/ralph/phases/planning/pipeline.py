@@ -27,6 +27,7 @@ def planning_pipeline(
     idea_id: str,
     config: RalphConfig,
     discovery_dir: str = "",
+    research_dir: str = "",
 ) -> Pipeline:
     """Create a planning :class:`Pipeline` with phases P1 through P6.
 
@@ -43,6 +44,8 @@ def planning_pipeline(
             is used as the pipeline's total budget.
         discovery_dir: Path to the discovery output directory whose
             artefacts (D1–D5) seed the planning context.
+        research_dir: Path to the research output directory whose
+            artefacts (R1–R6) provide research grounding for planning.
 
     Returns:
         A fully configured :class:`Pipeline` instance.
@@ -61,6 +64,10 @@ def planning_pipeline(
         claude_port=claude_port,
         work_dir=work_dir,
         idea_id=idea_id,
-        config={"discovery_dir": discovery_dir},
+        config={
+            "discovery_dir": discovery_dir,
+            "research_dir": research_dir,
+            "permission_mode": config.planning.permission_mode,
+        },
         total_budget_usd=config.planning.budget_usd,
     )

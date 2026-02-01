@@ -24,7 +24,7 @@ class R2Phase(Phase[R2Output]):
     """
 
     phase_id: str = "r2"
-    timeout_s: float = 300.0  # 5 minutes
+    timeout_s: float = 600.0  # 10 minutes
 
     # ------------------------------------------------------------------
     # Template hooks
@@ -90,18 +90,6 @@ class R2Phase(Phase[R2Output]):
             {"name": "Glob"},
             {"name": "Grep"},
         ]
-
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "R2Phase.run_claude requires a Claude adapter to be injected"
-        )
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R2Output:
         """Parse R2 output by reading ``r2-source-identification.md`` from *work_dir*.

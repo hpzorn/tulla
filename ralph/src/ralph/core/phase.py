@@ -77,9 +77,13 @@ class PhaseResult(Generic[T]):
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a plain dict suitable for JSON encoding."""
+        data = self.data
+        if data is not None and hasattr(data, "model_dump"):
+            # Pydantic BaseModel — use mode="json" to handle Path etc.
+            data = data.model_dump(mode="json")
         return {
             "status": self.status.value,
-            "data": self.data,
+            "data": data,
             "error": self.error,
             "duration_s": self.duration_s,
             "metadata": dict(self.metadata),
@@ -146,11 +150,47 @@ class Phase(ABC, Generic[T]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during this phase."""
 
-    @abstractmethod
     def run_claude(
         self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
     ) -> Any:
-        """Invoke Claude (or a stub) and return raw output."""
+        """Invoke Claude via the adapter in ``ctx.config["claude_port"]``.
+
+        Builds a :class:`~ralph.ports.claude.ClaudeRequest` from the prompt,
+        tools, and budget, then delegates to the injected
+        :class:`~ralph.ports.claude.ClaudePort`.  Subclasses may override
+        for custom invocation behaviour.
+
+        Raises :class:`TimeoutError` if the Claude invocation times out.
+        """
+        from ralph.ports.claude import ClaudeRequest
+
+        claude_port = ctx.config.get("claude_port")
+        if claude_port is None:
+            raise RuntimeError(
+                "No claude_port in context config. "
+                "Ensure the pipeline injects a ClaudePort adapter."
+            )
+
+        tool_names = [t["name"] for t in tools if "name" in t]
+        timeout = getattr(self, "timeout_s", 0.0)
+        permission_mode = ctx.config.get("permission_mode", "bypassPermissions")
+
+        request = ClaudeRequest(
+            prompt=prompt,
+            allowed_tools=tool_names,
+            budget_usd=ctx.budget_remaining_usd,
+            timeout_seconds=timeout,
+            permission_mode=permission_mode,
+        )
+
+        result = claude_port.run(request)
+
+        if result.timed_out:
+            raise TimeoutError(
+                f"Claude invocation timed out after {result.duration_seconds:.1f}s"
+            )
+
+        return result
 
     @abstractmethod
     def parse_output(self, ctx: PhaseContext, raw: Any) -> T:
@@ -229,8 +269,12 @@ class Phase(ABC, Generic[T]):
             )
 
         # 4 — run Claude
+        cost_usd = 0.0
         try:
             raw = self.run_claude(ctx, prompt, tools)
+            # Extract cost from ClaudeResult if available
+            if hasattr(raw, "cost_usd"):
+                cost_usd = raw.cost_usd
         except TimeoutError:
             log.warning("Phase timed out")
             return PhaseResult(
@@ -282,4 +326,5 @@ class Phase(ABC, Generic[T]):
             status=PhaseStatus.SUCCESS,
             data=parsed,
             duration_s=elapsed,
+            metadata={"cost_usd": cost_usd},
         )

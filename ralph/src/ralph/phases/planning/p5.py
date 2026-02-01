@@ -119,18 +119,6 @@ class P5Phase(Phase[P5Output]):
             {"name": "Write"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "P5Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> P5Output:
         """Parse P5 output by reading ``p5-research-requests.md`` from *work_dir*.
 

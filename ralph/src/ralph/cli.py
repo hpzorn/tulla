@@ -46,6 +46,8 @@ def _build_pipeline(
     config: RalphConfig,
     work_dir: Path,
     mode: str | None,
+    discovery_dir: str | None = None,
+    research_dir: str | None = None,
 ) -> Pipeline:
     """Create the appropriate pipeline for *agent*.
 
@@ -70,25 +72,29 @@ def _build_pipeline(
     if agent == "planning":
         from ralph.phases.planning.pipeline import planning_pipeline
 
-        effective_discovery_dir = mode if mode else ""
+        effective_discovery_dir = discovery_dir if discovery_dir else ""
+        effective_research_dir = research_dir if research_dir else ""
         return planning_pipeline(
             claude_port=claude_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config=config,
             discovery_dir=effective_discovery_dir,
+            research_dir=effective_research_dir,
         )
 
     if agent == "research":
         from ralph.phases.research.pipeline import research_pipeline
 
         effective_planning_dir = mode if mode else ""
+        effective_discovery_dir = discovery_dir if discovery_dir else ""
         return research_pipeline(
             claude_port=claude_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config=config,
             planning_dir=effective_planning_dir,
+            discovery_dir=effective_discovery_dir,
         )
 
     if agent == "epistemology":
@@ -121,7 +127,10 @@ def _build_pipeline(
             claude_port=claude_port,
             work_dir=work_dir,
             idea_id=idea_str,
-            config={"mode": effective_mode},
+            config={
+                "mode": effective_mode,
+                "permission_mode": config.epistemology.permission_mode,
+            },
             total_budget_usd=config.epistemology.budget_usd,
         )
 
@@ -340,6 +349,18 @@ def main(ctx: click.Context, config_path: str | None) -> None:
     default=None,
     help="Override the work directory for this run.",
 )
+@click.option(
+    "--discovery-dir",
+    type=click.Path(exists=True),
+    default=None,
+    help="Discovery output directory (D1-D5 artifacts).",
+)
+@click.option(
+    "--research-dir",
+    type=click.Path(exists=True),
+    default=None,
+    help="Research output directory (R1-R6 artifacts).",
+)
 @click.pass_context
 def run(
     ctx: click.Context,
@@ -349,6 +370,8 @@ def run(
     mode: str | None,
     dry_run: bool,
     work_dir: str | None,
+    discovery_dir: str | None,
+    research_dir: str | None,
 ) -> None:
     """Run an agent pipeline for a given idea.
 
@@ -356,14 +379,15 @@ def run(
     """
     config: RalphConfig = ctx.obj["config"]
 
-    # Resolve work directory
+    # Resolve work directory to absolute path — Claude CLI may have a
+    # different cwd than the Python process, so relative paths break.
     if work_dir:
-        resolved_work_dir = Path(work_dir)
+        resolved_work_dir = Path(work_dir).resolve()
     else:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         resolved_work_dir = (
             config.work_base_dir / f"idea-{idea}-{agent}-{timestamp}"
-        )
+        ).resolve()
 
     resolved_work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -384,6 +408,8 @@ def run(
         config=config,
         work_dir=resolved_work_dir,
         mode=mode,
+        discovery_dir=discovery_dir,
+        research_dir=research_dir,
     )
 
     # Dry-run: show plan and exit

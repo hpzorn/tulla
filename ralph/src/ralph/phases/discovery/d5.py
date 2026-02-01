@@ -233,18 +233,6 @@ class D5Phase(Phase[D5Output]):
             tools.append({"name": "Glob"})
         return tools
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "D5Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D5Output:
         """Parse D5 output by reading the mode-specific output file.
 

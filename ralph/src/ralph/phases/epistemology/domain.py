@@ -75,13 +75,6 @@ class DomainPhase(Phase[DomainOutput]):
             {"name": "Glob"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        raise NotImplementedError(
-            "DomainPhase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> DomainOutput:
         output_file = ctx.work_dir / "ep-domain-coherence.md"
 

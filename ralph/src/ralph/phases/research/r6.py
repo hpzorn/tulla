@@ -26,7 +26,7 @@ class R6Phase(Phase[R6Output]):
     """
 
     phase_id: str = "r6"
-    timeout_s: float = 300.0  # 5 minutes
+    timeout_s: float = 600.0  # 10 minutes
 
     # ------------------------------------------------------------------
     # Template hooks
@@ -108,18 +108,6 @@ class R6Phase(Phase[R6Output]):
             {"name": "Read"},
             {"name": "Write"},
         ]
-
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "R6Phase.run_claude requires a Claude adapter to be injected"
-        )
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R6Output:
         """Parse R6 output by reading ``r6-research-synthesis.md`` from *work_dir*.

@@ -97,18 +97,6 @@ class R3Phase(Phase[R3Output]):
             {"name": "mcp__ontology-server__query_ontology"},
         ]
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
-        """Invoke Claude.
-
-        The base framework will provide a concrete adapter; this default
-        raises NotImplementedError to signal that a real adapter is needed.
-        """
-        raise NotImplementedError(
-            "R3Phase.run_claude requires a Claude adapter to be injected"
-        )
-
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R3Output:
         """Parse R3 output by reading ``r3-research-questions.md`` from *work_dir*.
 
