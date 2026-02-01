@@ -1,4 +1,5 @@
 #!/bin/bash
+echo 'WARNING: This script is deprecated. Use ralph run discovery instead.' >&2
 # discovery-ralph.sh - Product Discovery Ralph: Context and Value Assessment Loop
 #
 # Complements research-ralph by providing product/business context:

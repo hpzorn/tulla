@@ -1,4 +1,5 @@
 #!/bin/bash
+echo 'WARNING: This script is deprecated. Use ralph run planning instead.' >&2
 # planning-ralph.sh - Implementation Planning from Discovery
 #
 # Takes discovery documents and creates actionable implementation plans

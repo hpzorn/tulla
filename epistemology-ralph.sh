@@ -1,4 +1,5 @@
 #!/bin/bash
+echo 'WARNING: This script is deprecated. Use ralph run epistemology instead.' >&2
 # epistemology-ralph.sh - Scientific Protocols for Knowledge Generation
 #
 # Uses epistemological frameworks to generate new ideas from:

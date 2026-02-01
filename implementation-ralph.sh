@@ -1,4 +1,5 @@
 #!/bin/bash
+echo 'WARNING: This script is deprecated. Use ralph run implementation instead.' >&2
 # implementation-ralph.sh - Ontology-Driven Implementation Loop
 #
 # Reads requirements from ontology-server (NOT from markdown)

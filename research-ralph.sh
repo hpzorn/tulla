@@ -1,4 +1,5 @@
 #!/bin/bash
+echo 'WARNING: This script is deprecated. Use ralph run research instead.' >&2
 # research-ralph.sh - Research-First Ralph: Autonomous Idea-to-Implementation Loop
 #
 # Extends Geoffrey Huntley's Ralph Wiggum loop with:
