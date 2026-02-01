@@ -44,7 +44,8 @@ class CheckpointStore:
         target = self._path_for(phase_id)
         if not target.exists():
             return None
-        return json.loads(target.read_text(encoding="utf-8"))
+        result: dict[str, Any] = json.loads(target.read_text(encoding="utf-8"))
+        return result
 
     def exists(self, phase_id: str) -> bool:
         """Return whether a checkpoint exists for *phase_id*."""
