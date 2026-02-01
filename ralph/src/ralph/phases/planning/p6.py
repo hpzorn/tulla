@@ -1,206 +1,178 @@
-"""Apply hygiene to planning-ralph P6 phase.
+"""P6 Phase -- Hygiene & Pre-flight.
 
-Integrates the ralph.hygiene shared library into the planning-ralph
-script's P6 (pre-flight / post-flight) phase. This module provides:
+Implements the sixth planning sub-phase that runs the hygiene gate
+before implementation begins.  Refactored from the standalone
+``run_p6_phase()`` function into a ``P6Phase(Phase[P6Output])``
+subclass that integrates the promoted hygiene framework from
+``ralph.hygiene``.
 
-- A ``run_p6_phase`` entry point that wires together the full hygiene
-  subsystem: argument parsing, trap handler installation, pre-flight
-  gate, startup decision logging, and cleanup.
-- A ``P6PhaseResult`` dataclass capturing the outcome for downstream
-  phases to inspect.
-
-The P6 phase is the first phase of planning-ralph to execute and
-ensures the workspace is in a clean, known-good state before any
-planning logic runs.
-
-Usage::
-
-    from ralph.phases.planning.p6 import run_p6_phase
-    from pathlib import Path
-
-    result = run_p6_phase(
-        work_dirs=[Path("./work")],
-        argv=["--clean", "--rounds", "3"],
-    )
-    # result.remaining_args == ["--rounds", "3"]
-    # result.gate_result contains the GateResult from hygiene_gate
+The hygiene gate is called in ``validate_input()`` as a pre-step
+before the (no-op) ``build_prompt()`` / ``run_claude()`` path,
+since P6 does not require LLM interaction -- it is purely
+mechanical cleanup.
 """
 
 from __future__ import annotations
 
 import logging
-import sys
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Any, Sequence
 
+from ralph.core.phase import Phase, PhaseContext
 from ralph.hygiene import (
-    GateResult,
-    HygieneReport,
-    PreflightDecision,
+    HygieneMode,
     hygiene_gate,
-    inject_hygiene_help,
     install_trap_handler,
     log_preflight_decision,
 )
+from ralph.hygiene.gate import GateResult
+
+from .models import P6Output
+
 
 logger = logging.getLogger(__name__)
 
-# Script identity constants.
+# Script identity constant (preserved from the original run_p6_phase).
 SCRIPT_NAME: str = "planning-ralph"
-SCRIPT_DESCRIPTION: str = (
-    "Planning-Ralph: ontology-driven planning agent with hygiene support."
-)
-
-# Default work directories for planning-ralph relative to CWD.
-DEFAULT_WORK_DIRS: list[Path] = [Path("./work")]
 
 
-@dataclass(frozen=True)
-class P6PhaseResult:
-    """Outcome of the P6 (hygiene) phase for planning-ralph.
+class P6Phase(Phase[P6Output]):
+    """P6: Hygiene & Pre-flight phase.
 
-    Attributes:
-        gate_result: The control flow gate result from the hygiene subsystem.
-            Contains the resolved config, optional report, and remaining args.
-        decision: The structured pre-flight decision record that was logged.
-        remaining_args: CLI arguments not consumed by hygiene, passed through
-            to subsequent planning-ralph phases.
-        cleanup: Callable to invoke at script exit. Restores signal handlers
-            and logs clean shutdown. Should be called in a ``finally`` block.
+    Runs the hygiene gate as a pre-step (via :meth:`validate_input`),
+    storing the result so that :meth:`parse_output` can wrap it into a
+    :class:`P6Output`.  The ``build_prompt`` / ``run_claude`` path
+    is a no-op because P6 does not require LLM interaction.
+
+    Constructor Args:
+        work_dirs: Directories to inspect/clean.  Falls back to
+            ``[ctx.work_dir]`` if not provided.
+        argv: CLI arguments to parse for hygiene flags
+            (``--clean``, ``--no-clean``, ``--check``).
+        stale_threshold_secs: Age threshold (seconds) for stale file
+            detection.  Defaults to 3600 (1 hour).
     """
 
-    gate_result: GateResult
-    decision: PreflightDecision
-    remaining_args: list[str] = field(default_factory=list)
-    cleanup: Callable[[], None] = field(default=lambda: None)
+    phase_id: str = "p6"
+    timeout_s: float = 60.0  # 1 minute -- hygiene is fast
 
-    @property
-    def report(self) -> HygieneReport | None:
-        """Shortcut to the hygiene report from the gate result."""
-        return self.gate_result.report
+    def __init__(
+        self,
+        work_dirs: Sequence[Path] | None = None,
+        argv: Sequence[str] | None = None,
+        stale_threshold_secs: int = 3600,
+    ) -> None:
+        super().__init__()
+        self._work_dirs: list[Path] = list(work_dirs) if work_dirs else []
+        self._argv: list[str] = list(argv) if argv else []
+        self._stale_threshold_secs = stale_threshold_secs
+        # Populated during validate_input, consumed by parse_output.
+        self._gate_result: GateResult | None = None
+        self._cleanup: Any = None
 
-    @property
-    def was_cleaned(self) -> bool:
-        """Whether pre-flight hygiene actually ran a cleanup."""
-        return (
-            self.gate_result.report is not None
-            and self.gate_result.report.mode_used == "clean"
+    # ------------------------------------------------------------------
+    # Template hooks
+    # ------------------------------------------------------------------
+
+    def validate_input(self, ctx: PhaseContext) -> None:
+        """Run the hygiene gate as a pre-step before the main phase body.
+
+        The gate parses ``--clean`` / ``--no-clean`` / ``--check`` from
+        the configured argv, dispatches to the appropriate hygiene path,
+        and stores the result for later consumption by ``parse_output``.
+
+        A signal trap handler is also installed for clean exit logging.
+        """
+        work_dirs = self._work_dirs if self._work_dirs else [ctx.work_dir]
+
+        logger.info("[P6] Running hygiene gate with work_dirs=%s", work_dirs)
+
+        # Install trap handler for clean exit logging.
+        captured_exit_code: list[int] = []
+
+        def _capture_exit(code: int) -> None:
+            captured_exit_code.append(code)
+
+        self._cleanup = install_trap_handler(
+            script_name=SCRIPT_NAME,
+            exit_func=_capture_exit,
         )
 
-    @property
-    def was_skipped(self) -> bool:
-        """Whether hygiene was explicitly disabled via --no-clean."""
-        return self.gate_result.config.is_disabled
+        # Run the hygiene gate.  We provide a non-exiting exit_func so
+        # that the phase framework stays in control during CHECK mode.
+        self._gate_result = hygiene_gate(
+            script_name=SCRIPT_NAME,
+            work_dirs=list(work_dirs),
+            argv=self._argv,
+            stale_threshold_secs=self._stale_threshold_secs,
+            exit_func=_capture_exit,
+        )
 
-    def summary(self) -> str:
-        """Return a human-readable summary of the P6 phase outcome."""
-        mode = self.gate_result.config.mode.value
-        if self.report is not None:
-            return f"P6 phase complete: mode={mode}, {self.report.summary()}"
-        return f"P6 phase complete: mode={mode}, hygiene skipped."
+        # Log the pre-flight decision.
+        log_preflight_decision(
+            script_name=SCRIPT_NAME,
+            config=self._gate_result.config,
+            work_dirs=list(work_dirs),
+            argv=self._argv,
+        )
 
+        if captured_exit_code:
+            logger.info(
+                "[P6] Check mode completed with exit code %d",
+                captured_exit_code[0],
+            )
 
-def _show_help_and_exit(
-    exit_func: Callable[[int], object] | None = None,
-) -> None:
-    """Print the planning-ralph help text including hygiene options and exit.
+    def build_prompt(self, ctx: PhaseContext) -> str:
+        """Return an empty prompt -- P6 does not invoke Claude."""
+        return ""
 
-    Args:
-        exit_func: Callable to terminate the process. Defaults to sys.exit.
-    """
-    if exit_func is None:
-        exit_func = sys.exit
-    help_text = inject_hygiene_help(SCRIPT_NAME, SCRIPT_DESCRIPTION)
-    print(help_text)
-    exit_func(0)
+    def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
+        """Return an empty tool list -- P6 does not invoke Claude."""
+        return []
 
+    def run_claude(
+        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
+    ) -> Any:
+        """No-op -- P6 does not require LLM interaction.
 
-def run_p6_phase(
-    work_dirs: Sequence[Path] | None = None,
-    argv: Sequence[str] | None = None,
-    *,
-    stale_threshold_secs: int = 3600,
-    exit_func: Callable[[int], object] | None = None,
-    output_stream: object | None = None,
-) -> P6PhaseResult:
-    """Execute the P6 (hygiene) phase of planning-ralph.
+        Returns the gate result captured during ``validate_input``.
+        """
+        return self._gate_result
 
-    This is the primary entry point that planning-ralph calls before
-    any planning logic. It performs the following steps in order:
+    def parse_output(self, ctx: PhaseContext, raw: Any) -> P6Output:
+        """Convert the hygiene gate result into a :class:`P6Output`.
 
-    1. Install a signal trap handler for clean exit logging.
-    2. Run the hygiene gate (parses args, dispatches cleanup/check/skip).
-    3. Log the pre-flight decision with structured metadata.
-    4. Return the result for downstream phases.
+        Args:
+            ctx: The phase context.
+            raw: The gate result stored during ``validate_input``.
 
-    In ``--check`` mode, this function does NOT return -- the gate
-    calls ``exit_func`` after printing the check report.
+        Returns:
+            A P6Output summarising the hygiene run.
+        """
+        gate: GateResult | None = raw
 
-    Args:
-        work_dirs: Directories to inspect/clean. Defaults to ``["./work"]``.
-        argv: CLI arguments to parse. Defaults to ``sys.argv[1:]``.
-        stale_threshold_secs: Age threshold (seconds) for stale file detection.
-            Defaults to 3600 (1 hour).
-        exit_func: Callable to terminate the process (used in check mode
-            and help display). Defaults to ``sys.exit``.
-        output_stream: File-like object for check-mode output.
-            Defaults to ``sys.stdout``.
+        if gate is None:
+            return P6Output(
+                hygiene_report=None,
+                mode="unknown",
+                was_cleaned=False,
+                was_skipped=True,
+                remaining_args=[],
+            )
 
-    Returns:
-        A P6PhaseResult containing the gate result, decision log, remaining
-        arguments, and a cleanup callable.
-    """
-    if work_dirs is None:
-        work_dirs = DEFAULT_WORK_DIRS
-    if exit_func is None:
-        exit_func = sys.exit
-    if output_stream is None:
-        output_stream = sys.stdout
+        mode = gate.config.mode.value
+        report = gate.report
+        was_cleaned = report is not None and report.cleaned_count > 0
+        was_skipped = gate.config.mode == HygieneMode.NO_CLEAN
 
-    resolved_argv = list(argv) if argv is not None else sys.argv[1:]
+        return P6Output(
+            hygiene_report=report,
+            mode=mode,
+            was_cleaned=was_cleaned,
+            was_skipped=was_skipped,
+            remaining_args=list(gate.remaining_args),
+        )
 
-    # Check for --help before entering the gate.
-    if "--help" in resolved_argv or "-h" in resolved_argv:
-        _show_help_and_exit(exit_func=exit_func)
-
-    logger.info("[%s] Starting P6 phase (hygiene).", SCRIPT_NAME)
-
-    # Step 1: Install trap handler for clean exit logging.
-    cleanup = install_trap_handler(
-        script_name=SCRIPT_NAME,
-        exit_func=exit_func,
-    )
-    logger.debug("[%s] Trap handler installed.", SCRIPT_NAME)
-
-    # Step 2: Run the hygiene gate.
-    gate_result = hygiene_gate(
-        script_name=SCRIPT_NAME,
-        work_dirs=list(work_dirs),
-        argv=resolved_argv,
-        stale_threshold_secs=stale_threshold_secs,
-        exit_func=exit_func,
-        output_stream=output_stream,
-    )
-
-    # Step 3: Log the pre-flight decision.
-    decision = log_preflight_decision(
-        script_name=SCRIPT_NAME,
-        config=gate_result.config,
-        work_dirs=list(work_dirs),
-        argv=resolved_argv,
-    )
-
-    remaining = list(gate_result.remaining_args)
-    logger.info(
-        "[%s] P6 phase complete. Remaining args: %s",
-        SCRIPT_NAME,
-        remaining,
-    )
-
-    return P6PhaseResult(
-        gate_result=gate_result,
-        decision=decision,
-        remaining_args=remaining,
-        cleanup=cleanup,
-    )
+    def get_timeout_seconds(self) -> float:
+        """Return the P6 timeout in seconds (1 minute)."""
+        return self.timeout_s
