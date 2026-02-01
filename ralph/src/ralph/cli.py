@@ -6,7 +6,6 @@ dispatches to agent-specific pipeline factories.
 Exit codes:
     0  — pipeline completed successfully
     1  — pipeline failed (phase error, bad input, etc.)
-    2  — pipeline incomplete (Terraform -detailed-exitcode convention)
     124 — pipeline timed out
 """
 
@@ -35,7 +34,6 @@ AGENTS = ("discovery", "planning", "research", "implementation", "epistemology")
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
-EXIT_INCOMPLETE = 2
 EXIT_TIMEOUT = 124
 
 
@@ -164,7 +162,7 @@ def _run_implementation(
     from ralph.phases.implementation.loop import ImplementationLoop
 
     claude_port = ClaudeCLIAdapter()
-    ontology_port = OntologyMCPAdapter(base_url=config.ontology_server_url)
+    ontology_port = OntologyMCPAdapter()
     prd_context = f"prd-idea-{idea_id}"
     project_root = Path.cwd()
 
@@ -451,35 +449,3 @@ def run(
     exit_code = _report_result(result)
     if exit_code != EXIT_SUCCESS:
         sys.exit(exit_code)
-
-
-@main.command()
-@click.option(
-    "--idea",
-    required=True,
-    type=int,
-    help="Idea ID to query status for (required).",
-)
-@click.pass_context
-def status(ctx: click.Context, idea: int) -> None:
-    """Show implementation status for a given idea's PRD requirements."""
-    from ralph.commands.status import format_status_table, query_prd_status
-
-    config: RalphConfig = ctx.obj["config"]
-    ontology = OntologyMCPAdapter(base_url=config.ontology_server_url)
-    prd_context = f"prd-idea-{idea}"
-
-    try:
-        summary = query_prd_status(ontology=ontology, prd_context=prd_context)
-    except Exception as exc:
-        click.echo(f"Error querying status: {exc}", err=True)
-        sys.exit(EXIT_FAILURE)
-
-    table = format_status_table(summary, idea_id=idea)
-    click.echo(table)
-
-    # Exit 0 if all complete or no requirements; 2 if work remains
-    if summary.total == 0 or summary.complete == summary.total:
-        sys.exit(EXIT_SUCCESS)
-    else:
-        sys.exit(EXIT_INCOMPLETE)
