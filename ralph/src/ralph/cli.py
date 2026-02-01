@@ -11,6 +11,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,7 @@ from ralph.adapters.ontology_mcp import OntologyMCPAdapter
 from ralph.config import RalphConfig
 from ralph.core.phase import PhaseStatus
 from ralph.core.pipeline import Pipeline, PipelineResult
+from ralph.infrastructure.logging import configure_logging
 
 # ---------------------------------------------------------------------------
 # Valid agent names and their default modes
@@ -361,6 +363,12 @@ def main(ctx: click.Context, config_path: str | None) -> None:
     default=None,
     help="Research output directory (R1-R6 artifacts).",
 )
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    default=False,
+    help="Enable DEBUG-level console logging (default: INFO).",
+)
 @click.pass_context
 def run(
     ctx: click.Context,
@@ -372,6 +380,7 @@ def run(
     work_dir: str | None,
     discovery_dir: str | None,
     research_dir: str | None,
+    verbose: bool,
 ) -> None:
     """Run an agent pipeline for a given idea.
 
@@ -390,6 +399,15 @@ def run(
         ).resolve()
 
     resolved_work_dir.mkdir(parents=True, exist_ok=True)
+
+    # Configure structured logging — console (INFO/DEBUG) + JSON file (DEBUG)
+    console_level = logging.DEBUG if verbose else logging.INFO
+    configure_logging(
+        work_dir=resolved_work_dir,
+        console_level=console_level,
+        agent=agent,
+        idea_id=idea,
+    )
 
     # Implementation uses a loop-based orchestrator, not a linear pipeline
     if agent == "implementation":

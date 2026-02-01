@@ -2,11 +2,11 @@
 
 **Date**: 2026-02-01
 **Tests**: `ralph run research --idea 42`, `ralph run discovery --idea 42`, `ralph run planning --idea 42`
-**Result**: All pipelines passed after fixing 13 issues discovered during testing
+**Result**: All pipelines passed after fixing all 13 issues discovered during testing
 
 ## Summary
 
-The Python Ralph framework (idea-54) had never been executed end-to-end before this test session. Running three agent pipelines on idea-42 (arc42-Structured Architecture Design Phase) exposed 13 issues, 12 of which were fixed. The test validated full pipeline chaining: discovery (D1-D5, $2.10) -> research (R1-R6, $7.45) -> planning (P1-P6, $8.05) with proper artifact handoff between stages. The planning pipeline successfully exported 25 PRD requirements to the ontology A-box, visible in the dashboard.
+The Python Ralph framework (idea-54) had never been executed end-to-end before this test session. Running three agent pipelines on idea-42 (arc42-Structured Architecture Design Phase) exposed 13 issues, all of which were fixed. The test validated full pipeline chaining: discovery (D1-D5, $2.10) -> research (R1-R6, $7.45) -> planning (P1-P6, $8.05) with proper artifact handoff between stages. The planning pipeline successfully exported 25 PRD requirements to the ontology A-box, visible in the dashboard.
 
 ## Errors Found
 
@@ -105,12 +105,19 @@ if data is not None and hasattr(data, "model_dump"):
 
 ---
 
-### 8. No Log Files (Not Yet Fixed)
+### 8. No Log Files (Fixed)
 
 **Severity**: Low (debugging is harder but not blocked)
 **Symptom**: All logging goes to stdout/stderr only. No persistent log files for post-mortem analysis.
-**Root Cause**: The `structlog` integration mentioned in the architecture was never wired to a file handler. The `logging.getLogger(__name__)` calls produce output but it's only captured if the process output is redirected.
-**Recommendation**: Add a file handler in `cli.py` that writes structured JSON logs to `{work_dir}/ralph.log`. This would capture phase transitions, cost tracking, and error details for debugging.
+**Root Cause**: The `structlog` integration in `infrastructure/logging.py` was implemented but `configure_logging()` was never called from the CLI. The `logging.getLogger(__name__)` calls produce output but with default formatting and no file capture.
+**Fix**: Wired `configure_logging()` into `cli.py`'s `run()` command. After resolving the work directory, the CLI now sets up:
+- Console handler (stderr): INFO level by default, DEBUG with `--verbose`
+- JSON file handler: DEBUG level, writes to `{work_dir}/ralph.log.json`
+- Bound context: `agent` and `idea_id` included in every log entry
+
+Also updated `configure_logging()` signature: replaced `phase_id` with `log_filename` (default `ralph.log.json`) and added separate `console_level`/`file_level` parameters so the console stays clean while the file captures everything.
+
+**Files Changed**: `infrastructure/logging.py`, `cli.py`, `tests/infrastructure/test_logging.py`
 
 ---
 

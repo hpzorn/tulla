@@ -12,17 +12,19 @@ import structlog
 def configure_logging(
     *,
     work_dir: Path | None = None,
-    phase_id: str | None = None,
-    level: int = logging.DEBUG,
+    log_filename: str = "ralph.log.json",
+    console_level: int = logging.INFO,
+    file_level: int = logging.DEBUG,
     **initial_context: object,
 ) -> structlog.stdlib.BoundLogger:
     """Configure structlog with console + optional JSON file output.
 
     Args:
-        work_dir: If provided (together with *phase_id*), a JSON-lines log
-            file is written to ``{work_dir}/{phase_id}.log.json``.
-        phase_id: Identifier used for the JSON log filename.
-        level: Minimum log level for all handlers (default ``DEBUG``).
+        work_dir: If provided, a JSON-lines log file is written to
+            ``{work_dir}/{log_filename}``.
+        log_filename: Name of the JSON log file (default ``ralph.log.json``).
+        console_level: Minimum level for console output (default ``INFO``).
+        file_level: Minimum level for file output (default ``DEBUG``).
         **initial_context: Extra key-value pairs bound to the returned
             logger instance.
 
@@ -48,27 +50,29 @@ def configure_logging(
     root_logger = logging.getLogger()
     # Remove any pre-existing handlers so repeated calls don't duplicate.
     root_logger.handlers.clear()
-    root_logger.setLevel(level)
+    root_logger.setLevel(logging.DEBUG)  # handlers filter individually
 
     # -- Console handler (human-readable, stderr) ----------------------------
     console_formatter = structlog.stdlib.ProcessorFormatter(
         processor=structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty()),
     )
     console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(console_level)
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
 
     # -- Optional JSON file handler ------------------------------------------
-    if work_dir is not None and phase_id is not None:
+    if work_dir is not None:
         work_dir.mkdir(parents=True, exist_ok=True)
         json_formatter = structlog.stdlib.ProcessorFormatter(
             processor=structlog.processors.JSONRenderer(),
         )
         file_handler = logging.FileHandler(
-            work_dir / f"{phase_id}.log.json",
+            work_dir / log_filename,
             mode="a",
             encoding="utf-8",
         )
+        file_handler.setLevel(file_level)
         file_handler.setFormatter(json_formatter)
         root_logger.addHandler(file_handler)
 

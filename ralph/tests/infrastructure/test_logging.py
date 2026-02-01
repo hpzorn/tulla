@@ -61,7 +61,7 @@ class TestJsonFileOutput:
     """When work_dir and phase_id are given, a JSON log file is created."""
 
     def test_json_file_created(self, tmp_path: Path) -> None:
-        logger = configure_logging(work_dir=tmp_path, phase_id="discovery")
+        logger = configure_logging(work_dir=tmp_path, log_filename="discovery.log.json")
         logger.info("json test")
         # Flush handlers so the file is written.
         for h in logging.getLogger().handlers:
@@ -86,7 +86,7 @@ class TestJsonLinesValidity:
     """Each line in the JSON log file must be valid JSON."""
 
     def test_each_line_is_valid_json(self, tmp_path: Path) -> None:
-        logger = configure_logging(work_dir=tmp_path, phase_id="phase-1")
+        logger = configure_logging(work_dir=tmp_path, log_filename="phase-1.log.json")
         logger.info("line one")
         logger.warning("line two")
         # Flush all handlers.
@@ -113,7 +113,7 @@ class TestBoundContext:
     def test_bound_context_in_json_output(self, tmp_path: Path) -> None:
         logger = configure_logging(
             work_dir=tmp_path,
-            phase_id="ctx-test",
+            log_filename="ctx-test.log.json",
             idea_id="idea-42",
             run="run-7",
         )
