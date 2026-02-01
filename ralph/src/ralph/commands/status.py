@@ -158,34 +158,35 @@ def query_prd_status(
     }
 
     for r in raw:
-        status: RequirementStatus = r["status"]  # type: ignore[assignment]
-        deps: list[str] = r["deps"]  # type: ignore[assignment]
+        row_status = RequirementStatus(r["status"])
+        raw_deps = r["deps"]
+        row_deps: list[str] = list(raw_deps) if isinstance(raw_deps, list) else []
 
         # Determine display status
         if (
-            status == RequirementStatus.PENDING
-            and deps
-            and not all(d in completed_set for d in deps)
+            row_status == RequirementStatus.PENDING
+            and row_deps
+            and not all(d in completed_set for d in row_deps)
         ):
             display_status = "Blocked (deps)"
             count_key = "blocked"
         else:
-            display_status = DISPLAY_STATUS_MAP.get(status, status.value)
+            display_status = DISPLAY_STATUS_MAP.get(row_status, row_status.value)
             count_key = {
                 RequirementStatus.PENDING: "pending",
                 RequirementStatus.IN_PROGRESS: "in_progress",
                 RequirementStatus.COMPLETE: "complete",
                 RequirementStatus.BLOCKED: "blocked",
                 RequirementStatus.FAILED: "failed",
-            }[status]
+            }[row_status]
 
         counts[count_key] += 1
         rows.append(RequirementRow(
             requirement_id=str(r["requirement_id"]),
             title=str(r["title"]),
-            status=status,
+            status=row_status,
             display_status=display_status,
-            deps=deps,
+            deps=row_deps,
         ))
 
     return StatusSummary(
