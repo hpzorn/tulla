@@ -10,17 +10,18 @@ Covers changes to:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, call
 
 import pytest
 
-from ralph.phases.implementation.find import FindPhase
-from ralph.phases.implementation.implement import ImplementPhase
-from ralph.phases.implementation.models import FindOutput, ImplementOutput, VerifyOutput
-from ralph.phases.implementation.verify import VerifyPhase
-from ralph.ports.ontology import OntologyPort
+from tulla.phases.implementation.find import FindPhase
+from tulla.phases.implementation.implement import ImplementPhase
+from tulla.phases.implementation.models import FindOutput, ImplementOutput, VerifyOutput
+from tulla.phases.implementation.verify import VerifyPhase
+from tulla.ports.ontology import OntologyPort
 
 
 # ---------------------------------------------------------------------------
@@ -399,7 +400,7 @@ class TestLoopLoadArchAndLessons:
     """ImplementationLoop._load_architecture_and_lessons() loads from ontology."""
 
     def test_loads_all_context(self) -> None:
-        from ralph.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.loop import ImplementationLoop
 
         ontology = StubOntology({
             "context=arch-idea-42|predicate=arch:qualityGoal": [
@@ -433,7 +434,7 @@ class TestLoopLoadArchAndLessons:
         assert loop._lessons == ["lesson one"]
 
     def test_no_context_when_empty(self) -> None:
-        from ralph.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.loop import ImplementationLoop
 
         ontology = StubOntology()
         config = MagicMock()
@@ -459,7 +460,7 @@ class TestLoopStoreLesson:
     """ImplementationLoop._store_lesson() stores a fact and appends to cache."""
 
     def test_stores_and_appends(self) -> None:
-        from ralph.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.loop import ImplementationLoop
 
         ontology = StubOntology()
         config = MagicMock()
@@ -482,7 +483,7 @@ class TestLoopStoreLesson:
         assert len(loop._lessons) == 1
 
     def test_tolerates_store_failure(self) -> None:
-        from ralph.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.loop import ImplementationLoop
 
         ontology = MagicMock(spec=OntologyPort)
         ontology.store_fact.side_effect = RuntimeError("network error")
@@ -501,3 +502,137 @@ class TestLoopStoreLesson:
         loop._store_lesson("some lesson")
         # Lesson NOT appended on failure
         assert loop._lessons == []
+
+
+# ===================================================================
+# FindPhase._load_requirement — advisory warning
+# ===================================================================
+
+
+class TestLoadRequirementAdvisoryWarning:
+    """FindPhase._load_requirement() warns when requirement may be under-specified."""
+
+    def test_warns_on_many_files_short_description(self, caplog: pytest.LogCaptureFixture) -> None:
+        """5-file requirement with short description triggers warning."""
+        ontology = StubOntology({
+            "context=prd-idea-42|subject=prd:req-42-2-1": [
+                {"predicate": "rdf:type", "object": "prd:Requirement"},
+                {"predicate": "prd:title", "object": "Big Task"},
+                {"predicate": "prd:description", "object": "Do the thing quickly"},
+                {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py, src/d.py, src/e.py"},
+                {"predicate": "prd:action", "object": "modify"},
+                {"predicate": "prd:verification", "object": "pytest"},
+            ],
+        })
+        phase = FindPhase()
+        with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
+            result = phase._load_requirement(ontology, "prd:req-42-2-1", "prd-idea-42")
+
+        assert result.requirement_id == "prd:req-42-2-1"
+        assert len(result.files) == 5
+        assert any("under-specified" in r.message for r in caplog.records)
+        assert any("5 files" in r.message for r in caplog.records)
+
+    def test_no_warning_when_within_thresholds(self, caplog: pytest.LogCaptureFixture) -> None:
+        """3 files with long enough description does not trigger warning."""
+        # 3 files, 50 words → wpf ~16.7 → no warning
+        long_desc = " ".join(["word"] * 50)
+        ontology = StubOntology({
+            "context=prd-idea-42|subject=prd:req-42-3-1": [
+                {"predicate": "rdf:type", "object": "prd:Requirement"},
+                {"predicate": "prd:title", "object": "OK Task"},
+                {"predicate": "prd:description", "object": long_desc},
+                {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py"},
+                {"predicate": "prd:action", "object": "modify"},
+                {"predicate": "prd:verification", "object": "pytest"},
+            ],
+        })
+        phase = FindPhase()
+        with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
+            result = phase._load_requirement(ontology, "prd:req-42-3-1", "prd-idea-42")
+
+        assert result.requirement_id == "prd:req-42-3-1"
+        assert not any("under-specified" in r.message for r in caplog.records)
+
+    def test_warns_on_low_wpf(self, caplog: pytest.LogCaptureFixture) -> None:
+        """2 files but wpf < 15 triggers warning."""
+        # 2 files, 10 words → wpf = 5 → warning
+        ontology = StubOntology({
+            "context=prd-idea-42|subject=prd:req-42-4-1": [
+                {"predicate": "rdf:type", "object": "prd:Requirement"},
+                {"predicate": "prd:title", "object": "Small Task"},
+                {"predicate": "prd:description", "object": "Fix the bug in the module now please ok"},
+                {"predicate": "prd:files", "object": "src/a.py, src/b.py"},
+                {"predicate": "prd:action", "object": "modify"},
+                {"predicate": "prd:verification", "object": "pytest"},
+            ],
+        })
+        phase = FindPhase()
+        with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
+            result = phase._load_requirement(ontology, "prd:req-42-4-1", "prd-idea-42")
+
+        assert result.requirement_id == "prd:req-42-4-1"
+        assert any("under-specified" in r.message for r in caplog.records)
+        assert any("wpf=" in r.message for r in caplog.records)
+
+
+# ===================================================================
+# TestFindPhaseAdvisory — fine vs coarse requirement advisory
+# ===================================================================
+
+
+class TestFindPhaseAdvisory:
+    """FindPhase._load_requirement() advisory: fine vs coarse requirements.
+
+    Uses MockOntology (StubOntology) test double.
+    """
+
+    def test_no_warning_for_fine_requirement(self, caplog: pytest.LogCaptureFixture) -> None:
+        """1 file with detailed description → no advisory warning."""
+        # 1 file, 30 words → wpf = 30 → well above threshold; files ≤ 3
+        detailed_desc = (
+            "Add unit tests for the FindPhase advisory warning logic. "
+            "The tests should cover both the fine-grained requirement case "
+            "where no warning is expected and the coarse-grained case where "
+            "a warning is emitted to stderr"
+        )
+        ontology = StubOntology({
+            "context=prd-idea-42|subject=prd:req-42-5-1": [
+                {"predicate": "rdf:type", "object": "prd:Requirement"},
+                {"predicate": "prd:title", "object": "Fine Requirement"},
+                {"predicate": "prd:description", "object": detailed_desc},
+                {"predicate": "prd:files", "object": "tests/test_advisory.py"},
+                {"predicate": "prd:action", "object": "create"},
+                {"predicate": "prd:verification", "object": "pytest tests/"},
+            ],
+        })
+        phase = FindPhase()
+        with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
+            result = phase._load_requirement(ontology, "prd:req-42-5-1", "prd-idea-42")
+
+        assert result.requirement_id == "prd:req-42-5-1"
+        assert len(result.files) == 1
+        assert not any("under-specified" in r.message for r in caplog.records)
+
+    def test_warning_for_coarse_requirement(self, caplog: pytest.LogCaptureFixture) -> None:
+        """5 files with short description → advisory warning emitted."""
+        ontology = StubOntology({
+            "context=prd-idea-42|subject=prd:req-42-5-2": [
+                {"predicate": "rdf:type", "object": "prd:Requirement"},
+                {"predicate": "prd:title", "object": "Coarse Requirement"},
+                {"predicate": "prd:description", "object": "Update all modules"},
+                {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py, src/d.py, src/e.py"},
+                {"predicate": "prd:action", "object": "modify"},
+                {"predicate": "prd:verification", "object": "pytest"},
+            ],
+        })
+        phase = FindPhase()
+        with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
+            result = phase._load_requirement(ontology, "prd:req-42-5-2", "prd-idea-42")
+
+        assert result.requirement_id == "prd:req-42-5-2"
+        assert len(result.files) == 5
+        warning_msgs = [r.message for r in caplog.records if "under-specified" in r.message]
+        assert len(warning_msgs) == 1
+        assert "5 files" in warning_msgs[0]
+        assert "wpf=" in warning_msgs[0]
