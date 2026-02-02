@@ -64,6 +64,18 @@ class FindOutput(BaseModel):
         default="",
         description="Quality attribute focus for this requirement (prd:qualityFocus).",
     )
+    resolved_patterns: list[str] = Field(
+        default_factory=list,
+        description="Patterns resolved from quality_focus via SPARQL.",
+    )
+    resolved_principles: list[str] = Field(
+        default_factory=list,
+        description="Principles resolved from quality_focus via SPARQL.",
+    )
+    resolved_design_patterns: list[str] = Field(
+        default_factory=list,
+        description="Design patterns resolved from quality_focus via SPARQL.",
+    )
 
 
 class ImplementOutput(BaseModel):
