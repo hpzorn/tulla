@@ -9,8 +9,10 @@ that Implementation-Tulla reads to find work items.
 
 from __future__ import annotations
 
+import os
 import re
 import time
+from collections import defaultdict
 from datetime import date
 from typing import Any
 
@@ -147,6 +149,12 @@ class P6Phase(Phase[P6Output]):
                 )
 
             # --- Step 6: validate output ---
+            # Build result envelope for feedback generation before validation
+            pre_result = PhaseResult(
+                status=PhaseStatus.SUCCESS,
+                data=parsed,
+                duration_s=time.monotonic() - start,
+            )
             try:
                 self.validate_output(ctx, parsed)
             except ValueError as exc:
@@ -158,7 +166,9 @@ class P6Phase(Phase[P6Output]):
                         1 + max_retries,
                         exc,
                     )
-                    ctx.config["_p6_granularity_feedback"] = str(exc)
+                    ctx.config["_p6_granularity_feedback"] = (
+                        self._build_granularity_feedback(pre_result)
+                    )
                     continue
                 # Exhausted retries
                 log.warning("Phase output validation failed: %s", exc)
@@ -469,6 +479,99 @@ class P6Phase(Phase[P6Output]):
             + "\n".join(lines)
         )
 
+    def _build_granularity_feedback(self, result: PhaseResult[P6Output]) -> str:
+        """Build Template A feedback with specific metrics and split instructions.
+
+        Uses the CRITIC framework (Concrete, Referenced, Instructive,
+        Targeted, Iterative, Constructive) to provide actionable feedback
+        for each coarse requirement, grouping files by directory to
+        suggest split boundaries.
+
+        Args:
+            result: PhaseResult containing P6Output with coarse_requirements.
+
+        Returns:
+            Markdown-formatted feedback string.
+        """
+        if result.data is None or not result.data.coarse_requirements:
+            return ""
+
+        sections: list[str] = []
+
+        for entry in result.data.coarse_requirements:
+            req_id = entry["requirement"]
+            file_count = entry["file_count"]
+            wpf = entry["wpf"]
+            word_count = entry["word_count"]
+
+            # --- Concrete: show exact metrics ---
+            metrics = (
+                f"### {req_id}\n"
+                f"- **Files**: {file_count} (max allowed: 3)\n"
+                f"- **Words-per-file (wpf)**: {wpf} (min required: 12.0)\n"
+                f"- **Total description words**: {word_count}\n"
+            )
+
+            # --- Referenced: group files by directory for split suggestions ---
+            files = self._extract_files_for_requirement(req_id, result)
+            dir_groups = _group_files_by_directory(files)
+
+            split_plan = "- **Suggested splits by directory**:\n"
+            split_idx = 1
+            for directory, dir_files in sorted(dir_groups.items()):
+                file_list = ", ".join(f"`{f}`" for f in dir_files)
+                split_plan += (
+                    f"  {split_idx}. **`{directory}/`** → new requirement "
+                    f"covering: {file_list}\n"
+                )
+                split_idx += 1
+
+            # --- Instructive + Targeted: CRITIC splitting instructions ---
+            instructions = (
+                "- **Action required**: Split this requirement so each sub-requirement:\n"
+                "  1. Touches at most **3 files**\n"
+                "  2. Has a description with at least **12 words per file**\n"
+                "  3. Covers files from a **single directory** (cohesive change)\n"
+                "  4. Has its own `prd:dependsOn` links where needed\n"
+            )
+
+            sections.append(f"{metrics}{split_plan}{instructions}")
+
+        header = (
+            "The following requirements are **too coarse** and must be split "
+            "into smaller, more focused requirements.\n\n"
+        )
+
+        return header + "\n".join(sections)
+
+    def _extract_files_for_requirement(
+        self, req_id: str, result: PhaseResult[P6Output]
+    ) -> list[str]:
+        """Extract file paths for a specific requirement from the Turtle content.
+
+        Reads the Turtle file referenced in the result data and extracts
+        ``prd:files`` values for the given requirement ID.
+        """
+        if result.data is None:
+            return []
+
+        turtle_path = result.data.turtle_file
+        if not turtle_path.exists():
+            return []
+
+        content = turtle_path.read_text(encoding="utf-8")
+
+        # Find the specific requirement block
+        pattern = (
+            rf"{re.escape(req_id)}\s+a\s+prd:Requirement\s*;"
+            r"(.*?)(?:\.\s*$|\.\s*\n)"
+        )
+        match = re.search(pattern, content, re.DOTALL | re.MULTILINE)
+        if not match:
+            return []
+
+        return _extract_turtle_files(match.group(1))
+
     def get_timeout_seconds(self) -> float:
         """Return the P6 timeout in seconds (10 minutes)."""
         return self.timeout_s
@@ -491,6 +594,20 @@ def _extract_turtle_files(req_body: str) -> list[str]:
         parts = [p.strip() for p in re.split(r"[,\s]+", raw) if p.strip()]
         files.extend(parts)
     return files
+
+
+def _group_files_by_directory(files: list[str]) -> dict[str, list[str]]:
+    """Group file paths by their parent directory.
+
+    Returns a dict mapping directory paths to lists of filenames within
+    that directory.  Files without a directory component are grouped
+    under ``"."``.
+    """
+    groups: dict[str, list[str]] = defaultdict(list)
+    for f in files:
+        directory = os.path.dirname(f) or "."
+        groups[directory].append(os.path.basename(f))
+    return dict(groups)
 
 
 def _extract_turtle_description(req_body: str) -> str:
