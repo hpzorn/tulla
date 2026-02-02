@@ -6,11 +6,12 @@ executable implementation plan with file-level and task-level specificity.
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import P4Output
 
@@ -32,7 +33,7 @@ class P4Phase(Phase[P4Output]):
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the P4 implementation plan prompt, ported from planning-ralph.sh."""
+        """Build the P4 implementation plan prompt, ported from planning-tulla.sh."""
         output_file = ctx.work_dir / "p4-implementation-plan.md"
         p1_file = ctx.work_dir / "p1-discovery-context.md"
         p2_file = ctx.work_dir / "p2-codebase-analysis.md"
@@ -106,7 +107,7 @@ class P4Phase(Phase[P4Output]):
             "## Blocked Tasks (Need Research)\n"
             "| Task | Blocked By | Research Question |\n"
             "|------|------------|-------------------|\n"
-            "| [Task if any] | [Unknown] | [Question for research-ralph] |\n"
+            "| [Task if any] | [Unknown] | [Question for research-tulla] |\n"
             "\n"
             "If this table is empty, proceed directly to implementation.\n"
             "\n"
@@ -162,6 +163,27 @@ class P4Phase(Phase[P4Output]):
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
+
+def _check_homogeneity(files: list[str]) -> bool:
+    """Return True if all files match a single glob pattern.
+
+    Files are homogeneous when they share the same basename
+    (e.g. all ``__init__.py``) or the same extension (e.g. all ``.py``).
+    This exempts bootstrap requirements from the file-count blocking threshold.
+    """
+    if len(files) <= 1:
+        return True
+
+    basenames = {os.path.basename(f) for f in files}
+    if len(basenames) == 1:
+        return True
+
+    extensions = {os.path.splitext(f)[1] for f in files}
+    if len(extensions) == 1 and extensions != {""}:
+        return True
+
+    return False
 
 
 def _extract_section(content: str, heading: str) -> str:
