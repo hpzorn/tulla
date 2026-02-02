@@ -86,18 +86,6 @@ class P6Phase(Phase[P6Output]):
                     duration_s=time.monotonic() - start,
                 )
 
-            # Inject granularity feedback into the prompt on retries
-            feedback = ctx.config.get("_p6_granularity_feedback")
-            if feedback and attempt > 0:
-                prompt += (
-                    "\n\n## Granularity Feedback (MUST address)\n"
-                    "Your previous output had requirements that were too coarse. "
-                    "Split these into smaller, more focused requirements:\n"
-                    f"{feedback}\n"
-                    "Each requirement should touch at most "
-                    f"{ctx.config.get('max_files_per_requirement', 3)} files."
-                )
-
             try:
                 tools = self.get_tools(ctx)
             except Exception as exc:
@@ -166,7 +154,7 @@ class P6Phase(Phase[P6Output]):
                         1 + max_retries,
                         exc,
                     )
-                    ctx.config["_p6_granularity_feedback"] = (
+                    ctx.config["granularity_feedback"] = (
                         self._build_granularity_feedback(pre_result)
                     )
                     continue
@@ -208,14 +196,19 @@ class P6Phase(Phase[P6Output]):
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the P6 PRD export prompt, ported from planning-tulla.sh."""
+        """Build the P6 PRD export prompt, ported from planning-tulla.sh.
+
+        If ``ctx.config`` contains ``"granularity_feedback"``, the feedback
+        is appended as a ``## Granularity Feedback`` section so the LLM
+        can address coarse requirements on retry.
+        """
         p4_file = ctx.work_dir / "p4-implementation-plan.md"
         output_file = ctx.work_dir / "p6-prd-export.ttl"
         summary_file = ctx.work_dir / "p6-prd-summary.md"
         planning_date = date.today().isoformat()
         idea_id = ctx.idea_id
 
-        return (
+        prompt = (
             f"You are conducting Phase P6: Export PRD to RDF for idea {idea_id}.\n"
             "\n"
             "## Goal\n"
@@ -355,6 +348,16 @@ class P6Phase(Phase[P6Output]):
             "Be precise with RDF syntax. Each task from P4 becomes exactly one "
             "prd:Requirement."
         )
+
+        # Append granularity feedback if present (set by execute() retry loop)
+        feedback = ctx.config.get("granularity_feedback")
+        if feedback:
+            prompt += (
+                "\n\n## Granularity Feedback (MUST address)\n"
+                + feedback
+            )
+
+        return prompt
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during P6."""
