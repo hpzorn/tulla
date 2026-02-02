@@ -107,6 +107,12 @@ class TestBuildPrompt:
         assert 'prd:relatedADR "arch:adr-42' in prompt
         assert 'prd:qualityFocus "[Quality attribute]"' in prompt
 
+    def test_references_granularity_metrics(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "prd:filesCount" in prompt
+        assert "prd:descriptionWordCount" in prompt
+        assert "prd:wordsPerFile" in prompt
+
     def test_no_feedback_by_default(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Granularity Feedback" not in prompt
