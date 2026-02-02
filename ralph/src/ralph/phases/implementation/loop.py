@@ -14,6 +14,7 @@ loop-based architecture:
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -117,6 +118,20 @@ class ImplementationLoop:
         return self._max_retries
 
     # ------------------------------------------------------------------
+    # Console logging helpers (bash-style timestamped output to stderr)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _log(msg: str) -> None:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        click.echo(f"[{ts}] {msg}", err=True)
+
+    @staticmethod
+    def _separator() -> None:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        click.echo(f"[{ts}] {'=' * 46}", err=True)
+
+    # ------------------------------------------------------------------
     # Architecture & Lessons loading
     # ------------------------------------------------------------------
 
@@ -194,15 +209,35 @@ class ImplementationLoop:
 
         Returns a :class:`LoopResult` summarising all iterations.
         """
+        # --- Startup banner ---
+        self._separator()
+        self._log("Implementation-Ralph starting")
+        self._log(f"PRD Context: {self._prd_context}")
+        self._log(f"Budget: ${self._total_budget_usd:.2f} USD")
+        self._log(f"Max retries: {self._max_retries}")
+
         # Load architecture context and lessons once before the loop
         self._load_architecture_and_lessons()
 
+        arch = self._architecture_context
+        if arch:
+            self._log(
+                f"Architecture: {len(arch['quality_goals'])} goals, "
+                f"{len(arch['design_principles'])} principles, "
+                f"{len(arch['adrs'])} ADRs"
+            )
+        if self._lessons:
+            self._log(f"Lessons loaded: {len(self._lessons)}")
+        self._separator()
+
         loop_result = LoopResult()
         budget_remaining = self._total_budget_usd
+        req_counter = 0
 
         while True:
             # Budget guard
             if budget_remaining <= 0:
+                self._log("BUDGET EXHAUSTED — stopping loop")
                 logger.warning("Budget exhausted, stopping loop")
                 iteration = IterationResult(
                     outcome=LoopOutcome.BUDGET_EXHAUSTED,
@@ -211,13 +246,20 @@ class ImplementationLoop:
                 loop_result.iterations.append(iteration)
                 break
 
+            req_counter += 1
+            self._separator()
+            self._log(f"=== Requirement {req_counter} ===")
+            self._separator()
+
             # --- FIND ---
+            self._log("--- Phase 1: Finding next ready requirement ---")
             find_output = self._find.execute(
                 ontology=self._ontology,
                 prd_context=self._prd_context,
             )
 
             if find_output.all_complete:
+                self._log("All requirements complete")
                 logger.info("All requirements complete")
                 iteration = IterationResult(
                     outcome=LoopOutcome.ALL_COMPLETE,
@@ -228,6 +270,7 @@ class ImplementationLoop:
                 break
 
             req_id = find_output.requirement_id or "unknown"
+            self._log(f"Found: {req_id} — {find_output.title}")
             logger.info("Found requirement: %s — %s", req_id, find_output.title)
 
             # Mark as in-progress
@@ -247,7 +290,13 @@ class ImplementationLoop:
             feedback = ""
 
             for attempt in range(1 + self._max_retries):
+                self._log(
+                    f"--- Attempt {attempt + 1} of {1 + self._max_retries}"
+                    f" for {req_id} ---"
+                )
+
                 # IMPLEMENT
+                self._log(f"--- Phase 2: Implementing {req_id} ---")
                 impl_output = self._implement.execute(
                     claude=self._claude,
                     requirement=find_output,
@@ -261,6 +310,7 @@ class ImplementationLoop:
                 iteration.implement = impl_output
 
                 # COMMIT
+                self._log(f"--- Phase 3: Committing {req_id} ---")
                 commit_output = self._commit.execute(
                     requirement=find_output,
                     project_root=self._project_root,
@@ -268,6 +318,7 @@ class ImplementationLoop:
                 iteration.commit = commit_output
 
                 # VERIFY
+                self._log(f"--- Phase 4: Verifying {req_id} ---")
                 verify_output = self._verify.execute(
                     claude=self._claude,
                     requirement=find_output,
@@ -280,12 +331,17 @@ class ImplementationLoop:
                 iteration.verify = verify_output
 
                 if verify_output.passed:
+                    self._log(f"VERIFY_PASS: {req_id}")
                     iteration.outcome = LoopOutcome.IMPLEMENTED
                     iteration.retries_used = attempt
                     break
 
                 # Verification failed — retry with feedback
                 feedback = verify_output.feedback
+                self._log(
+                    f"VERIFY_FAIL: {req_id} (attempt {attempt + 1}"
+                    f"/{1 + self._max_retries})"
+                )
                 logger.warning(
                     "Verification failed for %s (attempt %d/%d): %s",
                     req_id,
@@ -298,6 +354,10 @@ class ImplementationLoop:
             else:
                 # All retries exhausted
                 iteration.outcome = LoopOutcome.VERIFY_FAILED
+                self._log(
+                    f"BLOCKED: {req_id} — verification failed after"
+                    f" {1 + self._max_retries} attempts"
+                )
                 logger.error(
                     "Verification failed after %d attempts for %s",
                     1 + self._max_retries,
@@ -313,6 +373,7 @@ class ImplementationLoop:
                     self._store_lesson(lesson)
 
             # --- STATUS ---
+            self._log(f"--- Phase 5: Marking {req_id} status ---")
             if iteration.outcome == LoopOutcome.IMPLEMENTED:
                 new_status = RequirementStatus.COMPLETE
                 loop_result.requirements_completed += 1
@@ -328,6 +389,24 @@ class ImplementationLoop:
             )
             iteration.status = status_output
             loop_result.iterations.append(iteration)
+
+            spent = self._total_budget_usd - budget_remaining
+            status_label = "Completed" if new_status == RequirementStatus.COMPLETE else "BLOCKED"
+            self._log(
+                f"{status_label}: {req_id}"
+                f" (${spent:.2f} spent, ${budget_remaining:.2f} remaining)"
+            )
+
+        # --- Final summary ---
+        self._separator()
+        self._log("Implementation-Ralph finished")
+        self._log(
+            f"Requirements completed: {loop_result.requirements_completed},"
+            f" blocked: {loop_result.requirements_blocked}"
+        )
+        self._log(f"Total cost: ${loop_result.total_cost_usd:.2f}")
+        self._log(f"Budget remaining: ${budget_remaining:.2f}")
+        self._separator()
 
         return loop_result
 
