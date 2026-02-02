@@ -19,6 +19,16 @@ from .models import FindOutput
 
 logger = logging.getLogger(__name__)
 
+# Prefix map matching p6.py namespace definitions
+_REVERSE_PREFIXES: dict[str, str] = {
+    "prd:": "http://impl-ralph.io/prd#",
+    "trace:": "http://impl-ralph.io/trace#",
+    "isaqb:": "http://impl-ralph.io/isaqb#",
+    "rdf:": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
+    "xsd:": "http://www.w3.org/2001/XMLSchema#",
+}
+
 
 class FindPhase:
     """Locate the next actionable requirement from the ontology.
@@ -117,6 +127,133 @@ class FindPhase:
         )
         return FindOutput(all_complete=True)
 
+    @staticmethod
+    def _expand_uri(compact: str) -> str:
+        """Expand a compact prefixed URI to its full form.
+
+        Example: ``isaqb:Maintainability`` →
+        ``http://impl-ralph.io/isaqb#Maintainability``
+
+        Returns the input unchanged if no known prefix matches.
+        """
+        for prefix, full_ns in _REVERSE_PREFIXES.items():
+            if compact.startswith(prefix):
+                return compact.replace(prefix, full_ns, 1)
+        return compact
+
+    def _resolve_patterns_via_sparql(
+        self,
+        ontology: OntologyPort,
+        quality_focus: str,
+    ) -> tuple[list[str], list[str], list[str]]:
+        """Resolve quality_focus to patterns, principles, and design patterns.
+
+        Uses three chained SPARQL queries (arch:adr-65-2) through the
+        existing ``OntologyPort.sparql_query()`` interface:
+
+        1. Quality → architectural patterns (direct + via hasSubAttribute)
+        2. Patterns → design principles
+        3. Principles → design patterns
+
+        Returns:
+            A 3-tuple ``(patterns, principles, design_patterns)`` where each
+            element is a list of compact URIs (e.g. ``["isaqb:LayeredArchitecture"]``).
+            Returns three empty lists if *quality_focus* is empty or queries
+            return no results.
+        """
+        if not quality_focus:
+            return [], [], []
+
+        full_uri = self._expand_uri(quality_focus)
+
+        # -- Query 1: quality → architectural patterns (arch:adr-65-2) --
+        q1 = (
+            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\n"
+            "SELECT DISTINCT ?pattern ?quality WHERE {\n"
+            "  {\n"
+            f"    ?pattern isaqb:addresses <{full_uri}> .\n"
+            f"    BIND(<{full_uri}> AS ?quality)\n"
+            "  }\n"
+            "  UNION\n"
+            "  {\n"
+            f"    <{full_uri}> isaqb:hasSubAttribute ?sub .\n"
+            "    ?pattern isaqb:addresses ?sub .\n"
+            "    BIND(?sub AS ?quality)\n"
+            "  }\n"
+            "}"
+        )
+        try:
+            r1 = ontology.sparql_query(q1)
+        except Exception:
+            logger.warning("SPARQL query 1 failed for %s", quality_focus, exc_info=True)
+            return [], [], []
+
+        bindings1 = r1.get("bindings", [])
+        patterns: list[str] = []
+        seen_patterns: set[str] = set()
+        for row in bindings1:
+            p = row.get("pattern", "")
+            if p and p not in seen_patterns:
+                seen_patterns.add(p)
+                patterns.append(p)
+
+        if not patterns:
+            return [], [], []
+
+        # -- Query 2: patterns → principles (arch:adr-65-2) --
+        values_patterns = " ".join(f"<{self._expand_uri(p)}>" for p in patterns)
+        q2 = (
+            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\n"
+            "SELECT DISTINCT ?principle ?pattern WHERE {\n"
+            f"  VALUES ?pattern {{ {values_patterns} }}\n"
+            "  ?pattern isaqb:embodies ?principle .\n"
+            "}"
+        )
+        try:
+            r2 = ontology.sparql_query(q2)
+        except Exception:
+            logger.warning("SPARQL query 2 failed for %s", quality_focus, exc_info=True)
+            return patterns, [], []
+
+        bindings2 = r2.get("bindings", [])
+        principles: list[str] = []
+        seen_principles: set[str] = set()
+        for row in bindings2:
+            pr = row.get("principle", "")
+            if pr and pr not in seen_principles:
+                seen_principles.add(pr)
+                principles.append(pr)
+
+        if not principles:
+            return patterns, [], []
+
+        # -- Query 3: principles → design patterns (arch:adr-65-2) --
+        values_principles = " ".join(f"<{self._expand_uri(p)}>" for p in principles)
+        q3 = (
+            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\n"
+            "SELECT DISTINCT ?designPattern ?principle WHERE {\n"
+            f"  VALUES ?principle {{ {values_principles} }}\n"
+            "  ?designPattern isaqb:embodies ?principle .\n"
+            "  ?designPattern a isaqb:DesignPattern .\n"
+            "}"
+        )
+        try:
+            r3 = ontology.sparql_query(q3)
+        except Exception:
+            logger.warning("SPARQL query 3 failed for %s", quality_focus, exc_info=True)
+            return patterns, principles, []
+
+        bindings3 = r3.get("bindings", [])
+        design_patterns: list[str] = []
+        seen_design: set[str] = set()
+        for row in bindings3:
+            dp = row.get("designPattern", "")
+            if dp and dp not in seen_design:
+                seen_design.add(dp)
+                design_patterns.append(dp)
+
+        return patterns, principles, design_patterns
+
     def _load_requirement(
         self,
         ontology: OntologyPort,
@@ -156,6 +293,13 @@ class FindPhase:
             logger.warning(msg)
             click.echo(f"⚠ {msg}", err=True)
 
+        quality_focus = props.get("prd:qualityFocus", "")
+
+        # Resolve quality_focus → patterns/principles via SPARQL (arch:adr-65-1)
+        resolved_patterns, resolved_principles, resolved_design_patterns = (
+            self._resolve_patterns_via_sparql(ontology, quality_focus)
+        )
+
         return FindOutput(
             requirement_id=req_id,
             title=props.get("prd:title", ""),
@@ -165,7 +309,10 @@ class FindPhase:
             verification=props.get("prd:verification", ""),
             all_complete=False,
             related_adrs=related_adrs,
-            quality_focus=props.get("prd:qualityFocus", ""),
+            quality_focus=quality_focus,
+            resolved_patterns=resolved_patterns,
+            resolved_principles=resolved_principles,
+            resolved_design_patterns=resolved_design_patterns,
         )
 
     def load_lessons(
