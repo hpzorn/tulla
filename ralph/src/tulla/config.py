@@ -1,7 +1,7 @@
-"""Centralised configuration for Ralph.
+"""Centralised configuration for Tulla.
 
 Provides :class:`AgentConfig` for per-agent settings and
-:class:`RalphConfig` as the root configuration object.  Values are
+:class:`TullaConfig` as the root configuration object.  Values are
 resolved with the following precedence (highest → lowest):
 
 1. Explicit keyword overrides (CLI flags, ``from_yaml(..., **overrides)``)
@@ -26,7 +26,7 @@ import yaml
 
 
 class AgentConfig(BaseSettings):
-    """Configuration for a single Ralph agent/phase.
+    """Configuration for a single Tulla agent/phase.
 
     Attributes:
         budget_usd: Maximum dollar spend for the agent.
@@ -40,21 +40,27 @@ class AgentConfig(BaseSettings):
     permission_mode: str = "bypassPermissions"
     phase_timeout_minutes: int = 15
 
+    # Granularity thresholds (research-validated defaults)
+    max_files_per_requirement: int = 3
+    min_wpf_blocking: float = 12.0
+    min_wpf_advisory: float = 15.0
+    max_granularity_retries: int = 1
+
 
 # ---------------------------------------------------------------------------
 # Root configuration
 # ---------------------------------------------------------------------------
 
 
-class RalphConfig(BaseSettings):
-    """Root configuration for the Ralph system.
+class TullaConfig(BaseSettings):
+    """Root configuration for the Tulla system.
 
     Environment variables are read with the ``RALPH_`` prefix, e.g.
     ``RALPH_WORK_BASE_DIR`` maps to ``work_base_dir``.
     """
 
     model_config = SettingsConfigDict(
-        env_prefix="RALPH_",
+        env_prefix="TULLA_",
         env_nested_delimiter="__",
     )
 
@@ -72,7 +78,7 @@ class RalphConfig(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def _resolve_paths(self) -> RalphConfig:
+    def _resolve_paths(self) -> TullaConfig:
         """Resolve relative paths to absolute at creation time.
 
         Prevents cwd-dependent path resolution when the Claude CLI
@@ -111,7 +117,7 @@ class RalphConfig(BaseSettings):
         cls,
         path: str | Path,
         **overrides: Any,
-    ) -> RalphConfig:
+    ) -> TullaConfig:
         """Load configuration from a YAML file with optional overrides.
 
         Parameters:
@@ -120,7 +126,7 @@ class RalphConfig(BaseSettings):
                 overriding both YAML values and environment variables.
 
         Returns:
-            A fully resolved :class:`RalphConfig` instance.
+            A fully resolved :class:`TullaConfig` instance.
         """
         yaml_path = Path(path)
         if yaml_path.exists():
