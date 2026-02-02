@@ -10,12 +10,13 @@ that Implementation-Tulla reads to find work items.
 from __future__ import annotations
 
 import re
+import time
 from datetime import date
 from typing import Any
 
 import click
 
-from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext, PhaseResult, PhaseStatus
 
 from .models import P6Output
 from .p4 import _check_homogeneity
@@ -40,6 +41,157 @@ class P6Phase(Phase[P6Output]):
 
     phase_id: str = "p6"
     timeout_s: float = 1200.0  # 20 minutes — needs to store many facts
+
+    # ------------------------------------------------------------------
+    # Execute override — retry on validation failure (arch:adr-64-1)
+    # ------------------------------------------------------------------
+
+    def execute(self, ctx: PhaseContext) -> PhaseResult[P6Output]:
+        """Run P6 with retry on granularity validation failure.
+
+        Wraps the base class :meth:`Phase.execute` in a retry loop.
+        When ``validate_output`` raises ``ValueError`` (granularity gate),
+        feedback about the coarse requirements is injected into the
+        context and the phase is re-invoked.  Other errors (``ParseError``,
+        ``TimeoutError``) are **not** retried.
+
+        Max retries controlled by ``ctx.config["max_granularity_retries"]``
+        (default ``1``).
+        """
+        max_retries = int(ctx.config.get("max_granularity_retries", 1))
+        start = time.monotonic()
+        log = ctx.logger
+
+        for attempt in range(1 + max_retries):
+            # --- Steps 1-3: input validation, build prompt, get tools ---
+            try:
+                self.validate_input(ctx)
+            except Exception as exc:
+                log.warning("Phase input validation failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Input validation failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
+            try:
+                prompt = self.build_prompt(ctx)
+            except Exception as exc:
+                log.error("Phase build_prompt failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Prompt build failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
+            # Inject granularity feedback into the prompt on retries
+            feedback = ctx.config.get("_p6_granularity_feedback")
+            if feedback and attempt > 0:
+                prompt += (
+                    "\n\n## Granularity Feedback (MUST address)\n"
+                    "Your previous output had requirements that were too coarse. "
+                    "Split these into smaller, more focused requirements:\n"
+                    f"{feedback}\n"
+                    "Each requirement should touch at most "
+                    f"{ctx.config.get('max_files_per_requirement', 3)} files."
+                )
+
+            try:
+                tools = self.get_tools(ctx)
+            except Exception as exc:
+                log.error("Phase get_tools failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Get tools failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
+            # --- Step 4: run Claude ---
+            cost_usd = 0.0
+            try:
+                raw = self.run_claude(ctx, prompt, tools)
+                if hasattr(raw, "cost_usd"):
+                    cost_usd = raw.cost_usd
+            except TimeoutError:
+                log.warning("Phase timed out")
+                return PhaseResult(
+                    status=PhaseStatus.TIMEOUT,
+                    error="Claude invocation timed out",
+                    duration_s=time.monotonic() - start,
+                )
+            except Exception as exc:
+                log.error("Phase run_claude failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Claude invocation failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
+            # --- Step 5: parse output ---
+            try:
+                parsed = self.parse_output(ctx, raw)
+            except ParseError as exc:
+                log.warning("Phase parse_output failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Output parsing failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                    metadata={"parse_context": exc.context},
+                )
+            except Exception as exc:
+                log.error("Unexpected parse error: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Output parsing failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
+            # --- Step 6: validate output ---
+            try:
+                self.validate_output(ctx, parsed)
+            except ValueError as exc:
+                # Validation failure — retry if attempts remain
+                if attempt < max_retries:
+                    log.warning(
+                        "P6 granularity validation failed (attempt %d/%d), retrying: %s",
+                        attempt + 1,
+                        1 + max_retries,
+                        exc,
+                    )
+                    ctx.config["_p6_granularity_feedback"] = str(exc)
+                    continue
+                # Exhausted retries
+                log.warning("Phase output validation failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Output validation failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+            except Exception as exc:
+                # Non-validation errors are never retried
+                log.warning("Phase output validation failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"Output validation failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
+            # --- Success ---
+            elapsed = time.monotonic() - start
+            log.info("Phase completed successfully in %.2fs", elapsed)
+            return PhaseResult(
+                status=PhaseStatus.SUCCESS,
+                data=parsed,
+                duration_s=elapsed,
+                metadata={"cost_usd": cost_usd, "attempts": attempt + 1},
+            )
+
+        # Should not be reached, but satisfy type checker
+        return PhaseResult(  # pragma: no cover
+            status=PhaseStatus.FAILURE,
+            error="Retry loop exhausted unexpectedly",
+            duration_s=time.monotonic() - start,
+        )
 
     # ------------------------------------------------------------------
     # Template hooks
