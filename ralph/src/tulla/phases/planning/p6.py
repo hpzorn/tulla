@@ -4,7 +4,7 @@ Implements the sixth planning sub-phase that converts the implementation
 plan (P4) into RDF triples and stores them in the ontology A-box via
 ``mcp__ontology-server__store_fact``.  This creates the ``prd-idea-{N}``
 context that the dashboard displays under "Product Requirements" and
-that Implementation-Ralph reads to find work items.
+that Implementation-Tulla reads to find work items.
 """
 
 from __future__ import annotations
@@ -13,11 +13,12 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import P6Output
+from .p4 import _check_homogeneity
 
-# PRD ontology namespaces (matches planning-ralph.sh)
+# PRD ontology namespaces (matches planning-tulla.sh)
 PRD_NS = "http://impl-ralph.io/prd#"
 TRACE_NS = "http://impl-ralph.io/trace#"
 
@@ -31,19 +32,19 @@ class P6Phase(Phase[P6Output]):
     3. Write a summary file
 
     This is the bridge between planning and implementation — without it,
-    the ontology dashboard shows no PRD and Implementation-Ralph has
+    the ontology dashboard shows no PRD and Implementation-Tulla has
     no requirements to process.
     """
 
     phase_id: str = "p6"
-    timeout_s: float = 600.0  # 10 minutes — needs to store many facts
+    timeout_s: float = 1200.0  # 20 minutes — needs to store many facts
 
     # ------------------------------------------------------------------
     # Template hooks
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the P6 PRD export prompt, ported from planning-ralph.sh."""
+        """Build the P6 PRD export prompt, ported from planning-tulla.sh."""
         p4_file = ctx.work_dir / "p4-implementation-plan.md"
         output_file = ctx.work_dir / "p6-prd-export.ttl"
         summary_file = ctx.work_dir / "p6-prd-summary.md"
@@ -55,7 +56,7 @@ class P6Phase(Phase[P6Output]):
             "\n"
             "## Goal\n"
             "Convert the implementation plan into RDF requirements that "
-            "Implementation-Ralph can consume.\n"
+            "Implementation-Tulla can consume.\n"
             "This creates the semantic graph of requirements with dependencies "
             "for the ontology-driven implementation loop.\n"
             "\n"
@@ -119,20 +120,26 @@ class P6Phase(Phase[P6Output]):
             "       prd:phase 1 ;\n"
             '       prd:files "path/to/file.py" ;\n'
             '       prd:action "create" ;\n'
-            '       prd:verification "[How to verify]" .\n'
+            '       prd:verification "[How to verify]" ;\n'
+            f'       prd:relatedADR "arch:adr-{idea_id}-N" ;\n'
+            '       prd:qualityFocus "[Quality attribute]" .\n'
             "   ```\n"
             "\n"
-            "3.5. **Link requirements to architecture**\n"
-            f'   - Use mcp__ontology-server__recall_facts with context="arch-idea-{idea_id}" '
-            "to see what ADRs exist\n"
-            "   - For each requirement clearly related to an ADR, store a "
-            "prd:relatedADR fact:\n"
+            "3.5. **Link requirements to architecture (MANDATORY)**\n"
+            f'   - FIRST: call mcp__ontology-server__recall_facts with context="arch-idea-{idea_id}" '
+            "to retrieve all ADRs, quality goals, and design principles\n"
+            "   - For EVERY requirement, determine which ADR(s) it relates to and add "
+            "prd:relatedADR to the Turtle output AND store via store_fact:\n"
             f'     subject="prd:req-{idea_id}-X-Y", predicate="prd:relatedADR", '
             f'object="arch:adr-{idea_id}-N", context="prd-idea-{idea_id}"\n'
-            "   - For requirements focused on a specific quality attribute, store:\n"
+            "   - For EVERY requirement, identify the primary quality attribute it "
+            "addresses (from the architecture quality goals) and add "
+            "prd:qualityFocus to the Turtle output AND store via store_fact:\n"
             f'     subject="prd:req-{idea_id}-X-Y", predicate="prd:qualityFocus", '
             f'object="[Attribute]", context="prd-idea-{idea_id}"\n'
-            "   - Only link when the relationship is clear — don't force links\n"
+            "   - Every requirement MUST have at least one prd:relatedADR and one prd:qualityFocus.\n"
+            "     If a requirement genuinely relates to no ADR, use the closest match — "
+            "architecture decisions exist to guide implementation, so the mapping always exists.\n"
             "\n"
             "4. After writing the Turtle file, use mcp__ontology-server__store_fact "
             "to add each requirement to the A-box fact store.\n"
@@ -145,7 +152,7 @@ class P6Phase(Phase[P6Output]):
             f'     context="prd-idea-{idea_id}"\n'
             "   - Do NOT use add_triple — that writes to the T-box (ontology schema), "
             "not the A-box (fact store).\n"
-            "     Implementation-Ralph reads requirements via recall_facts, "
+            "     Implementation-Tulla reads requirements via recall_facts, "
             "which only sees the A-box.\n"
             "\n"
             f"5. Write a summary to: {summary_file}\n"
@@ -179,7 +186,7 @@ class P6Phase(Phase[P6Output]):
             "\n"
             "   ## Next Step\n"
             "\n"
-            f"   Run Implementation-Ralph: `ralph run implementation --idea {idea_id}`\n"
+            f"   Run Implementation-Tulla: `tulla run implementation --idea {idea_id}`\n"
             "\n"
             "Be precise with RDF syntax. Each task from P4 becomes exactly one "
             "prd:Requirement."
@@ -216,13 +223,103 @@ class P6Phase(Phase[P6Output]):
         # Count prd:Requirement instances
         req_count = len(re.findall(r"a\s+prd:Requirement", content))
 
+        # Count architecture traceability links
+        adr_links = len(re.findall(r"prd:relatedADR", content))
+        quality_links = len(re.findall(r"prd:qualityFocus", content))
+
+        if req_count > 0 and adr_links == 0:
+            ctx.logger.warning(
+                "P6 Turtle has %d requirements but zero prd:relatedADR links",
+                req_count,
+            )
+        if req_count > 0 and quality_links == 0:
+            ctx.logger.warning(
+                "P6 Turtle has %d requirements but zero prd:qualityFocus links",
+                req_count,
+            )
+
+        # -- Per-requirement granularity extraction --
+        max_files = int(ctx.config.get("max_files_per_requirement", 3))
+        min_wpf = float(ctx.config.get("min_wpf_blocking", 12.0))
+
+        coarse_requirements: list[dict[str, Any]] = []
+        for req_match in re.finditer(
+            r"(prd:req-[\w-]+)\s+a\s+prd:Requirement\s*;(.*?)(?:\.\s*$|\.\s*\n)",
+            content,
+            re.DOTALL | re.MULTILINE,
+        ):
+            req_id = req_match.group(1)
+            req_body = req_match.group(2)
+
+            # Check for @cross-cutting annotation escape
+            if "@cross-cutting" in req_body:
+                continue
+
+            files = _extract_turtle_files(req_body)
+            description = _extract_turtle_description(req_body)
+
+            file_count = len(files)
+            word_count = len(description.split()) if description else 0
+            wpf = word_count / file_count if file_count > 0 else 0.0
+            homogeneous = _check_homogeneity(files)
+
+            if file_count > max_files and not homogeneous and wpf < min_wpf:
+                coarse_requirements.append({
+                    "requirement": req_id,
+                    "file_count": file_count,
+                    "word_count": word_count,
+                    "wpf": round(wpf, 2),
+                    "homogeneous": homogeneous,
+                })
+
+        granularity_passed = len(coarse_requirements) == 0
+
         return P6Output(
             turtle_file=turtle_file,
             summary_file=summary_file,
             requirements_exported=req_count,
             prd_context=f"prd-idea-{idea_id}",
+            adr_links=adr_links,
+            quality_links=quality_links,
+            coarse_requirements=coarse_requirements,
+            granularity_passed=granularity_passed,
         )
 
     def get_timeout_seconds(self) -> float:
         """Return the P6 timeout in seconds (10 minutes)."""
         return self.timeout_s
+
+
+# ------------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------------
+
+
+def _extract_turtle_files(req_body: str) -> list[str]:
+    """Extract file paths from ``prd:files`` values in a Turtle requirement block.
+
+    Handles both single-value and comma-separated file lists within quotes.
+    """
+    files: list[str] = []
+    for match in re.finditer(r'prd:files\s+"([^"]*)"', req_body):
+        raw = match.group(1).strip()
+        # Split on commas or whitespace for multi-file values
+        parts = [p.strip() for p in re.split(r"[,\s]+", raw) if p.strip()]
+        files.extend(parts)
+    return files
+
+
+def _extract_turtle_description(req_body: str) -> str:
+    """Extract the ``prd:description`` value from a Turtle requirement block.
+
+    Supports both single-line ``"..."`` and multi-line ``\"\"\"...\"\"\"`` strings.
+    """
+    # Try triple-quoted first
+    match = re.search(r'prd:description\s+"""(.*?)"""', req_body, re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    # Fall back to single-quoted
+    match = re.search(r'prd:description\s+"([^"]*)"', req_body)
+    if match:
+        return match.group(1).strip()
+    return ""
