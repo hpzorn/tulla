@@ -8,8 +8,11 @@ from __future__ import annotations
 
 import os
 import re
+import sys
 from datetime import date
 from typing import Any
+
+import click
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
 
@@ -188,6 +191,22 @@ class P4Phase(Phase[P4Output]):
             coarse_tasks=coarse_tasks,
             granularity_passed=granularity_passed,
         )
+
+    def validate_output(self, ctx: PhaseContext, parsed: P4Output) -> None:
+        """Log advisory warnings for coarse tasks but never raise.
+
+        Per ADR-64-2 this gate is advisory only: it emits a warning per
+        coarse task via ``ctx.logger.warning`` and ``click.echo`` to
+        stderr, but does **not** raise ``ValueError`` so execution
+        always continues.
+        """
+        for entry in parsed.coarse_tasks:
+            msg = (
+                f"P4 advisory: Task {entry['task']} appears coarse "
+                f"(files={entry['file_count']}, wpf={entry['wpf']})"
+            )
+            ctx.logger.warning(msg)
+            click.echo(msg, err=True)
 
     def get_timeout_seconds(self) -> float:
         """Return the P4 timeout in seconds (20 minutes)."""
