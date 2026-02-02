@@ -13,6 +13,8 @@ import re
 from datetime import date
 from typing import Any
 
+import click
+
 from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import P6Output
@@ -283,6 +285,36 @@ class P6Phase(Phase[P6Output]):
             quality_links=quality_links,
             coarse_requirements=coarse_requirements,
             granularity_passed=granularity_passed,
+        )
+
+    def validate_output(self, ctx: PhaseContext, parsed: P6Output) -> None:
+        """Blocking gate: raise ValueError when granularity check fails.
+
+        Per ADR-64-2 the P6 gate is **blocking** because P6 produces the
+        final RDF artifact consumed by Implementation-Tulla.  When
+        ``granularity_passed`` is ``False``, each coarse requirement is
+        logged as a warning and echoed to stderr, then a ``ValueError``
+        is raised which triggers the retry mechanism in ``execute()``.
+        """
+        if parsed.granularity_passed:
+            return
+
+        lines: list[str] = []
+        for entry in parsed.coarse_requirements:
+            msg = (
+                f"P6 blocking: Requirement {entry['requirement']} is too coarse "
+                f"(files={entry['file_count']}, wpf={entry['wpf']})"
+            )
+            ctx.logger.warning(msg)
+            click.echo(msg, err=True)
+            lines.append(
+                f"  {entry['requirement']}: "
+                f"files={entry['file_count']}, wpf={entry['wpf']}"
+            )
+
+        raise ValueError(
+            "P6 granularity gate failed — coarse requirements:\n"
+            + "\n".join(lines)
         )
 
     def get_timeout_seconds(self) -> float:
