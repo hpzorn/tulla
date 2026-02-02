@@ -8,9 +8,12 @@ status ``prd:Pending`` that has all dependencies satisfied.
 from __future__ import annotations
 
 import logging
+import sys
 from typing import Any
 
-from ralph.ports.ontology import OntologyPort
+import click
+
+from tulla.ports.ontology import OntologyPort
 
 from .models import FindOutput
 
@@ -139,6 +142,19 @@ class FindPhase:
 
         files_str = props.get("prd:files", "")
         files = [f.strip() for f in files_str.split(",") if f.strip()]
+
+        # Advisory warning for requirements that may be too coarse
+        description = props.get("prd:description", "")
+        word_count = len(description.split())
+        wpf = word_count / len(files) if files else 0
+        if len(files) > 3 or wpf < 15:
+            msg = (
+                f"Requirement {req_id} may be under-specified: "
+                f"{len(files)} files, {word_count} words, "
+                f"wpf={wpf:.1f} (target ≥15 wpf, ≤3 files)"
+            )
+            logger.warning(msg)
+            click.echo(f"⚠ {msg}", err=True)
 
         return FindOutput(
             requirement_id=req_id,
