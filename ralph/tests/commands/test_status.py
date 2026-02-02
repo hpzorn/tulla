@@ -77,6 +77,9 @@ class StubOntology(OntologyPort):
     def set_lifecycle(self, idea_id: str, new_state: str, **kw: Any) -> dict[str, Any]:
         return {}
 
+    def forget_by_context(self, context: str) -> int:
+        return 0
+
 
 # ---------------------------------------------------------------------------
 # TestQueryPrdStatus — 7 tests

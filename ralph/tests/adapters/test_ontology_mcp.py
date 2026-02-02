@@ -322,3 +322,66 @@ class TestEndpointMapping:
         req = mock_urlopen.call_args[0][0]
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"new_state": "archived"}
+
+
+# ===================================================================
+# forget_by_context() tests
+# ===================================================================
+
+
+class TestForgetByContext:
+    """Tests for OntologyMCPAdapter.forget_by_context()."""
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_recalls_then_deletes(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        """Recalls all facts in context, then deletes each by fact_id."""
+        recall_resp = _mock_urlopen({
+            "facts": [
+                {"fact_id": "f1", "subject": "s1"},
+                {"fact_id": "f2", "subject": "s2"},
+                {"fact_id": "f3", "subject": "s3"},
+            ]
+        })
+        delete_resp = _mock_urlopen({"ok": True})
+        mock_urlopen.side_effect = [recall_resp, delete_resp, delete_resp, delete_resp]
+
+        count = adapter.forget_by_context("prd-idea-42")
+
+        assert count == 3
+        # First call is the recall GET
+        recall_req = mock_urlopen.call_args_list[0][0][0]
+        assert "context=prd-idea-42" in recall_req.full_url
+        # Next 3 are DELETE calls
+        for i in range(1, 4):
+            req = mock_urlopen.call_args_list[i][0][0]
+            assert req.get_method() == "DELETE"
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_returns_zero_when_no_facts(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"facts": []})
+
+        count = adapter.forget_by_context("empty-context")
+
+        assert count == 0
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_skips_facts_without_id(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        """Facts without fact_id are skipped (not deleted)."""
+        recall_resp = _mock_urlopen({
+            "facts": [
+                {"fact_id": "f1", "subject": "s1"},
+                {"subject": "s2"},  # no fact_id
+            ]
+        })
+        delete_resp = _mock_urlopen({"ok": True})
+        mock_urlopen.side_effect = [recall_resp, delete_resp]
+
+        count = adapter.forget_by_context("ctx")
+
+        assert count == 1

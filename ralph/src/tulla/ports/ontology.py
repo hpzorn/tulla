@@ -90,6 +90,10 @@ class OntologyPort(ABC):
         """Update an existing idea."""
 
     @abstractmethod
+    def forget_by_context(self, context: str) -> int:
+        """Remove all facts with the given context. Returns count deleted."""
+
+    @abstractmethod
     def set_lifecycle(
         self,
         idea_id: str,

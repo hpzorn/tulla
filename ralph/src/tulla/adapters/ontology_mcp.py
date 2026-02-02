@@ -132,6 +132,17 @@ class OntologyMCPAdapter(OntologyPort):
     def forget_fact(self, fact_id: str) -> dict[str, Any]:
         return self._delete(f"/facts/{fact_id}")
 
+    def forget_by_context(self, context: str) -> int:
+        resp = self.recall_facts(context=context, limit=10000)
+        facts = resp.get("result", [])
+        count = 0
+        for fact in facts:
+            fid = fact.get("fact_id", "")
+            if fid:
+                self.forget_fact(fid)
+                count += 1
+        return count
+
     # ------------------------------------------------------------------
     # OntologyPort interface — Ideas
     # ------------------------------------------------------------------

@@ -12,8 +12,9 @@ import pytest
 from tulla.adapters.claude_mock import MockClaudeAdapter
 from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
 from tulla.phases.planning.models import P6Output
-from tulla.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS, _group_files_by_directory
+from tulla.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS, _compact_uri, _group_files_by_directory
 from tulla.ports.claude import ClaudeResult
+from tulla.ports.ontology import OntologyPort
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +54,7 @@ class TestConstruction:
 
     def test_default_timeout(self) -> None:
         p = P6Phase()
-        assert p.timeout_s == 1200.0
+        assert p.timeout_s == 600.0
 
 
 # ===================================================================
@@ -84,17 +85,13 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert PRD_NS in prompt
 
-    def test_references_store_fact(self, phase: P6Phase, ctx: PhaseContext) -> None:
+    def test_does_not_instruct_store_fact(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
-        assert "mcp__ontology-server__store_fact" in prompt
+        assert "Do NOT call store_fact" in prompt
 
     def test_references_prd_context(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "prd-idea-42" in prompt
-
-    def test_warns_against_add_triple(self, phase: P6Phase, ctx: PhaseContext) -> None:
-        prompt = phase.build_prompt(ctx)
-        assert "Do NOT use add_triple" in prompt
 
     def test_adr_linking_is_mandatory(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
@@ -137,14 +134,15 @@ class TestBuildPrompt:
 
 
 class TestGetTools:
-    """P6Phase.get_tools() returns Read, Write, and store_fact."""
+    """P6Phase.get_tools() returns Read, Write, and recall_facts (no store_fact)."""
 
     def test_returns_expected_tools(self, phase: P6Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "Read" in names
         assert "Write" in names
-        assert "mcp__ontology-server__store_fact" in names
+        assert "mcp__ontology-server__recall_facts" in names
+        assert "mcp__ontology-server__store_fact" not in names
 
 
 # ===================================================================
@@ -156,7 +154,7 @@ class TestGetTimeoutSeconds:
     """P6Phase.get_timeout_seconds() returns the configured timeout."""
 
     def test_returns_timeout(self, phase: P6Phase) -> None:
-        assert phase.get_timeout_seconds() == 1200.0
+        assert phase.get_timeout_seconds() == 600.0
 
 
 # ===================================================================
@@ -1022,3 +1020,167 @@ class TestBuildGranularityFeedbackViaMock:
         assert "Suggested splits by directory" in retry_prompt
         assert "Action required" in retry_prompt
         assert "prd:dependsOn" in retry_prompt
+
+
+# ===================================================================
+# TestCompactUri
+# ===================================================================
+
+
+class TestCompactUri:
+    """_compact_uri() compacts full URIs into prefixed form."""
+
+    def test_prd_namespace(self) -> None:
+        assert _compact_uri("http://impl-ralph.io/prd#Requirement") == "prd:Requirement"
+
+    def test_rdf_namespace(self) -> None:
+        assert _compact_uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type") == "rdf:type"
+
+    def test_rdfs_namespace(self) -> None:
+        assert _compact_uri("http://www.w3.org/2000/01/rdf-schema#label") == "rdfs:label"
+
+    def test_xsd_namespace(self) -> None:
+        assert _compact_uri("http://www.w3.org/2001/XMLSchema#integer") == "xsd:integer"
+
+    def test_trace_namespace(self) -> None:
+        assert _compact_uri("http://impl-ralph.io/trace#foo") == "trace:foo"
+
+    def test_already_compact(self) -> None:
+        assert _compact_uri("prd:Requirement") == "prd:Requirement"
+
+    def test_unknown_namespace(self) -> None:
+        uri = "http://example.org/unknown#Thing"
+        assert _compact_uri(uri) == uri
+
+
+# ===================================================================
+# _MockOntologyPort for hydration tests
+# ===================================================================
+
+
+class _MockOntologyPort(OntologyPort):
+    """In-memory OntologyPort for testing _hydrate_abox."""
+
+    def __init__(self, *, store_fail_count: int = 0) -> None:
+        self.stored: list[tuple[str, str, str, str | None]] = []
+        self.forgotten_contexts: list[str] = []
+        self.forgotten_fact_ids: list[str] = []
+        self._store_fail_count = store_fail_count
+        self._store_calls = 0
+
+    def forget_by_context(self, context: str) -> int:
+        self.forgotten_contexts.append(context)
+        return 0
+
+    def store_fact(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        context: str | None = None,
+        confidence: float = 1.0,
+    ) -> dict[str, Any]:
+        self._store_calls += 1
+        if self._store_calls <= self._store_fail_count:
+            raise RuntimeError("simulated store failure")
+        self.stored.append((subject, predicate, object, context))
+        return {"fact_id": f"f-{self._store_calls}"}
+
+    def forget_fact(self, fact_id: str) -> dict[str, Any]:
+        self.forgotten_fact_ids.append(fact_id)
+        return {"ok": True}
+
+    def recall_facts(self, *, subject=None, predicate=None, context=None, limit=100):
+        return {"result": []}
+
+    def query_ideas(self, *, sparql=None, lifecycle=None, author=None, tag=None, search=None, limit=50):
+        return {"ideas": []}
+
+    def get_idea(self, idea_id):
+        return {}
+
+    def sparql_query(self, query, *, validate=True):
+        return {"bindings": []}
+
+    def update_idea(self, idea_id, *, title=None, description=None, content=None, lifecycle=None, tags=None):
+        return {}
+
+    def set_lifecycle(self, idea_id, new_state, *, reason=""):
+        return {}
+
+
+# ===================================================================
+# TestHydrateAbox
+# ===================================================================
+
+
+class TestHydrateAbox:
+    """P6Phase._hydrate_abox() programmatic A-box hydration."""
+
+    def test_happy_path(self, ctx: PhaseContext) -> None:
+        """All triples from Turtle are stored via store_fact."""
+        turtle_file = ctx.work_dir / "p6-prd-export.ttl"
+        turtle_file.write_text(SAMPLE_TURTLE)
+        mock_port = _MockOntologyPort()
+        ctx.config["ontology_port"] = mock_port
+
+        phase = P6Phase()
+        count = phase._hydrate_abox(ctx, turtle_file)
+
+        assert count > 0
+        assert count == len(mock_port.stored)
+        # All stored with correct context
+        for _, _, _, stored_ctx in mock_port.stored:
+            assert stored_ctx == "prd-idea-42"
+
+    def test_clears_context_first(self, ctx: PhaseContext) -> None:
+        """forget_by_context is called before storing new triples."""
+        turtle_file = ctx.work_dir / "p6-prd-export.ttl"
+        turtle_file.write_text(SAMPLE_TURTLE)
+        mock_port = _MockOntologyPort()
+        ctx.config["ontology_port"] = mock_port
+
+        phase = P6Phase()
+        phase._hydrate_abox(ctx, turtle_file)
+
+        assert mock_port.forgotten_contexts == ["prd-idea-42"]
+
+    def test_missing_port_returns_zero(self, ctx: PhaseContext) -> None:
+        """When ontology_port is missing from config, returns 0 gracefully."""
+        turtle_file = ctx.work_dir / "p6-prd-export.ttl"
+        turtle_file.write_text(SAMPLE_TURTLE)
+        # No ontology_port in config
+
+        phase = P6Phase()
+        count = phase._hydrate_abox(ctx, turtle_file)
+
+        assert count == 0
+
+    def test_error_threshold_raises(self, ctx: PhaseContext) -> None:
+        """RuntimeError raised when >10% of triples fail."""
+        turtle_file = ctx.work_dir / "p6-prd-export.ttl"
+        turtle_file.write_text(SAMPLE_TURTLE)
+        # SAMPLE_TURTLE has ~15 triples; fail all of them to exceed 10%
+        mock_port = _MockOntologyPort(store_fail_count=9999)
+        ctx.config["ontology_port"] = mock_port
+
+        phase = P6Phase()
+        with pytest.raises(RuntimeError, match="error rate too high"):
+            phase._hydrate_abox(ctx, turtle_file)
+
+    def test_compacts_uris(self, ctx: PhaseContext) -> None:
+        """Stored triples use compacted URI prefixes."""
+        turtle_file = ctx.work_dir / "p6-prd-export.ttl"
+        turtle_file.write_text(SAMPLE_TURTLE)
+        mock_port = _MockOntologyPort()
+        ctx.config["ontology_port"] = mock_port
+
+        phase = P6Phase()
+        phase._hydrate_abox(ctx, turtle_file)
+
+        subjects = {s for s, _, _, _ in mock_port.stored}
+        predicates = {p for _, p, _, _ in mock_port.stored}
+        # Should have compacted prd: and rdf: prefixes
+        assert any(s.startswith("prd:") for s in subjects)
+        assert any(p.startswith("prd:") or p.startswith("rdf:") for p in predicates)

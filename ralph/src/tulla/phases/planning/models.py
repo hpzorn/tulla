@@ -121,5 +121,6 @@ class P6Output(BaseModel):
     prd_context: str
     adr_links: int = 0
     quality_links: int = 0
+    triples_stored: int = 0
     coarse_requirements: list[dict[str, Any]] = Field(default_factory=list)
     granularity_passed: bool = True

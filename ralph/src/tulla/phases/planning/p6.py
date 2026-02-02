@@ -1,19 +1,22 @@
 """P6 Phase -- Export PRD to RDF.
 
 Implements the sixth planning sub-phase that converts the implementation
-plan (P4) into RDF triples and stores them in the ontology A-box via
-``mcp__ontology-server__store_fact``.  This creates the ``prd-idea-{N}``
-context that the dashboard displays under "Product Requirements" and
-that Implementation-Tulla reads to find work items.
+plan (P4) into RDF triples and writes them as a Turtle file, then
+programmatically hydrates the ontology A-box via ``store_fact``.
+This creates the ``prd-idea-{N}`` context that the dashboard displays
+under "Product Requirements" and that Implementation-Tulla reads to
+find work items.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import time
 from collections import defaultdict
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import click
@@ -23,9 +26,30 @@ from tulla.core.phase import ParseError, Phase, PhaseContext, PhaseResult, Phase
 from .models import P6Output
 from .p4 import _check_homogeneity
 
+logger = logging.getLogger(__name__)
+
 # PRD ontology namespaces (matches planning-tulla.sh)
 PRD_NS = "http://impl-ralph.io/prd#"
 TRACE_NS = "http://impl-ralph.io/trace#"
+
+_PREFIXES = {
+    "http://impl-ralph.io/prd#": "prd:",
+    "http://impl-ralph.io/trace#": "trace:",
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:",
+    "http://www.w3.org/2000/01/rdf-schema#": "rdfs:",
+    "http://www.w3.org/2001/XMLSchema#": "xsd:",
+}
+
+
+def _compact_uri(uri: str) -> str:
+    """Compact a full URI into prefixed form using known namespaces.
+
+    Returns the original string unchanged if no prefix matches.
+    """
+    for full, prefix in _PREFIXES.items():
+        if uri.startswith(full):
+            return prefix + uri[len(full):]
+    return uri
 
 
 class P6Phase(Phase[P6Output]):
@@ -33,8 +57,11 @@ class P6Phase(Phase[P6Output]):
 
     Reads the P4 implementation plan and asks Claude to:
     1. Generate a Turtle RDF file with ``prd:Requirement`` instances
-    2. Call ``mcp__ontology-server__store_fact`` for each triple
-    3. Write a summary file
+    2. Write a summary file
+
+    After Claude produces the Turtle file, Python parses it with rdflib
+    and programmatically calls ``store_fact`` for each triple, avoiding
+    the unreliable pattern of Claude making ~220 individual tool calls.
 
     This is the bridge between planning and implementation — without it,
     the ontology dashboard shows no PRD and Implementation-Tulla has
@@ -42,7 +69,65 @@ class P6Phase(Phase[P6Output]):
     """
 
     phase_id: str = "p6"
-    timeout_s: float = 1200.0  # 20 minutes — needs to store many facts
+    timeout_s: float = 600.0  # 10 minutes — Claude only generates Turtle
+
+    # ------------------------------------------------------------------
+    # A-box hydration
+    # ------------------------------------------------------------------
+
+    def _hydrate_abox(self, ctx: PhaseContext, turtle_file: Path) -> int:
+        """Parse Turtle with rdflib and store each triple via the ontology port.
+
+        Returns the number of triples successfully stored.
+        Raises ``RuntimeError`` if more than 10% of triples fail.
+        """
+        from rdflib import Graph, Literal, URIRef
+
+        ontology_port = ctx.config.get("ontology_port")
+        if ontology_port is None:
+            ctx.logger.warning("No ontology_port in config — skipping A-box hydration")
+            return 0
+
+        prd_context = f"prd-idea-{ctx.idea_id}"
+
+        # Idempotent: clear any previous facts for this context
+        cleared = ontology_port.forget_by_context(prd_context)
+        if cleared:
+            ctx.logger.info("Cleared %d existing facts from context %s", cleared, prd_context)
+
+        g = Graph()
+        g.parse(turtle_file, format="turtle")
+
+        stored = 0
+        errors = 0
+        total = len(g)
+
+        for s, p, o in g:
+            subj = _compact_uri(str(s))
+            pred = _compact_uri(str(p))
+            if isinstance(o, Literal):
+                obj = str(o)
+            else:
+                obj = _compact_uri(str(o))
+
+            try:
+                ontology_port.store_fact(subj, pred, obj, context=prd_context)
+                stored += 1
+            except Exception as exc:
+                errors += 1
+                ctx.logger.debug("store_fact failed for (%s, %s, %s): %s", subj, pred, obj, exc)
+
+        ctx.logger.info(
+            "A-box hydration: %d/%d triples stored (%d errors)",
+            stored, total, errors,
+        )
+
+        if total > 0 and errors / total > 0.10:
+            raise RuntimeError(
+                f"A-box hydration error rate too high: {errors}/{total} triples failed"
+            )
+
+        return stored
 
     # ------------------------------------------------------------------
     # Execute override — retry on validation failure (arch:adr-64-1)
@@ -174,6 +259,18 @@ class P6Phase(Phase[P6Output]):
                     duration_s=time.monotonic() - start,
                 )
 
+            # --- Step 7: Hydrate A-box from Turtle ---
+            try:
+                triple_count = self._hydrate_abox(ctx, parsed.turtle_file)
+                parsed.triples_stored = triple_count
+            except (RuntimeError, Exception) as exc:
+                log.error("A-box hydration failed: %s", exc)
+                return PhaseResult(
+                    status=PhaseStatus.FAILURE,
+                    error=f"A-box hydration failed: {exc}",
+                    duration_s=time.monotonic() - start,
+                )
+
             # --- Success ---
             elapsed = time.monotonic() - start
             log.info("Phase completed successfully in %.2fs", elapsed)
@@ -181,7 +278,11 @@ class P6Phase(Phase[P6Output]):
                 status=PhaseStatus.SUCCESS,
                 data=parsed,
                 duration_s=elapsed,
-                metadata={"cost_usd": cost_usd, "attempts": attempt + 1},
+                metadata={
+                    "cost_usd": cost_usd,
+                    "attempts": attempt + 1,
+                    "triples_stored": triple_count,
+                },
             )
 
         # Should not be reached, but satisfy type checker
@@ -289,42 +390,20 @@ class P6Phase(Phase[P6Output]):
             f'   - FIRST: call mcp__ontology-server__recall_facts with context="arch-idea-{idea_id}" '
             "to retrieve all ADRs, quality goals, and design principles\n"
             "   - For EVERY requirement, determine which ADR(s) it relates to and add "
-            "prd:relatedADR to the Turtle output AND store via store_fact:\n"
-            f'     subject="prd:req-{idea_id}-X-Y", predicate="prd:relatedADR", '
-            f'object="arch:adr-{idea_id}-N", context="prd-idea-{idea_id}"\n'
+            "prd:relatedADR to the Turtle output\n"
             "   - For EVERY requirement, identify the primary quality attribute it "
             "addresses (from the architecture quality goals) and add "
-            "prd:qualityFocus to the Turtle output AND store via store_fact:\n"
-            f'     subject="prd:req-{idea_id}-X-Y", predicate="prd:qualityFocus", '
-            f'object="[Attribute]", context="prd-idea-{idea_id}"\n'
+            "prd:qualityFocus to the Turtle output\n"
             "   - Every requirement MUST have at least one prd:relatedADR and one prd:qualityFocus.\n"
             "     If a requirement genuinely relates to no ADR, use the closest match — "
             "architecture decisions exist to guide implementation, so the mapping always exists.\n"
+            "   - For EACH requirement, also include granularity metrics in the Turtle:\n"
+            "     a. Count the files listed in `prd:files` → add as `prd:filesCount` (integer)\n"
+            "     b. Count the words in `prd:description` → add as `prd:descriptionWordCount` (integer)\n"
+            "     c. Compute wordsPerFile = descriptionWordCount / filesCount → add as `prd:wordsPerFile` (float, rounded to 2 decimals)\n"
             "\n"
-            "4. After writing the Turtle file, use mcp__ontology-server__store_fact "
-            "to add each requirement to the A-box fact store.\n"
-            f'   - Context: "prd-idea-{idea_id}"\n'
-            "   - For each triple (subject, predicate, object) in the Turtle file, "
-            "call store_fact with:\n"
-            f'     subject=the requirement URI (e.g. "prd:req-{idea_id}-1-1")\n'
-            '     predicate=the property (e.g. "rdf:type", "prd:title", "prd:status", etc.)\n'
-            "     object=the value\n"
-            f'     context="prd-idea-{idea_id}"\n'
-            "   - Do NOT use add_triple — that writes to the T-box (ontology schema), "
-            "not the A-box (fact store).\n"
-            "     Implementation-Tulla reads requirements via recall_facts, "
-            "which only sees the A-box.\n"
-            "   - For EACH requirement, also store granularity metrics via store_fact:\n"
-            "     a. Count the files listed in `prd:files` → store as `prd:filesCount` (integer)\n"
-            "     b. Count the words in `prd:description` → store as `prd:descriptionWordCount` (integer)\n"
-            "     c. Compute wordsPerFile = descriptionWordCount / filesCount → store as `prd:wordsPerFile` (float, rounded to 2 decimals)\n"
-            "     Example store_fact calls for each requirement:\n"
-            f'       subject="prd:req-{idea_id}-X-Y", predicate="prd:filesCount", '
-            f'object="3", context="prd-idea-{idea_id}"\n'
-            f'       subject="prd:req-{idea_id}-X-Y", predicate="prd:descriptionWordCount", '
-            f'object="45", context="prd-idea-{idea_id}"\n'
-            f'       subject="prd:req-{idea_id}-X-Y", predicate="prd:wordsPerFile", '
-            f'object="15.0", context="prd-idea-{idea_id}"\n'
+            "   NOTE: Do NOT call store_fact — the A-box is hydrated automatically\n"
+            "   after the Turtle file is validated.\n"
             "\n"
             f"5. Write a summary to: {summary_file}\n"
             "\n"
@@ -378,7 +457,6 @@ class P6Phase(Phase[P6Output]):
         return [
             {"name": "Read"},
             {"name": "Write"},
-            {"name": "mcp__ontology-server__store_fact"},
             {"name": "mcp__ontology-server__recall_facts"},
         ]
 

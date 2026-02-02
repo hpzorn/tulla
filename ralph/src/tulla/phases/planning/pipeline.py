@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tulla.adapters.ontology_mcp import OntologyMCPAdapter
 from tulla.config import TullaConfig
 from tulla.core.pipeline import Pipeline
 
@@ -59,6 +60,8 @@ def planning_pipeline(
         ("p6", P6Phase()),
     ]
 
+    ontology_port = OntologyMCPAdapter(base_url=config.ontology_server_url)
+
     return Pipeline(
         phases=phases,
         claude_port=claude_port,
@@ -72,6 +75,7 @@ def planning_pipeline(
             "min_wpf_blocking": config.planning.min_wpf_blocking,
             "min_wpf_advisory": config.planning.min_wpf_advisory,
             "max_granularity_retries": config.planning.max_granularity_retries,
+            "ontology_port": ontology_port,
         },
         total_budget_usd=config.planning.budget_usd,
     )
