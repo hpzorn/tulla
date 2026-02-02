@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.planning.p4 – P4Phase."""
+"""Tests for tulla.phases.planning.p4 – P4Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.planning.p4 import P4Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.planning.p4 import P4Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -54,14 +54,14 @@ Before starting:
 **Deliverable**: Working pipeline with P1-P5 phases
 
 #### Task 1.1: Create P1 Phase
-**File(s)**: `ralph/src/ralph/phases/planning/p1.py`
+**File(s)**: `tulla/src/tulla/phases/planning/p1.py`
 **Action**: Create
 **Details**: Implement P1Phase class
 **Dependencies**: None
 **Verification**: Unit tests pass
 
 #### Task 1.2: Create P2 Phase
-**File(s)**: `ralph/src/ralph/phases/planning/p2.py`
+**File(s)**: `tulla/src/tulla/phases/planning/p2.py`
 **Action**: Create
 **Details**: Implement P2Phase class
 **Dependencies**: Task 1.1
@@ -73,7 +73,7 @@ Before starting:
 **Deliverable**: End-to-end pipeline
 
 #### Task 2.1: Create Pipeline Factory
-**File(s)**: `ralph/src/ralph/phases/planning/pipeline.py`
+**File(s)**: `tulla/src/tulla/phases/planning/pipeline.py`
 **Action**: Create
 **Details**: Implement planning_pipeline() factory
 **Dependencies**: Task 1.2
@@ -85,7 +85,7 @@ Before starting:
 **Deliverable**: User-facing CLI
 
 #### Task 3.1: Create CLI Entry Point
-**File(s)**: `ralph/src/ralph/phases/planning/__main__.py`
+**File(s)**: `tulla/src/tulla/phases/planning/__main__.py`
 **Action**: Create
 **Details**: Click CLI with options
 **Dependencies**: Task 2.1
@@ -228,6 +228,17 @@ class TestParseOutputSuccess:
         assert result.schedule_file == plan_file
         assert result.phase_count == 3  # 3 phases
         assert result.estimated_tasks == 4  # 4 tasks (1.1, 1.2, 2.1, 3.1)
+
+    def test_default_granularity_fields(
+        self, phase: P4Phase, ctx: PhaseContext
+    ) -> None:
+        plan_file = ctx.work_dir / "p4-implementation-plan.md"
+        plan_file.write_text(SAMPLE_IMPLEMENTATION_PLAN, encoding="utf-8")
+
+        result = phase.parse_output(ctx, raw="raw")
+
+        assert result.coarse_tasks == []
+        assert result.granularity_passed is True
 
     def test_zero_phases_when_empty(
         self, phase: P4Phase, ctx: PhaseContext

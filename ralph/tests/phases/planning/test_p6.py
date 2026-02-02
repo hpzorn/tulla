@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.planning.p6 -- P6Phase (Export PRD to RDF)."""
+"""Tests for tulla.phases.planning.p6 -- P6Phase (Export PRD to RDF)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext
-from ralph.phases.planning.models import P6Output
-from ralph.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS
+from tulla.core.phase import ParseError, PhaseContext
+from tulla.phases.planning.models import P6Output
+from tulla.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +50,7 @@ class TestConstruction:
 
     def test_default_timeout(self) -> None:
         p = P6Phase()
-        assert p.timeout_s == 600.0
+        assert p.timeout_s == 1200.0
 
 
 # ===================================================================
@@ -93,6 +93,17 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert "Do NOT use add_triple" in prompt
 
+    def test_adr_linking_is_mandatory(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "MANDATORY" in prompt
+        assert "prd:relatedADR" in prompt
+        assert "prd:qualityFocus" in prompt
+
+    def test_turtle_template_includes_adr(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert 'prd:relatedADR "arch:adr-42' in prompt
+        assert 'prd:qualityFocus "[Quality attribute]"' in prompt
+
 
 # ===================================================================
 # get_tools
@@ -119,7 +130,7 @@ class TestGetTimeoutSeconds:
     """P6Phase.get_timeout_seconds() returns the configured timeout."""
 
     def test_returns_timeout(self, phase: P6Phase) -> None:
-        assert phase.get_timeout_seconds() == 600.0
+        assert phase.get_timeout_seconds() == 1200.0
 
 
 # ===================================================================
@@ -134,17 +145,33 @@ SAMPLE_TURTLE = """\
 prd:req-42-1-1 a prd:Requirement ;
     prd:taskId "1.1" ;
     prd:title "First task" ;
-    prd:status prd:Pending .
+    prd:status prd:Pending ;
+    prd:relatedADR "arch:adr-42-1" ;
+    prd:qualityFocus "Maintainability" .
 
 prd:req-42-1-2 a prd:Requirement ;
     prd:taskId "1.2" ;
     prd:title "Second task" ;
     prd:status prd:Pending ;
-    prd:dependsOn prd:req-42-1-1 .
+    prd:dependsOn prd:req-42-1-1 ;
+    prd:relatedADR "arch:adr-42-1" ;
+    prd:qualityFocus "Correctness" .
 
 prd:req-42-2-1 a prd:Requirement ;
     prd:taskId "2.1" ;
     prd:title "Third task" ;
+    prd:status prd:Pending ;
+    prd:relatedADR "arch:adr-42-2" ;
+    prd:qualityFocus "Testability" .
+"""
+
+SAMPLE_TURTLE_NO_ADR = """\
+@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+prd:req-42-1-1 a prd:Requirement ;
+    prd:taskId "1.1" ;
+    prd:title "First task" ;
     prd:status prd:Pending .
 """
 
@@ -163,10 +190,54 @@ class TestParseOutputSuccess:
         assert result.prd_context == "prd-idea-42"
         assert result.turtle_file == ctx.work_dir / "p6-prd-export.ttl"
 
+    def test_default_granularity_fields(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
+        (ctx.work_dir / "p6-prd-summary.md").write_text("# Summary\n")
+
+        result = phase.parse_output(ctx, None)
+
+        assert result.coarse_requirements == []
+        assert result.granularity_passed is True
+
     def test_counts_requirements(self, phase: P6Phase, ctx: PhaseContext) -> None:
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
         result = phase.parse_output(ctx, None)
         assert result.requirements_exported == 3
+
+
+# ===================================================================
+# parse_output -- missing file
+# ===================================================================
+
+
+class TestParseOutputADRLinks:
+    """P6Phase.parse_output() counts architecture traceability links."""
+
+    def test_counts_adr_links(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
+        result = phase.parse_output(ctx, None)
+        assert result.adr_links == 3
+
+    def test_counts_quality_links(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
+        result = phase.parse_output(ctx, None)
+        assert result.quality_links == 3
+
+    def test_zero_adr_links_warns(
+        self, phase: P6Phase, ctx: PhaseContext, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE_NO_ADR)
+        with caplog.at_level(logging.WARNING):
+            result = phase.parse_output(ctx, None)
+        assert result.adr_links == 0
+        assert result.quality_links == 0
+        assert "zero prd:relatedADR" in caplog.text
+
+    def test_defaults_to_zero(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE_NO_ADR)
+        result = phase.parse_output(ctx, None)
+        assert result.adr_links == 0
+        assert result.quality_links == 0
 
 
 # ===================================================================
