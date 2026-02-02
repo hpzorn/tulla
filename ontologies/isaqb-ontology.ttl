@@ -608,19 +608,24 @@ isaqb:ConventionConstraint a isaqb:ConstraintType ;
 # -----------------------------------------------------------------------------
 
 isaqb:AbstractionPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Abstraction Principles" .
+    rdfs:label "Abstraction Principles" ;
+    rdfs:comment "Principles concerned with managing complexity through generalization, hiding implementation details, and depending on interfaces rather than concrete implementations" .
 
 isaqb:ModularizationPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Modularization Principles" .
+    rdfs:label "Modularization Principles" ;
+    rdfs:comment "Principles concerned with decomposing systems into cohesive, loosely coupled modules with well-defined interfaces and responsibilities. Includes SOLID principles and Robert C. Martin's packaging principles." .
 
 isaqb:ConceptualIntegrityPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Conceptual Integrity Principles" .
+    rdfs:label "Conceptual Integrity Principles" ;
+    rdfs:comment "Principles ensuring uniformity and consistency across the entire system design, so the architecture appears as if conceived by a single mind. Central theme of Fred Brooks' 'The Mythical Man-Month'." .
 
 isaqb:ComplexityReductionPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Complexity Reduction Principles" .
+    rdfs:label "Complexity Reduction Principles" ;
+    rdfs:comment "Principles focused on minimizing accidental complexity by avoiding unnecessary features, premature optimization, and duplicated knowledge" .
 
 isaqb:RobustnessPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Robustness Principles" .
+    rdfs:label "Robustness Principles" ;
+    rdfs:comment "Principles ensuring the system handles unexpected inputs, failures, and edge cases gracefully without catastrophic degradation" .
 
 # -----------------------------------------------------------------------------
 # Abstraction Principles
@@ -816,12 +821,14 @@ isaqb:ProductQuality a isaqb:QualityCategory ;
 
 isaqb:FunctionalSuitability a isaqb:QualityAttribute ;
     rdfs:label "Functional Suitability" ;
+    rdfs:comment "Degree to which a product or system provides functions that meet stated and implied needs when used under specified conditions. Comprises functional completeness, correctness, and appropriateness. (ISO/IEC 25010:2023)" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:FunctionalCompleteness, isaqb:FunctionalCorrectness, isaqb:FunctionalAppropriateness ;
     isaqb:learningGoal "LG 02-03" .
 
 isaqb:PerformanceEfficiency a isaqb:QualityAttribute ;
     rdfs:label "Performance Efficiency" ;
+    rdfs:comment "Degree of performance relative to the amount of resources used under stated conditions. Comprises time behaviour, resource utilization, and capacity. A key tradeoff driver in most architectural decisions. (ISO/IEC 25010:2023)" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:TimeBehaviour, isaqb:ResourceUtilization, isaqb:Capacity ;
     isaqb:learningGoal "LG 02-03" ;
@@ -829,6 +836,7 @@ isaqb:PerformanceEfficiency a isaqb:QualityAttribute ;
 
 isaqb:Compatibility a isaqb:QualityAttribute ;
     rdfs:label "Compatibility" ;
+    rdfs:comment "Degree to which a product, system or component can exchange information with other products, systems or components, and/or perform its required functions while sharing the same hardware or software environment. Comprises co-existence and interoperability. (ISO/IEC 25010:2023)" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:CoExistence, isaqb:Interoperability ;
     isaqb:learningGoal "LG 02-03" ;
@@ -837,6 +845,7 @@ isaqb:Compatibility a isaqb:QualityAttribute ;
 
 isaqb:InteractionCapability a isaqb:QualityAttribute ;
     rdfs:label "Interaction Capability" ;
+    rdfs:comment "Degree to which a product or system can be used by specified users to achieve specified goals with effectiveness, efficiency, and satisfaction in a specified context of use. Replaces 'Usability' from ISO 25010:2011. Comprises learnability, operability, user error protection, accessibility, and user interface aesthetics. (ISO/IEC 25010:2023)" ;
     isaqb:alias "Usability" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Learnability, isaqb:Operability, isaqb:UserErrorProtection, isaqb:Accessibility, isaqb:UserInterfaceAesthetics ;
@@ -844,6 +853,7 @@ isaqb:InteractionCapability a isaqb:QualityAttribute ;
 
 isaqb:Reliability a isaqb:QualityAttribute ;
     rdfs:label "Reliability" ;
+    rdfs:comment "Degree to which a system, product or component performs specified functions under specified conditions for a specified period of time. Comprises availability, fault tolerance, recoverability, and maturity. (ISO/IEC 25010:2023)" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Availability, isaqb:FaultTolerance, isaqb:Recoverability, isaqb:Maturity ;
     isaqb:learningGoal "LG 02-03" ;
@@ -852,6 +862,7 @@ isaqb:Reliability a isaqb:QualityAttribute ;
 
 isaqb:Security a isaqb:QualityAttribute ;
     rdfs:label "Security" ;
+    rdfs:comment "Degree to which a product or system protects information and data so that persons or other products or systems have the degree of data access appropriate to their types and levels of authorization. Comprises confidentiality, integrity, non-repudiation, accountability, and authenticity. (ISO/IEC 25010:2023)" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Confidentiality, isaqb:Integrity, isaqb:NonRepudiation, isaqb:Accountability, isaqb:Authenticity ;
     isaqb:learningGoal "LG 02-03" ;
@@ -859,6 +870,7 @@ isaqb:Security a isaqb:QualityAttribute ;
 
 isaqb:Maintainability a isaqb:QualityAttribute ;
     rdfs:label "Maintainability" ;
+    rdfs:comment "Degree of effectiveness and efficiency with which a product or system can be modified by the intended maintainers. Modifications include corrections, improvements, or adaptation to changes in environment and requirements. Comprises modularity, reusability, analysability, modifiability, and testability. (ISO/IEC 25010:2023)" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Modularity, isaqb:Reusability, isaqb:Analysability, isaqb:Modifiability, isaqb:Testability ;
     isaqb:learningGoal "LG 02-03" ;
@@ -867,6 +879,7 @@ isaqb:Maintainability a isaqb:QualityAttribute ;
 
 isaqb:Flexibility a isaqb:QualityAttribute ;
     rdfs:label "Flexibility" ;
+    rdfs:comment "Degree to which a product can be transferred from one hardware, software or other operational or usage environment to another, or adapted for different or evolving requirements. Replaces 'Portability' from ISO 25010:2011. Comprises adaptability, installability, and replaceability. (ISO/IEC 25010:2023)" ;
     isaqb:alias "Portability" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Adaptability, isaqb:Installability, isaqb:Replaceability ;
@@ -1185,6 +1198,7 @@ isaqb:Broker a isaqb:ArchitecturalPattern ;
 
 isaqb:MVC a isaqb:ArchitecturalPattern ;
     rdfs:label "Model-View-Controller" ;
+    rdfs:comment "Separates an application into three interconnected components: Model (data and business logic), View (presentation and UI), and Controller (input handling and mediation). Enables independent development and testing of UI and business logic. Originated by Trygve Reenskaug at Xerox PARC." ;
     isaqb:relevance isaqb:R3 ;
     isaqb:learningGoal "LG 03-08" ;
     isaqb:addresses isaqb:Maintainability, isaqb:Testability ;
@@ -1200,6 +1214,7 @@ isaqb:Plugin a isaqb:ArchitecturalPattern ;
 
 isaqb:SOA a isaqb:ArchitecturalPattern ;
     rdfs:label "Service-Oriented Architecture" ;
+    rdfs:comment "Enterprise-scale architectural style where functionality is grouped into reusable, interoperable services with well-defined interfaces and contracts. Services communicate via standardized protocols. Emphasizes service composability, discoverability, and loose coupling." ;
     isaqb:relevance isaqb:R3 ;
     isaqb:learningGoal "LG 03-08" ;
     isaqb:addresses isaqb:Interoperability, isaqb:Reusability ;
@@ -1345,79 +1360,92 @@ isaqb:OperationsConcerns a isaqb:ConcernCategory ;
 
 isaqb:PersistenceConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Persistence" ;
+    rdfs:comment "Uniform strategy for storing and retrieving data across building blocks. Includes choice of storage technology (relational, document, graph), ORM/ODM strategy, migration approach, and data access patterns. Must be decided system-wide to avoid inconsistent data handling. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:CommunicationConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Communication" ;
-    rdfs:comment "Protocols, messaging, REST, RPC, sync/async" ;
+    rdfs:comment "Uniform approach to inter-component and external communication. Includes protocol selection (REST, gRPC, GraphQL, messaging), synchronous vs. asynchronous patterns, message formats, API versioning, retry/timeout policies, and service discovery. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:ErrorHandlingConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Error/Exception Handling" ;
+    rdfs:comment "System-wide strategy for detecting, propagating, logging, and recovering from errors and exceptions. Defines which errors are handled locally vs. propagated, error categorization, user-facing error messages, and circuit-breaker patterns for external dependencies. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:LoggingConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Logging, Monitoring, Tracing" ;
+    rdfs:comment "Uniform approach to recording system behavior for diagnostics, operational monitoring, and distributed tracing. Includes log levels, structured logging format, centralized log aggregation, health checks, metrics collection, and correlation IDs for request tracing across services. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:OperationsConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:SecurityConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Security (AuthN/AuthZ)" ;
+    rdfs:comment "System-wide approach to authentication (verifying identity), authorization (granting access), and data protection. Includes identity provider integration, role/permission models, token management, encryption at rest and in transit, and security headers. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:SafetySecurityConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:ConcurrencyConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Concurrency/Synchronization" ;
+    rdfs:comment "Strategy for handling parallel execution, shared resource access, and thread safety across building blocks. Includes threading model, lock strategies, async patterns, deadlock prevention, and consistency guarantees for concurrent data access. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:ValidationConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Validation" ;
+    rdfs:comment "Uniform approach to verifying input data at system boundaries and between building blocks. Includes input sanitization, schema validation, business rule validation, and consistent error reporting for validation failures. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UXConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:ConfigurationConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Configuration" ;
+    rdfs:comment "System-wide strategy for managing configuration data across environments (development, staging, production). Includes configuration sources, secrets management, feature flags, environment-specific overrides, and configuration change propagation. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:DevelopmentConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:TestingConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Testing Strategy" ;
+    rdfs:comment "Cross-cutting approach to quality assurance including test pyramid structure, unit/integration/system test boundaries, test data management, mocking strategy, and continuous integration test execution. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:DevelopmentConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:DeploymentConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Deployment/CI-CD" ;
+    rdfs:comment "Uniform approach to building, packaging, and deploying the system. Includes CI/CD pipeline design, deployment strategies (blue-green, canary, rolling), infrastructure as code, containerization, and rollback procedures. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:OperationsConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:I18nConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Internationalization" ;
+    rdfs:comment "System-wide approach to supporting multiple languages, locales, and cultural conventions. Includes string externalization, locale-aware formatting (dates, numbers, currencies), right-to-left support, and translation management workflows. (arc42 section 8, LG 03-10)" ;
     isaqb:alias "i18n" ;
     isaqb:category isaqb:UXConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:AccessibilityConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Accessibility" ;
+    rdfs:comment "Cross-cutting concern ensuring the system can be used by people with diverse abilities. Includes WCAG compliance levels, semantic markup, keyboard navigation, screen reader support, and color contrast requirements. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UXConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:EnergyEfficiencyConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Energy Efficiency" ;
-    rdfs:comment "GREEN module: resource-efficient development" ;
+    rdfs:comment "Cross-cutting concern for minimizing energy consumption and environmental impact of software systems. Includes resource-efficient algorithms, reducing unnecessary computation, optimizing data transfer, and green hosting strategies. Aligned with iSAQB GREEN module for sustainable software engineering. (arc42 section 8)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:CachingConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Caching" ;
+    rdfs:comment "System-wide strategy for storing frequently accessed data closer to the consumer to reduce latency and load. Includes cache levels (in-process, distributed, CDN), invalidation strategies, TTL policies, and cache consistency patterns. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 
 isaqb:TransactionConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Transactions" ;
+    rdfs:comment "Uniform approach to ensuring data consistency across operations, especially when multiple building blocks or data stores are involved. Includes ACID vs. BASE trade-offs, saga patterns, compensating transactions, and idempotency guarantees. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
     isaqb:documentedIn isaqb:Arc42_08 .
 

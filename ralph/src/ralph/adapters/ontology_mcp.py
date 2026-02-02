@@ -1,15 +1,24 @@
-"""Ontology MCP adapter – wraps ontology-server REST/MCP calls via HTTP POST.
+"""Ontology MCP adapter – wraps ontology-server REST calls via HTTP.
 
-Implements :class:`OntologyPort` by sending HTTP POST requests with JSON
-payloads to the ontology-server REST endpoints using :mod:`urllib`.
+Implements :class:`OntologyPort` by sending HTTP requests to the
+ontology-server REST endpoints using :mod:`urllib`.
+
+Endpoint mapping (server at ``http://localhost:8100``):
+    GET  /facts?context=...&subject=...&predicate=...&limit=...
+    POST /facts  (store_fact — JSON body)
+    DELETE /facts/{fact_id}  (forget_fact)
+    GET  /ideas?lifecycle=...&search=...&limit=...
+    GET  /ideas/{idea_id}
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 from urllib.error import URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from ralph.ports.ontology import OntologyPort
@@ -21,63 +30,85 @@ class OntologyMCPAdapter(OntologyPort):
     """Concrete :class:`OntologyPort` that talks to ontology-server via HTTP.
 
     Parameters:
-        base_url: Base URL of the ontology-server (default ``"http://localhost:3000"``).
+        base_url: Base URL of the ontology-server (default ``"http://localhost:8100"``).
+        api_key: Optional Bearer token for authentication. If not provided,
+            reads from the ``ONTOLOGY_API_KEY`` environment variable.
     """
 
-    def __init__(self, base_url: str = "http://localhost:3000") -> None:
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8100",
+        api_key: str | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._api_key = api_key or os.environ.get("ONTOLOGY_API_KEY", "")
 
     # ------------------------------------------------------------------
-    # Internal helper
+    # Internal helpers
     # ------------------------------------------------------------------
 
-    def _call(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
-        """Send an HTTP POST with JSON *payload* to *endpoint*.
+    def _headers(self) -> dict[str, str]:
+        """Return common HTTP headers."""
+        h: dict[str, str] = {"Content-Type": "application/json"}
+        if self._api_key:
+            h["Authorization"] = f"Bearer {self._api_key}"
+        return h
 
-        Returns the parsed JSON response on success or
-        ``{"error": <message>}`` on :class:`URLError`.
-        """
-        url = f"{self._base_url}{endpoint}"
+    def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Send an HTTP GET and return parsed JSON."""
+        url = f"{self._base_url}{path}"
+        if params:
+            qs = urlencode({k: v for k, v in params.items() if v is not None})
+            if qs:
+                url = f"{url}?{qs}"
+        req = Request(url, headers=self._headers())
+        return self._do(req)
+
+    def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Send an HTTP POST with JSON body and return parsed JSON."""
+        url = f"{self._base_url}{path}"
         data = json.dumps(payload).encode("utf-8")
-        req = Request(url, data=data, headers={"Content-Type": "application/json"})
+        req = Request(url, data=data, headers=self._headers())
+        return self._do(req)
 
+    def _delete(self, path: str) -> dict[str, Any]:
+        """Send an HTTP DELETE and return parsed JSON."""
+        url = f"{self._base_url}{path}"
+        req = Request(url, method="DELETE", headers=self._headers())
+        return self._do(req)
+
+    def _do(self, req: Request) -> dict[str, Any]:
+        """Execute a request, returning parsed JSON or an error dict."""
         try:
             with urlopen(req) as resp:
                 body = resp.read().decode("utf-8")
                 return json.loads(body) if body else {}
         except URLError as exc:
-            logger.error("Ontology-server request to %s failed: %s", url, exc)
+            logger.error("Ontology-server %s %s failed: %s", req.get_method(), req.full_url, exc)
             return {"error": str(exc)}
 
     # ------------------------------------------------------------------
-    # OntologyPort interface
+    # OntologyPort interface — Facts
     # ------------------------------------------------------------------
 
-    def query_ideas(
+    def recall_facts(
         self,
         *,
-        sparql: str | None = None,
-        lifecycle: str | None = None,
-        author: str | None = None,
-        tag: str | None = None,
-        search: str | None = None,
-        limit: int = 50,
+        subject: str | None = None,
+        predicate: str | None = None,
+        context: str | None = None,
+        limit: int = 100,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"limit": limit}
-        if sparql is not None:
-            payload["sparql"] = sparql
-        if lifecycle is not None:
-            payload["lifecycle"] = lifecycle
-        if author is not None:
-            payload["author"] = author
-        if tag is not None:
-            payload["tag"] = tag
-        if search is not None:
-            payload["search"] = search
-        return self._call("/api/ideas", payload)
-
-    def get_idea(self, idea_id: str) -> dict[str, Any]:
-        return self._call(f"/api/ideas/{idea_id}", {})
+        resp = self._get("/facts", {
+            "subject": subject,
+            "predicate": predicate,
+            "context": context,
+            "limit": limit,
+        })
+        # Server returns {"facts": [...]}, callers expect {"result": [...]}
+        if "facts" in resp:
+            resp["result"] = resp.pop("facts")
+        return resp
 
     def store_fact(
         self,
@@ -96,35 +127,35 @@ class OntologyMCPAdapter(OntologyPort):
         }
         if context is not None:
             payload["context"] = context
-        return self._call("/api/facts", payload)
+        return self._post("/facts", payload)
 
     def forget_fact(self, fact_id: str) -> dict[str, Any]:
-        return self._call("/api/facts/forget", {"fact_id": fact_id})
+        return self._delete(f"/facts/{fact_id}")
 
-    def recall_facts(
+    # ------------------------------------------------------------------
+    # OntologyPort interface — Ideas
+    # ------------------------------------------------------------------
+
+    def query_ideas(
         self,
         *,
-        subject: str | None = None,
-        predicate: str | None = None,
-        context: str | None = None,
-        limit: int = 100,
+        sparql: str | None = None,
+        lifecycle: str | None = None,
+        author: str | None = None,
+        tag: str | None = None,
+        search: str | None = None,
+        limit: int = 50,
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"limit": limit}
-        if subject is not None:
-            payload["subject"] = subject
-        if predicate is not None:
-            payload["predicate"] = predicate
-        if context is not None:
-            payload["context"] = context
-        return self._call("/api/facts/recall", payload)
+        return self._get("/ideas", {
+            "lifecycle": lifecycle,
+            "author": author,
+            "tag": tag,
+            "search": search,
+            "limit": limit,
+        })
 
-    def sparql_query(
-        self,
-        query: str,
-        *,
-        validate: bool = True,
-    ) -> dict[str, Any]:
-        return self._call("/api/sparql", {"query": query, "validate": validate})
+    def get_idea(self, idea_id: str) -> dict[str, Any]:
+        return self._get(f"/ideas/{idea_id}")
 
     def update_idea(
         self,
@@ -147,7 +178,7 @@ class OntologyMCPAdapter(OntologyPort):
             payload["lifecycle"] = lifecycle
         if tags is not None:
             payload["tags"] = tags
-        return self._call(f"/api/ideas/{idea_id}/update", payload)
+        return self._post(f"/ideas/{idea_id}/update", payload)
 
     def set_lifecycle(
         self,
@@ -159,4 +190,16 @@ class OntologyMCPAdapter(OntologyPort):
         payload: dict[str, Any] = {"new_state": new_state}
         if reason:
             payload["reason"] = reason
-        return self._call(f"/api/ideas/{idea_id}/lifecycle", payload)
+        return self._post(f"/ideas/{idea_id}/lifecycle", payload)
+
+    # ------------------------------------------------------------------
+    # OntologyPort interface — SPARQL
+    # ------------------------------------------------------------------
+
+    def sparql_query(
+        self,
+        query: str,
+        *,
+        validate: bool = True,
+    ) -> dict[str, Any]:
+        return self._post("/sparql", {"query": query, "validate": validate})

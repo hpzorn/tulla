@@ -67,8 +67,8 @@ class RalphConfig(BaseSettings):
         description="Directory where idea files are stored.",
     )
     ontology_server_url: str = Field(
-        default="http://localhost:3000",
-        description="URL of the ontology-server MCP endpoint.",
+        default="http://localhost:8100",
+        description="URL of the ontology-server HTTP endpoint.",
     )
 
     @model_validator(mode="after")
