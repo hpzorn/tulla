@@ -11,11 +11,23 @@ import logging
 import time
 from typing import Any
 
+from tulla.annotations import ANNOTATION_REGEX, APF_TARGET
+from tulla.phases.implementation.import_graph import LAYER_RULES
 from tulla.ports.claude import ClaudePort, ClaudeRequest
 
 from .models import FindOutput, ImplementOutput, VerifyOutput
 
 logger = logging.getLogger(__name__)
+
+
+def _strip_prefix(identifier: str) -> str:
+    """Strip a namespace prefix like ``isaqb:`` from an identifier.
+
+    Returns the part after the last ``:`` or the original string if no
+    colon is present.  Used to map resolved pattern identifiers (e.g.
+    ``isaqb:PortsAndAdapters``) to :data:`import_graph.LAYER_RULES` keys.
+    """
+    return identifier.rsplit(":", 1)[-1] if ":" in identifier else identifier
 
 
 class VerifyPhase:
@@ -115,6 +127,11 @@ class VerifyPhase:
         if arch_lines:
             lines.extend(arch_lines)
 
+        # --- Annotation Verification ---
+        ann_lines = self._build_annotation_verification(requirement)
+        if ann_lines:
+            lines.extend(ann_lines)
+
         lines.append("## Files to Check")
 
         for f in implementation.files_changed:
@@ -177,6 +194,110 @@ class VerifyPhase:
                 lines.append(f"- {p}")
 
         lines.append("")
+        return lines
+
+    @staticmethod
+    def _build_annotation_verification(requirement: FindOutput) -> list[str]:
+        """Build the optional Annotation Verification prompt section.
+
+        Generates verification checks for annotations placed during
+        implementation:
+
+        - **Coverage check** — pattern checklist ensuring every resolved
+          pattern/principle has at least one annotation.
+        - **Density check** — APF (annotations-per-file) within the
+          target range.
+        - **Quality check** — detect hollow (restates identifier) and
+          verbose (exceeds word limit) explanations.
+        - **Structural import check** — for patterns that have layer
+          rules in :data:`import_graph.LAYER_RULES`, verify that inner
+          modules do not import outer modules.
+
+        Returns an empty list when there are no resolved patterns or
+        principles to verify.
+
+        Architecture decision: arch:adr-65-4 (separate _build_ method)
+        Architecture decision: arch:adr-65-5 (import-graph for structural only)
+        """
+        items = list(requirement.resolved_patterns) + list(requirement.resolved_principles)
+        if not items:
+            return []
+
+        apf_lo, apf_hi = APF_TARGET
+
+        lines: list[str] = ["## Annotation Verification", ""]
+
+        # --- Coverage check ---
+        lines.append("### Coverage Check")
+        lines.append("")
+        lines.append(
+            "Verify that each pattern/principle below has at least one "
+            "annotation in the implementation files:"
+        )
+        lines.append("")
+        for item in items:
+            lines.append(f"- [ ] {item}")
+        lines.append("")
+        lines.append(
+            "Annotations must match the format: "
+            f"`{ANNOTATION_REGEX.pattern}`"
+        )
+        lines.append("")
+
+        # --- Density check ---
+        lines.append("### Density Check")
+        lines.append("")
+        lines.append(
+            f"Verify that each implementation file has {apf_lo}-{apf_hi} "
+            f"annotations per file (APF). Flag files outside this range."
+        )
+        lines.append("")
+
+        # --- Quality check ---
+        lines.append("### Quality Check")
+        lines.append("")
+        lines.append(
+            "Check each annotation explanation for quality issues:"
+        )
+        lines.append("")
+        lines.append(
+            "- **Hollow**: explanation restates the identifier without "
+            "adding code-specific detail (fewer than 5 novel words)"
+        )
+        lines.append(
+            "- **Verbose**: explanation exceeds 50 words"
+        )
+        lines.append("")
+        lines.append(
+            "Each explanation should be adequate: concise, code-specific, "
+            "and between 5 novel words and 50 total words."
+        )
+        lines.append("")
+
+        # --- Structural import check (only for applicable patterns) ---
+        structural_patterns = [
+            item for item in items
+            if _strip_prefix(item) in LAYER_RULES
+        ]
+        if structural_patterns:
+            lines.append("### Structural Import Check")
+            lines.append("")
+            lines.append(
+                "For the following structural patterns, verify that inner-layer "
+                "modules do not import from outer-layer modules:"
+            )
+            lines.append("")
+            for sp in structural_patterns:
+                pattern_key = _strip_prefix(sp)
+                rules = LAYER_RULES[pattern_key]
+                inner = ", ".join(sorted(rules.get("inner", set())))
+                outer = ", ".join(sorted(rules.get("outer", set())))
+                lines.append(
+                    f"- **{sp}**: inner ({inner}) must NOT import "
+                    f"from outer ({outer})"
+                )
+            lines.append("")
+
         return lines
 
     @staticmethod
