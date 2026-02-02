@@ -11,6 +11,7 @@ import logging
 import time
 from typing import Any
 
+from tulla.annotations import ANNOTATION_REGEX, APF_TARGET
 from tulla.ports.claude import ClaudePort, ClaudeRequest
 
 from .models import FindOutput, ImplementOutput
@@ -118,6 +119,11 @@ class ImplementPhase:
         if arch_lines:
             lines.extend(arch_lines)
 
+        # --- Pattern Annotations (after Architecture Context) ---
+        ann_lines = self._build_annotation_section(requirement)
+        if ann_lines:
+            lines.extend(ann_lines)
+
         lines.extend([
             "## Files",
             f"Action: {requirement.action}",
@@ -210,5 +216,67 @@ class ImplementPhase:
             lines.append("")
 
         lines.append("Respect these architecture decisions in your implementation.")
+        lines.append("")
+        return lines
+
+    @staticmethod
+    def _build_annotation_section(requirement: FindOutput) -> list[str]:
+        """Build the optional Pattern Annotations prompt section.
+
+        Generates annotation instructions from *resolved_patterns* and
+        *resolved_principles* on the requirement.  Returns an empty list
+        when there are no resolved items to annotate.
+
+        Architecture decision: arch:adr-65-4 (separate _build_ method)
+        Architecture decision: arch:adr-65-6 (class-level, APF 2-5)
+        """
+        items = list(requirement.resolved_patterns) + list(requirement.resolved_principles)
+        if not items:
+            return []
+
+        apf_lo, apf_hi = APF_TARGET
+        lines: list[str] = ["## Pattern Annotations", ""]
+
+        # Format specification
+        lines.append("**Format** (regex):")
+        lines.append(f"`{ANNOTATION_REGEX.pattern}`")
+        lines.append("")
+
+        # Pattern checklist
+        lines.append("**Checklist** — annotate usage of these patterns/principles:")
+        for item in items:
+            lines.append(f"- [ ] {item}")
+        lines.append("")
+
+        # Good / bad examples
+        lines.append("**Examples**:")
+        lines.append("")
+        lines.append("Good:")
+        lines.append("```python")
+        lines.append(
+            "# @pattern:PortsAndAdapters -- ClaudePort abstracts "
+            "subprocess invocation behind an interface"
+        )
+        lines.append("```")
+        lines.append("")
+        lines.append("Bad (hollow — restates the identifier without code-specific detail):")
+        lines.append("```python")
+        lines.append(
+            "# @pattern:PortsAndAdapters -- Uses the Ports and Adapters pattern"
+        )
+        lines.append("```")
+        lines.append("")
+
+        # Rules
+        lines.append("**Rules**:")
+        lines.append(
+            f"- Target {apf_lo}-{apf_hi} annotations per file (APF)."
+        )
+        lines.append(
+            "- Place annotations at class/module level, not on every method."
+        )
+        lines.append(
+            "- Each explanation must add code-specific detail beyond the identifier name."
+        )
         lines.append("")
         return lines
