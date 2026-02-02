@@ -84,7 +84,7 @@ class P4Phase(Phase[P4Output]):
             "#### Task 1.1: [Task Name]\n"
             "**File(s)**: `path/to/file.py`\n"
             "**Action**: Create/Modify/Extend\n"
-            "**Details**: [pseudocode/structure]\n"
+            "**Details**: [2-4 sentence prose description of WHAT to build, not HOW]\n"
             "**Dependencies**: None / Task X.Y\n"
             "**Verification**: How to test this works\n"
             "\n"
@@ -114,7 +114,15 @@ class P4Phase(Phase[P4Output]):
             "\n"
             "If this table is empty, proceed directly to implementation.\n"
             "\n"
-            "Be extremely specific. Include actual file paths, function names, and code structures."
+            "Be specific about file paths, function/class names, and interfaces.\n"
+            "\n"
+            "IMPORTANT constraints on task Details:\n"
+            "- Describe WHAT to build in 2-4 sentences of prose, not HOW to build it.\n"
+            "- Do NOT include code blocks, pseudocode, or inline code snippets.\n"
+            "- Do NOT write implementation code — that is Implementation-Tulla's job.\n"
+            "- Focus on: inputs, outputs, interfaces, data structures, and acceptance criteria.\n"
+            "- Bad: ```python\\ndef foo(): ...```\n"
+            "- Good: \"Create function `foo()` that accepts a list of Requirement objects and returns a dependency DAG as a dict mapping task IDs to their transitive dependencies.\""
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
