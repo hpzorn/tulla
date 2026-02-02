@@ -32,6 +32,7 @@ class ClaudeRequest:
 
     prompt: str
     allowed_tools: list[str] = field(default_factory=list)
+    disallowed_tools: list[str] = field(default_factory=list)
     budget_usd: float = 0.0
     timeout_seconds: float = 0.0
     permission_mode: str = "bypassPermissions"

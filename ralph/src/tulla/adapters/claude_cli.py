@@ -107,6 +107,9 @@ class ClaudeCLIAdapter(ClaudePort):
         if request.allowed_tools:
             cmd.extend(["--allowedTools", ",".join(request.allowed_tools)])
 
+        if request.disallowed_tools:
+            cmd.extend(["--disallowedTools", ",".join(request.disallowed_tools)])
+
         return cmd
 
     @staticmethod

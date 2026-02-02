@@ -172,12 +172,14 @@ class Phase(ABC, Generic[T]):
             )
 
         tool_names = [t["name"] for t in tools if "name" in t]
+        disallowed = self.get_disallowed_tools(ctx)
         timeout = getattr(self, "timeout_s", 0.0)
         permission_mode = ctx.config.get("permission_mode", "bypassPermissions")
 
         request = ClaudeRequest(
             prompt=prompt,
             allowed_tools=tool_names,
+            disallowed_tools=disallowed,
             budget_usd=ctx.budget_remaining_usd,
             timeout_seconds=timeout,
             permission_mode=permission_mode,
@@ -191,6 +193,14 @@ class Phase(ABC, Generic[T]):
             )
 
         return result
+
+    def get_disallowed_tools(self, ctx: PhaseContext) -> list[str]:
+        """Return tool names Claude must NOT use during this phase.
+
+        Default is empty.  Override to block specific MCP tools that
+        the server exposes but that this phase should not use.
+        """
+        return []
 
     @abstractmethod
     def parse_output(self, ctx: PhaseContext, raw: Any) -> T:

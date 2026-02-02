@@ -102,7 +102,12 @@ class TestBuildPrompt:
     def test_turtle_template_includes_adr(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert 'prd:relatedADR "arch:adr-42' in prompt
-        assert 'prd:qualityFocus "[Quality attribute]"' in prompt
+        assert "prd:qualityFocus isaqb:Maintainability" in prompt
+
+    def test_references_isaqb_namespace(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "isaqb:" in prompt
+        assert "isaqb:Maintainability" in prompt
 
     def test_references_granularity_metrics(self, phase: P6Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
@@ -143,6 +148,11 @@ class TestGetTools:
         assert "Write" in names
         assert "mcp__ontology-server__recall_facts" in names
         assert "mcp__ontology-server__store_fact" not in names
+
+    def test_disallows_store_fact(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        disallowed = phase.get_disallowed_tools(ctx)
+        assert "mcp__ontology-server__store_fact" in disallowed
+        assert "mcp__ontology-server__add_triple" in disallowed
 
 
 # ===================================================================

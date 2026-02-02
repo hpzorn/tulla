@@ -32,9 +32,12 @@ logger = logging.getLogger(__name__)
 PRD_NS = "http://impl-ralph.io/prd#"
 TRACE_NS = "http://impl-ralph.io/trace#"
 
+ISAQB_NS = "http://impl-ralph.io/isaqb#"
+
 _PREFIXES = {
     "http://impl-ralph.io/prd#": "prd:",
     "http://impl-ralph.io/trace#": "trace:",
+    "http://impl-ralph.io/isaqb#": "isaqb:",
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:",
     "http://www.w3.org/2000/01/rdf-schema#": "rdfs:",
     "http://www.w3.org/2001/XMLSchema#": "xsd:",
@@ -327,6 +330,7 @@ class P6Phase(Phase[P6Output]):
             "```turtle\n"
             f"@prefix prd: <{PRD_NS}> .\n"
             f"@prefix trace: <{TRACE_NS}> .\n"
+            f"@prefix isaqb: <{ISAQB_NS}> .\n"
             "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
             "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
             "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
@@ -348,7 +352,7 @@ class P6Phase(Phase[P6Output]):
             "- `prd:action` (string) - Either 'create' (new file) or 'modify' (edit existing)\n"
             "- `prd:verification` (string) - How to verify completion\n"
             "- `prd:relatedADR` (string, multi-valued) - Links requirement to an architecture decision (e.g. \"arch:adr-{idea_id}-1\")\n"
-            "- `prd:qualityFocus` (string) - Quality attribute this requirement primarily addresses (e.g. \"Testability\")\n"
+            "- `prd:qualityFocus` (URI) - isaqb quality attribute this requirement primarily addresses (e.g. `isaqb:Testability`, `isaqb:Maintainability`, `isaqb:FunctionalCorrectness`)\n"
             "- `prd:filesCount` (integer) - Number of files this requirement touches\n"
             "- `prd:descriptionWordCount` (integer) - Word count of the requirement description\n"
             "- `prd:wordsPerFile` (float) - Ratio of description words to files (descriptionWordCount / filesCount)\n"
@@ -367,6 +371,7 @@ class P6Phase(Phase[P6Output]):
             "   Structure:\n"
             "   ```turtle\n"
             f"   @prefix prd: <{PRD_NS}> .\n"
+            f"   @prefix isaqb: <{ISAQB_NS}> .\n"
             "   @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
             "   @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
             "   @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
@@ -383,7 +388,7 @@ class P6Phase(Phase[P6Output]):
             '       prd:action "create" ;\n'
             '       prd:verification "[How to verify]" ;\n'
             f'       prd:relatedADR "arch:adr-{idea_id}-N" ;\n'
-            '       prd:qualityFocus "[Quality attribute]" .\n'
+            "       prd:qualityFocus isaqb:Maintainability .\n"
             "   ```\n"
             "\n"
             "3.5. **Link requirements to architecture (MANDATORY)**\n"
@@ -391,9 +396,9 @@ class P6Phase(Phase[P6Output]):
             "to retrieve all ADRs, quality goals, and design principles\n"
             "   - For EVERY requirement, determine which ADR(s) it relates to and add "
             "prd:relatedADR to the Turtle output\n"
-            "   - For EVERY requirement, identify the primary quality attribute it "
-            "addresses (from the architecture quality goals) and add "
-            "prd:qualityFocus to the Turtle output\n"
+            "   - For EVERY requirement, identify the primary isaqb quality attribute it "
+            "addresses and add prd:qualityFocus as a URI (e.g. `isaqb:Maintainability`, "
+            "`isaqb:Testability`, `isaqb:FunctionalCorrectness`) — NOT a plain string\n"
             "   - Every requirement MUST have at least one prd:relatedADR and one prd:qualityFocus.\n"
             "     If a requirement genuinely relates to no ADR, use the closest match — "
             "architecture decisions exist to guide implementation, so the mapping always exists.\n"
@@ -458,6 +463,13 @@ class P6Phase(Phase[P6Output]):
             {"name": "Read"},
             {"name": "Write"},
             {"name": "mcp__ontology-server__recall_facts"},
+        ]
+
+    def get_disallowed_tools(self, ctx: PhaseContext) -> list[str]:
+        """Block store_fact and add_triple — hydration is done by Python."""
+        return [
+            "mcp__ontology-server__store_fact",
+            "mcp__ontology-server__add_triple",
         ]
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> P6Output:
