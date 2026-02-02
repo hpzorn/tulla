@@ -14,7 +14,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import D5Output
 
@@ -48,7 +48,7 @@ class D5Phase(Phase[D5Output]):
         return "d5-research-brief.md"
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the D5 integration prompt, ported from discovery-ralph.sh."""
+        """Build the D5 integration prompt, ported from discovery-tulla.sh."""
         mode = self._get_mode(ctx)
         output_filename = self._get_output_filename(ctx)
         output_file = ctx.work_dir / output_filename
@@ -88,7 +88,7 @@ class D5Phase(Phase[D5Output]):
             f"You are conducting Phase D5: Integration (UPSTREAM) for idea {ctx.idea_id}.\n"
             "\n"
             "## Goal\n"
-            "Create a research brief for research-ralph, informed by product discovery.\n"
+            "Create a research brief for research-tulla, informed by product discovery.\n"
             "\n"
             f"{context_block}"
             "\n"
@@ -140,10 +140,10 @@ class D5Phase(Phase[D5Output]):
             "the outcomes identified in discovery.\n"
             "\n"
             "After writing, append a discovery summary to the idea using "
-            "mcp__idea-pool__append_to_idea.\n"
+            "mcp__ontology-server__append_to_idea.\n"
             "\n"
             "Output the word 'research' on the final line to indicate handoff "
-            "to research-ralph."
+            "to research-tulla."
         )
 
     def _build_downstream_prompt(
@@ -212,7 +212,7 @@ class D5Phase(Phase[D5Output]):
             "| ... | ... | ... |\n"
             "\n"
             "After writing, append product spec summary to idea using "
-            "mcp__idea-pool__append_to_idea.\n"
+            "mcp__ontology-server__append_to_idea.\n"
             "\n"
             "Output 'implement' on the final line if ready for implementation, "
             "or 'research' if more research needed."
@@ -221,14 +221,14 @@ class D5Phase(Phase[D5Output]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during D5."""
         tools = [
-            {"name": "mcp__idea-pool__read_idea"},
-            {"name": "mcp__idea-pool__append_to_idea"},
+            {"name": "mcp__ontology-server__get_idea"},
+            {"name": "mcp__ontology-server__append_to_idea"},
             {"name": "Read"},
             {"name": "Write"},
         ]
         mode = self._get_mode(ctx)
         if mode == "upstream":
-            tools.append({"name": "mcp__idea-pool__capture_seed"})
+            tools.append({"name": "mcp__ontology-server__capture_seed"})
         elif mode == "downstream":
             tools.append({"name": "Glob"})
         return tools

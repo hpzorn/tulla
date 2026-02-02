@@ -21,7 +21,7 @@ from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from ralph.ports.ontology import OntologyPort
+from tulla.ports.ontology import OntologyPort
 
 logger = logging.getLogger(__name__)
 

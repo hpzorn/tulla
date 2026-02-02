@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from ralph.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
+from tulla.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
 
 
 class MockClaudeAdapter(ClaudePort):

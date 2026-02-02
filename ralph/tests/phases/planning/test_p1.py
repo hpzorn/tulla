@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.planning.p1 – P1Phase."""
+"""Tests for tulla.phases.planning.p1 – P1Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.planning.p1 import P1Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.planning.p1 import P1Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -54,7 +54,7 @@ Reduce iteration time by 50% through automated planning.
 ### Available Tools
 | Tool/Skill | Type | Relevance |
 |------------|------|-----------|
-| mcp__idea-pool__read_idea | MCP | High |
+| mcp__ontology-server__get_idea | MCP | High |
 | mcp__ontology-server__query | MCP | Medium |
 | beamer-inovex | Skill | High |
 
@@ -145,7 +145,7 @@ class TestGetTools:
     ) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
-        assert any("idea-pool" in name or "idea_pool" in name for name in tool_names)
+        assert any("ontology-server" in name for name in tool_names)
 
     def test_includes_read_write_glob(
         self, phase: P1Phase, ctx: PhaseContext

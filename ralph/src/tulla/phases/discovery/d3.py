@@ -10,7 +10,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import D3Output
 
@@ -32,7 +32,7 @@ class D3Phase(Phase[D3Output]):
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the D3 value mapping prompt, ported from discovery-ralph.sh."""
+        """Build the D3 value mapping prompt, ported from discovery-tulla.sh."""
         output_file = ctx.work_dir / "d3-value-mapping.md"
         d1_file = ctx.work_dir / "d1-inventory.md"
         d2_file = ctx.work_dir / "d2-personas.md"
@@ -45,7 +45,7 @@ class D3Phase(Phase[D3Output]):
             "Assess business value, strategic fit, and ROI potential.\n"
             "\n"
             "## Context\n"
-            f"- Read the idea: mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
+            f"- Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
             f"- Read inventory: {d1_file}\n"
             f"- Read personas: {d2_file}\n"
             "\n"
@@ -123,7 +123,7 @@ class D3Phase(Phase[D3Output]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during D3."""
         return [
-            {"name": "mcp__idea-pool__read_idea"},
+            {"name": "mcp__ontology-server__get_idea"},
             {"name": "Read"},
             {"name": "Write"},
         ]

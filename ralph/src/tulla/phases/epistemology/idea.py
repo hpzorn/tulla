@@ -10,7 +10,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import IdeaOutput
 
@@ -35,7 +35,7 @@ class IdeaPhase(Phase[IdeaOutput]):
             "\n"
             "## Instructions\n"
             "\n"
-            f"1. Read the idea: mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
+            f"1. Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
             "2. Recall any stored facts: mcp__ontology-server__recall_facts\n"
             "3. For each claim or assumption in the idea:\n"
             "   - Is it supported by evidence?\n"
@@ -70,7 +70,7 @@ class IdeaPhase(Phase[IdeaOutput]):
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return [
-            {"name": "mcp__idea-pool__read_idea"},
+            {"name": "mcp__ontology-server__get_idea"},
             {"name": "mcp__ontology-server__recall_facts"},
             {"name": "mcp__ontology-server__query_ontology"},
             {"name": "Read"},

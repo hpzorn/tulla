@@ -102,7 +102,7 @@ class TullaConfig(BaseSettings):
     )
     implementation: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            budget_usd=10.0,
+            budget_usd=30.0,
             permission_mode="acceptEdits",
         ),
     )

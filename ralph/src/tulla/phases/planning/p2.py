@@ -11,7 +11,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import P2Output
 
@@ -33,7 +33,7 @@ class P2Phase(Phase[P2Output]):
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the P2 codebase analysis prompt, ported from planning-ralph.sh."""
+        """Build the P2 codebase analysis prompt, ported from planning-tulla.sh."""
         output_file = ctx.work_dir / "p2-codebase-analysis.md"
         p1_file = ctx.work_dir / "p1-discovery-context.md"
         planning_date = date.today().isoformat()

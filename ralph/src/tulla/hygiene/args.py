@@ -1,7 +1,7 @@
-"""Argument parsing for Ralph script hygiene modes.
+"""Argument parsing for Tulla script hygiene modes.
 
 Provides --clean, --no-clean, and --check argument parsing
-that can be integrated into any Ralph script's CLI interface.
+that can be integrated into any Tulla script's CLI interface.
 
 Hygiene modes:
     --clean    : Enable pre-flight hygiene (cleanup stale state before run)

@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.discovery.d5 – D5Phase."""
+"""Tests for tulla.phases.discovery.d5 – D5Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.discovery.d5 import D5Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.discovery.d5 import D5Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -221,7 +221,7 @@ class TestGetTools:
     ) -> None:
         tools = phase.get_tools(ctx_upstream)
         tool_names = [t["name"] for t in tools]
-        assert "mcp__idea-pool__capture_seed" in tool_names
+        assert "mcp__ontology-server__capture_seed" in tool_names
 
     def test_downstream_includes_glob(
         self, phase: D5Phase, ctx_downstream: PhaseContext
@@ -245,7 +245,7 @@ class TestGetTools:
         for ctx in [ctx_upstream, ctx_downstream]:
             tools = phase.get_tools(ctx)
             tool_names = [t["name"] for t in tools]
-            assert "mcp__idea-pool__append_to_idea" in tool_names
+            assert "mcp__ontology-server__append_to_idea" in tool_names
 
 
 # ===================================================================

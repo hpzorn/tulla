@@ -1,7 +1,7 @@
-"""Help text utilities for Ralph script hygiene modes.
+"""Help text utilities for Tulla script hygiene modes.
 
 Provides formatted help/usage text that documents the --clean,
---no-clean, and --check flags available in any Ralph script
+--no-clean, and --check flags available in any Tulla script
 with hygiene support.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 import io
 from typing import TYPE_CHECKING
 
-from ralph.hygiene.args import build_hygiene_parser
+from tulla.hygiene.args import build_hygiene_parser
 
 if TYPE_CHECKING:
     import argparse
@@ -46,7 +46,7 @@ def get_hygiene_usage_line() -> str:
     """Return the compact usage line fragment for hygiene flags.
 
     This is meant to be embedded in a script's usage synopsis, e.g.:
-        ``usage: research-ralph.sh [options] [--clean | --no-clean | --check]``
+        ``usage: research-tulla.sh [options] [--clean | --no-clean | --check]``
 
     Returns:
         A short usage fragment string.
@@ -70,10 +70,10 @@ def format_hygiene_parser_help() -> str:
 
 
 def inject_hygiene_help(script_name: str, script_description: str) -> str:
-    """Build a complete help message for a Ralph script with hygiene support.
+    """Build a complete help message for a Tulla script with hygiene support.
 
     Args:
-        script_name: Name of the script (e.g., "research-ralph.sh").
+        script_name: Name of the script (e.g., "research-tulla.sh").
         script_description: One-line description of what the script does.
 
     Returns:

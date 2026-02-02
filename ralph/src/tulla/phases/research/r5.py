@@ -4,7 +4,7 @@ Implements the fifth research sub-phase that runs experiments and builds
 prototypes to answer questions that literature review could not resolve.
 
 R5 has special characteristics:
-- Extended timeout (60 minutes)
+- Extended timeout (120 minutes)
 - ``acceptEdits`` permission mode
 - Retry loop on experiment failure (maps to ``max_retries`` parameter)
 """
@@ -15,7 +15,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import R5Output
 
@@ -27,14 +27,14 @@ class R5Phase(Phase[R5Output]):
     prototypes for unresolved research questions.  Writes results to
     ``r5-research-findings.md`` inside the work directory.
 
-    This phase has an extended timeout (60 min) and uses
+    This phase has an extended timeout (120 min) and uses
     ``acceptEdits`` permission mode to allow code modifications.
     The ``max_retries`` parameter controls how many times a failed
     experiment is retried before giving up.
     """
 
     phase_id: str = "r5"
-    timeout_s: float = 3600.0  # 60 minutes (extended)
+    timeout_s: float = 7200.0  # 120 minutes (extended)
 
     def __init__(self, max_retries: int = 2) -> None:
         self._max_retries = max_retries
@@ -156,5 +156,5 @@ class R5Phase(Phase[R5Output]):
         )
 
     def get_timeout_seconds(self) -> float:
-        """Return the R5 timeout in seconds (60 minutes, extended)."""
+        """Return the R5 timeout in seconds (120 minutes, extended)."""
         return self.timeout_s

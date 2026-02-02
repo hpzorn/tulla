@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from ralph.hygiene.check import (
+from tulla.hygiene.check import (
     check_mode_exit_code,
     run_check_mode,
     run_check_mode_cli,
 )
-from ralph.hygiene.preflight import HygieneReport, StaleFile
+from tulla.hygiene.preflight import HygieneReport, StaleFile
 
 
 class TestRunCheckMode:

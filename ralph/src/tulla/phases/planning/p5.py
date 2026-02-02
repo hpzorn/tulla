@@ -12,7 +12,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import P5Output
 
@@ -26,14 +26,14 @@ class P5Phase(Phase[P5Output]):
     """
 
     phase_id: str = "p5"
-    timeout_s: float = 300.0  # 5 minutes
+    timeout_s: float = 600.0  # 10 minutes
 
     # ------------------------------------------------------------------
     # Template hooks
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the P5 research requests prompt, ported from planning-ralph.sh."""
+        """Build the P5 research requests prompt, ported from planning-tulla.sh."""
         output_file = ctx.work_dir / "p5-research-requests.md"
         p4_file = ctx.work_dir / "p4-implementation-plan.md"
         p4b_file = ctx.work_dir / "p4b-persona-walkthrough.md"
@@ -96,15 +96,15 @@ class P5Phase(Phase[P5Output]):
             "   **Blocking Task**: [Which task from P4]\n"
             "   **Question**: [Specific, answerable question]\n"
             "   **Why We Can't Proceed**: [What breaks without this answer]\n"
-            "   **Suggested Approach**: [How research-ralph should investigate]\n"
+            "   **Suggested Approach**: [How research-tulla should investigate]\n"
             "   **Acceptable Answer Format**: [What kind of answer we need]\n"
             "\n"
-            "   ## Handoff to Research-Ralph\n"
+            "   ## Handoff to Research-Tulla\n"
             "\n"
-            f"   Run: `./research-ralph.sh --idea {ctx.idea_id}` with focus on:\n"
+            f"   Run: `./research-tulla.sh --idea {ctx.idea_id}` with focus on:\n"
             "   - [RR1 question]\n"
             "\n"
-            "   After research completes, re-run planning-ralph to update the plan.\n"
+            "   After research completes, re-run planning-tulla to update the plan.\n"
             "\n"
             "   ---\n"
             "   blocked\n"

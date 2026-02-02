@@ -14,7 +14,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import R1Output
 
@@ -29,7 +29,7 @@ class R1Phase(Phase[R1Output]):
     """
 
     phase_id: str = "r1"
-    timeout_s: float = 600.0  # 10 minutes
+    timeout_s: float = 1200.0  # 20 minutes
 
     # ------------------------------------------------------------------
     # Template hooks
@@ -140,7 +140,7 @@ class R1Phase(Phase[R1Output]):
             + "\n"
             "## Instructions\n"
             "\n"
-            f"1. Read the idea: use mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
+            f"1. Read the idea: use mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
             "\n"
             + input_instructions
             + "\n"
@@ -172,7 +172,7 @@ class R1Phase(Phase[R1Output]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during R1."""
         return [
-            {"name": "mcp__idea-pool__read_idea"},
+            {"name": "mcp__ontology-server__get_idea"},
             {"name": "Read"},
             {"name": "Write"},
             {"name": "Glob"},
@@ -204,5 +204,5 @@ class R1Phase(Phase[R1Output]):
         )
 
     def get_timeout_seconds(self) -> float:
-        """Return the R1 timeout in seconds (5 minutes)."""
+        """Return the R1 timeout in seconds (20 minutes)."""
         return self.timeout_s

@@ -1,7 +1,7 @@
 """Research pipeline factory.
 
 Provides :func:`research_pipeline`, a convenience factory that assembles
-the six research sub-phases (R1-R6) into a :class:`~ralph.core.pipeline.Pipeline`
+the six research sub-phases (R1-R6) into a :class:`~tulla.core.pipeline.Pipeline`
 ready for execution.
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ralph.config import RalphConfig
-from ralph.core.pipeline import Pipeline
+from tulla.config import TullaConfig
+from tulla.core.pipeline import Pipeline
 
 from .r1 import R1Phase
 from .r2 import R2Phase
@@ -25,7 +25,7 @@ def research_pipeline(
     claude_port: Any,
     work_dir: Path,
     idea_id: str,
-    config: RalphConfig,
+    config: TullaConfig,
     planning_dir: str = "",
     discovery_dir: str = "",
 ) -> Pipeline:
@@ -41,7 +41,7 @@ def research_pipeline(
         claude_port: Claude invocation adapter forwarded to each phase.
         work_dir: Scratch directory for this pipeline run.
         idea_id: Identifier of the idea being researched.
-        config: Root Ralph configuration; ``config.research.budget_usd``
+        config: Root Tulla configuration; ``config.research.budget_usd``
             is used as the pipeline's total budget and
             ``config.research.max_retries`` configures R5's retry loop.
         planning_dir: Path to the planning output directory whose

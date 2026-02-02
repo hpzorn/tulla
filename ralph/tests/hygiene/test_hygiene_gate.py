@@ -4,8 +4,8 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from ralph.hygiene.args import HygieneMode
-from ralph.hygiene.gate import GateResult, hygiene_gate
+from tulla.hygiene.args import HygieneMode
+from tulla.hygiene.gate import GateResult, hygiene_gate
 
 
 class TestHygieneGateCleanMode:
@@ -229,7 +229,7 @@ class TestGateResult:
     """Tests for the GateResult dataclass."""
 
     def test_frozen(self) -> None:
-        from ralph.hygiene.args import HygieneConfig
+        from tulla.hygiene.args import HygieneConfig
 
         config = HygieneConfig(mode=HygieneMode.CLEAN, remaining_args=[])
         gate_result = GateResult(config=config, report=None)
@@ -240,7 +240,7 @@ class TestGateResult:
             pass
 
     def test_default_remaining_args(self) -> None:
-        from ralph.hygiene.args import HygieneConfig
+        from tulla.hygiene.args import HygieneConfig
 
         config = HygieneConfig(mode=HygieneMode.CLEAN, remaining_args=[])
         gate_result = GateResult(config=config, report=None)

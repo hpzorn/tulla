@@ -4,7 +4,7 @@ import logging
 import signal
 from unittest.mock import MagicMock, patch
 
-from ralph.hygiene.trap import (
+from tulla.hygiene.trap import (
     TRAPPED_SIGNALS,
     TrapContext,
     _make_atexit_handler,
@@ -39,13 +39,13 @@ class TestTrapContext:
         assert "test reason" in info_messages[0]
 
     def test_log_exit_includes_elapsed_time(self, caplog: logging.LogRecord) -> None:  # type: ignore[type-arg]
-        ctx = TrapContext(script_name="my-ralph")
+        ctx = TrapContext(script_name="my-tulla")
         with caplog.at_level(logging.INFO):
             ctx.log_exit("done")
         msg = caplog.records[0].message
         # Should contain the elapsed time in "after X.Xs" format.
         assert "after" in msg
-        assert "my-ralph" in msg
+        assert "my-tulla" in msg
 
 
 class TestMakeSignalHandler:
@@ -79,7 +79,7 @@ class TestMakeSignalHandler:
         mock_exit = MagicMock()
         handler = _make_signal_handler(ctx, exit_func=mock_exit)
 
-        with patch("ralph.hygiene.trap.signal.signal") as mock_signal:
+        with patch("tulla.hygiene.trap.signal.signal") as mock_signal:
             handler(signal.SIGTERM.value, None)
             mock_signal.assert_called_once_with(signal.SIGTERM.value, original)
 

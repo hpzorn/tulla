@@ -1,4 +1,4 @@
-"""Tests for ralph.adapters.ontology_mcp module."""
+"""Tests for tulla.adapters.ontology_mcp module."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from urllib.error import URLError
 
 import pytest
 
-from ralph.adapters.ontology_mcp import OntologyMCPAdapter
+from tulla.adapters.ontology_mcp import OntologyMCPAdapter
 
 
 # ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ def _mock_urlopen(response_data: dict[str, Any]) -> MagicMock:
 class TestCall:
     """Tests for OntologyMCPAdapter._post() / _get() / _delete() helpers."""
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_posts_to_correct_url(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -51,7 +51,7 @@ class TestCall:
         req = mock_urlopen.call_args[0][0]
         assert req.full_url == "http://localhost:3000/test"
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_sends_json_payload(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -62,7 +62,7 @@ class TestCall:
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"foo": "bar", "count": 42}
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_sets_content_type_json(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -72,7 +72,7 @@ class TestCall:
         req = mock_urlopen.call_args[0][0]
         assert req.get_header("Content-type") == "application/json"
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_returns_parsed_json(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -81,7 +81,7 @@ class TestCall:
 
         assert result == {"result": [1, 2, 3]}
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_trailing_slash_stripped_from_base(
         self, mock_urlopen: MagicMock
     ) -> None:
@@ -101,7 +101,7 @@ class TestCall:
 class TestErrorHandling:
     """Tests for URLError graceful degradation."""
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_url_error_returns_error_dict(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -112,7 +112,7 @@ class TestErrorHandling:
         assert "error" in result
         assert "Connection refused" in result["error"]
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_url_error_does_not_raise(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -131,7 +131,7 @@ class TestErrorHandling:
 class TestQueryIdeas:
     """Tests for query_ideas() endpoint mapping and payload."""
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_default_payload_has_limit(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -143,7 +143,7 @@ class TestQueryIdeas:
         assert "limit=50" in req.full_url
         assert req.full_url.startswith("http://localhost:3000/ideas")
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_all_filters_included(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -151,7 +151,7 @@ class TestQueryIdeas:
         adapter.query_ideas(
             sparql="SELECT ?s WHERE { ?s ?p ?o }",
             lifecycle="active",
-            author="ralph",
+            author="tulla",
             tag="test",
             search="keyword",
             limit=10,
@@ -161,12 +161,12 @@ class TestQueryIdeas:
         url = req.full_url
         # sparql is not sent via query_ideas (it's a kwarg but not in the GET params)
         assert "lifecycle=active" in url
-        assert "author=ralph" in url
+        assert "author=tulla" in url
         assert "tag=test" in url
         assert "search=keyword" in url
         assert "limit=10" in url
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_none_filters_omitted(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -180,7 +180,7 @@ class TestQueryIdeas:
         assert "search" not in url
         assert "lifecycle=seed" in url
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_extracts_ideas_from_response(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -200,7 +200,7 @@ class TestQueryIdeas:
 class TestEndpointMapping:
     """Tests that each port method hits the correct REST endpoint."""
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_get_idea_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -210,7 +210,7 @@ class TestEndpointMapping:
         req = mock_urlopen.call_args[0][0]
         assert req.full_url == "http://localhost:3000/ideas/42"
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_store_fact_endpoint_and_payload(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -226,7 +226,7 @@ class TestEndpointMapping:
         assert sent["context"] == "ctx"
         assert sent["confidence"] == 0.9
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_store_fact_omits_none_context(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -238,7 +238,7 @@ class TestEndpointMapping:
         assert "context" not in sent
         assert sent["confidence"] == 1.0
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_forget_fact_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -249,7 +249,7 @@ class TestEndpointMapping:
         assert req.full_url == "http://localhost:3000/facts/fact-123"
         assert req.get_method() == "DELETE"
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_recall_facts_endpoint_and_payload(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -264,7 +264,7 @@ class TestEndpointMapping:
         assert "context=z" in url
         assert "limit=10" in url
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_sparql_query_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -277,7 +277,7 @@ class TestEndpointMapping:
         assert sent["query"] == "SELECT ?s WHERE { ?s ?p ?o }"
         assert sent["validate"] is False
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_update_idea_endpoint_and_payload(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -289,7 +289,7 @@ class TestEndpointMapping:
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"title": "New Title", "tags": ["a", "b"]}
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_update_idea_omits_none_fields(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -300,7 +300,7 @@ class TestEndpointMapping:
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"title": "Only Title"}
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_set_lifecycle_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
@@ -312,7 +312,7 @@ class TestEndpointMapping:
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"new_state": "active", "reason": "matured"}
 
-    @patch("ralph.adapters.ontology_mcp.urlopen")
+    @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_set_lifecycle_omits_empty_reason(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:

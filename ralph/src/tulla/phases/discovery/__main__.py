@@ -1,8 +1,8 @@
-"""Entry point for ``python3 -m ralph.phases.discovery``.
+"""Entry point for ``python3 -m tulla.phases.discovery``.
 
 Provides a lightweight bash-calls-Python bridge so that shell scripts
 can invoke the discovery pipeline directly without going through the
-top-level ``ralph run discovery`` command.
+top-level ``tulla run discovery`` command.
 
 Exit codes:
     0  — pipeline completed successfully
@@ -17,9 +17,9 @@ from pathlib import Path
 
 import click
 
-from ralph.adapters.claude_cli import ClaudeCLIAdapter
-from ralph.config import RalphConfig
-from ralph.core.phase import PhaseStatus
+from tulla.adapters.claude_cli import ClaudeCLIAdapter
+from tulla.config import TullaConfig
+from tulla.core.phase import PhaseStatus
 
 from .pipeline import discovery_pipeline
 
@@ -64,9 +64,9 @@ def main(
 
     This entry point is designed for bash-calls-Python bridges:
 
-        python3 -m ralph.phases.discovery --idea 54 --work-dir /tmp/test
+        python3 -m tulla.phases.discovery --idea 54 --work-dir /tmp/test
     """
-    config = RalphConfig()
+    config = TullaConfig()
 
     work_dir.mkdir(parents=True, exist_ok=True)
 

@@ -47,7 +47,7 @@ class R4Output(BaseModel):
 class R5Output(BaseModel):
     """Output of R5 - Experiments & Prototyping.
 
-    R5 has extended timeout (60 min) and acceptEdits permission mode.
+    R5 has extended timeout (120 min) and acceptEdits permission mode.
     Retry loop on experiment failure maps to max_retries on the phase.
     """
 

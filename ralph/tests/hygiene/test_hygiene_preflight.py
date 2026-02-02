@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ralph.hygiene.args import HygieneConfig, HygieneMode
-from ralph.hygiene.preflight import (
+from tulla.hygiene.args import HygieneConfig, HygieneMode
+from tulla.hygiene.preflight import (
     ALL_CLEANABLE_SUFFIXES,
     DEFAULT_STALE_THRESHOLD_SECS,
     LOCK_SUFFIXES,

@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.discovery.d3 – D3Phase."""
+"""Tests for tulla.phases.discovery.d3 – D3Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.discovery.d3 import D3Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.discovery.d3 import D3Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -148,7 +148,7 @@ class TestGetTools:
     ) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
-        assert any("idea-pool" in name or "idea_pool" in name for name in tool_names)
+        assert any("ontology-server" in name for name in tool_names)
 
 
 # ===================================================================

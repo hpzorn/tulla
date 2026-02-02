@@ -1,4 +1,4 @@
-"""Tests for ralph.core.pipeline — Pipeline executor."""
+"""Tests for tulla.core.pipeline — Pipeline executor."""
 
 from __future__ import annotations
 
@@ -7,14 +7,14 @@ from typing import Any
 
 import pytest
 
-from ralph.core.checkpoint import CheckpointStore
-from ralph.core.phase import (
+from tulla.core.checkpoint import CheckpointStore
+from tulla.core.phase import (
     Phase,
     PhaseContext,
     PhaseResult,
     PhaseStatus,
 )
-from ralph.core.pipeline import Pipeline, PipelineResult
+from tulla.core.pipeline import Pipeline, PipelineResult
 
 
 # ---------------------------------------------------------------------------

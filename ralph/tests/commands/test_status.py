@@ -1,4 +1,4 @@
-"""Tests for ralph.commands.status — 16 tests across three test classes.
+"""Tests for tulla.commands.status — 16 tests across three test classes.
 
 TestQueryPrdStatus  (7): empty context, single complete, blocked deps,
                          complete deps, all six states, missing title,
@@ -15,15 +15,15 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from ralph.cli import EXIT_FAILURE, EXIT_INCOMPLETE, EXIT_SUCCESS, main
-from ralph.commands.status import (
+from tulla.cli import EXIT_FAILURE, EXIT_INCOMPLETE, EXIT_SUCCESS, main
+from tulla.commands.status import (
     RequirementRow,
     StatusSummary,
     format_status_table,
     query_prd_status,
 )
-from ralph.phases.implementation.models import RequirementStatus
-from ralph.ports.ontology import OntologyPort
+from tulla.phases.implementation.models import RequirementStatus
+from tulla.ports.ontology import OntologyPort
 
 
 # ---------------------------------------------------------------------------
@@ -329,23 +329,23 @@ class TestFormatStatusTable:
 
 
 class TestStatusCommand:
-    """Tests for the ``ralph status`` CLI command using Click CliRunner."""
+    """Tests for the ``tulla status`` CLI command using Click CliRunner."""
 
     def test_help(self) -> None:
-        """``ralph status --help`` exits 0 and shows usage."""
+        """``tulla status --help`` exits 0 and shows usage."""
         runner = CliRunner()
         result = runner.invoke(main, ["status", "--help"])
         assert result.exit_code == 0
         assert "Show PRD requirement status" in result.output
 
     def test_missing_idea(self) -> None:
-        """``ralph status`` without --idea exits non-zero."""
+        """``tulla status`` without --idea exits non-zero."""
         runner = CliRunner()
         result = runner.invoke(main, ["status"])
         assert result.exit_code != 0
         assert "Missing option" in result.output or "Error" in result.output
 
-    @patch("ralph.cli.OntologyMCPAdapter")
+    @patch("tulla.cli.OntologyMCPAdapter")
     def test_exit_0_all_complete(self, mock_adapter_cls: Any) -> None:
         """All requirements complete → exit code 0 (EXIT_SUCCESS)."""
         stub = StubOntology({
@@ -365,7 +365,7 @@ class TestStatusCommand:
         assert "prd:req-42-1-1" in result.output
         assert "Complete" in result.output
 
-    @patch("ralph.cli.OntologyMCPAdapter")
+    @patch("tulla.cli.OntologyMCPAdapter")
     def test_exit_2_incomplete(self, mock_adapter_cls: Any) -> None:
         """Some requirements not complete → exit code 2 (EXIT_INCOMPLETE)."""
         stub = StubOntology({
@@ -388,7 +388,7 @@ class TestStatusCommand:
         result = runner.invoke(main, ["status", "--idea", "42"])
         assert result.exit_code == EXIT_INCOMPLETE
 
-    @patch("ralph.cli.OntologyMCPAdapter")
+    @patch("tulla.cli.OntologyMCPAdapter")
     def test_exit_1_error(self, mock_adapter_cls: Any) -> None:
         """Exception during query → exit code 1 (EXIT_FAILURE)."""
         mock_adapter_cls.return_value.recall_facts.side_effect = RuntimeError("connection refused")
@@ -398,7 +398,7 @@ class TestStatusCommand:
         assert result.exit_code == EXIT_FAILURE
         assert "Error querying status" in result.output
 
-    @patch("ralph.cli.OntologyMCPAdapter")
+    @patch("tulla.cli.OntologyMCPAdapter")
     def test_empty_context(self, mock_adapter_cls: Any) -> None:
         """No requirements in context → exit 0 and 'No requirements found' message."""
         stub = StubOntology()  # No facts at all

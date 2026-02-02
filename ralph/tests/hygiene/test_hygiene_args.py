@@ -1,6 +1,6 @@
 """Tests for hygiene argument parsing."""
 
-from ralph.hygiene.args import HygieneConfig, HygieneMode, parse_hygiene_args
+from tulla.hygiene.args import HygieneConfig, HygieneMode, parse_hygiene_args
 
 
 class TestParseHygieneArgs:

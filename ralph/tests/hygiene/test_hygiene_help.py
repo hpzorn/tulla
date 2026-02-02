@@ -1,6 +1,6 @@
 """Tests for hygiene help text utilities."""
 
-from ralph.hygiene.help import (
+from tulla.hygiene.help import (
     HYGIENE_HELP_BODY,
     HYGIENE_HELP_HEADER,
     HYGIENE_USAGE_LINE,
@@ -113,18 +113,18 @@ class TestInjectHygieneHelp:
         assert HYGIENE_HELP_HEADER in text
 
     def test_includes_all_flags(self) -> None:
-        text = inject_hygiene_help("research-ralph.sh", "Run research.")
+        text = inject_hygiene_help("research-tulla.sh", "Run research.")
         assert "--clean" in text
         assert "--no-clean" in text
         assert "--check" in text
 
     def test_usage_line_in_output(self) -> None:
-        text = inject_hygiene_help("research-ralph.sh", "Run research.")
+        text = inject_hygiene_help("research-tulla.sh", "Run research.")
         assert "Usage:" in text
         assert HYGIENE_USAGE_LINE.strip() in text
 
     def test_order_usage_then_description_then_options(self) -> None:
-        text = inject_hygiene_help("research-ralph.sh", "Run research rounds.")
+        text = inject_hygiene_help("research-tulla.sh", "Run research rounds.")
         usage_pos = text.index("Usage:")
         desc_pos = text.index("Run research rounds.")
         options_pos = text.index(HYGIENE_HELP_HEADER)

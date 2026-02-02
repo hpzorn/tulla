@@ -1,6 +1,6 @@
-"""Control flow gate for Ralph script hygiene.
+"""Control flow gate for Tulla script hygiene.
 
-Provides a single entry-point function that Ralph scripts call at
+Provides a single entry-point function that Tulla scripts call at
 startup to handle all hygiene control flow before main logic executes.
 
 The gate:
@@ -12,13 +12,13 @@ The gate:
   3. Returns remaining (non-hygiene) arguments and the hygiene report
      so the calling script can continue with its own argument parsing.
 
-Usage in a Ralph script::
+Usage in a Tulla script::
 
-    from ralph.hygiene import hygiene_gate
+    from tulla.hygiene import hygiene_gate
 
     def main() -> None:
         result = hygiene_gate(
-            script_name="research-ralph",
+            script_name="research-tulla",
             work_dirs=[Path("./work")],
         )
         remaining_args = result.remaining_args
@@ -33,9 +33,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence
 
-from ralph.hygiene.args import HygieneConfig, HygieneMode, parse_hygiene_args
-from ralph.hygiene.check import run_check_mode_cli
-from ralph.hygiene.preflight import (
+from tulla.hygiene.args import HygieneConfig, HygieneMode, parse_hygiene_args
+from tulla.hygiene.check import run_check_mode_cli
+from tulla.hygiene.preflight import (
     DEFAULT_STALE_THRESHOLD_SECS,
     HygieneReport,
     run_preflight_hygiene,
@@ -71,7 +71,7 @@ def hygiene_gate(
 ) -> GateResult:
     """Run the hygiene control flow gate at script startup.
 
-    This is the main entry point that every Ralph script should call
+    This is the main entry point that every Tulla script should call
     before executing its core logic. It handles argument parsing,
     mode dispatch, and (in check mode) process termination.
 

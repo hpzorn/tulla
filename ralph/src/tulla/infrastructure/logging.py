@@ -1,4 +1,4 @@
-"""Structured logging configuration for Ralph pipeline execution."""
+"""Structured logging configuration for Tulla pipeline execution."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import structlog
 def configure_logging(
     *,
     work_dir: Path | None = None,
-    log_filename: str = "ralph.log.json",
+    log_filename: str = "tulla.log.json",
     console_level: int = logging.INFO,
     file_level: int = logging.DEBUG,
     **initial_context: object,
@@ -22,7 +22,7 @@ def configure_logging(
     Args:
         work_dir: If provided, a JSON-lines log file is written to
             ``{work_dir}/{log_filename}``.
-        log_filename: Name of the JSON log file (default ``ralph.log.json``).
+        log_filename: Name of the JSON log file (default ``tulla.log.json``).
         console_level: Minimum level for console output (default ``INFO``).
         file_level: Minimum level for file output (default ``DEBUG``).
         **initial_context: Extra key-value pairs bound to the returned

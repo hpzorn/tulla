@@ -3,7 +3,7 @@
 Emits a structured log record capturing the resolved hygiene mode,
 the source of that decision (explicit CLI flag vs. default), and
 contextual metadata (script name, work directories) so operators
-can reconstruct what a Ralph script decided and why.
+can reconstruct what a Tulla script decided and why.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
-from ralph.hygiene.args import HygieneConfig, HygieneMode
+from tulla.hygiene.args import HygieneConfig, HygieneMode
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class PreflightDecision:
     """Structured record of the hygiene decision made at startup.
 
     Attributes:
-        script_name: Name of the Ralph script that made the decision.
+        script_name: Name of the Tulla script that made the decision.
         mode: The resolved hygiene mode (clean, no-clean, or check).
         source: Whether the mode was set by an explicit CLI flag or by default.
         work_dirs: Directories that will be inspected/cleaned.
@@ -81,7 +81,7 @@ def build_preflight_decision(
     """Build a structured PreflightDecision record.
 
     Args:
-        script_name: Name of the Ralph script.
+        script_name: Name of the Tulla script.
         config: The resolved hygiene configuration from argument parsing.
         work_dirs: Directories targeted for hygiene inspection/cleanup.
         argv: The original CLI arguments (used to detect explicit vs default).
@@ -111,7 +111,7 @@ def log_preflight_decision(
     message containing all decision metadata.
 
     Args:
-        script_name: Name of the Ralph script.
+        script_name: Name of the Tulla script.
         config: The resolved hygiene configuration.
         work_dirs: Directories targeted for hygiene.
         argv: The original CLI arguments (for source detection).

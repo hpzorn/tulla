@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.planning.pipeline – planning_pipeline factory."""
+"""Tests for tulla.phases.planning.pipeline – planning_pipeline factory."""
 
 from __future__ import annotations
 
@@ -6,15 +6,15 @@ from pathlib import Path
 
 import pytest
 
-from ralph.config import RalphConfig
-from ralph.core.pipeline import Pipeline
-from ralph.phases.planning.p1 import P1Phase
-from ralph.phases.planning.p2 import P2Phase
-from ralph.phases.planning.p3 import P3Phase
-from ralph.phases.planning.p4 import P4Phase
-from ralph.phases.planning.p5 import P5Phase
-from ralph.phases.planning.p6 import P6Phase
-from ralph.phases.planning.pipeline import planning_pipeline
+from tulla.config import TullaConfig
+from tulla.core.pipeline import Pipeline
+from tulla.phases.planning.p1 import P1Phase
+from tulla.phases.planning.p2 import P2Phase
+from tulla.phases.planning.p3 import P3Phase
+from tulla.phases.planning.p4 import P4Phase
+from tulla.phases.planning.p5 import P5Phase
+from tulla.phases.planning.p6 import P6Phase
+from tulla.phases.planning.pipeline import planning_pipeline
 
 
 # ---------------------------------------------------------------------------
@@ -27,13 +27,13 @@ class StubClaudePort:
 
 
 @pytest.fixture()
-def config() -> RalphConfig:
-    """A default RalphConfig instance."""
-    return RalphConfig()
+def config() -> TullaConfig:
+    """A default TullaConfig instance."""
+    return TullaConfig()
 
 
 @pytest.fixture()
-def pipeline(tmp_path: Path, config: RalphConfig) -> Pipeline:
+def pipeline(tmp_path: Path, config: TullaConfig) -> Pipeline:
     """A planning pipeline built via the factory."""
     return planning_pipeline(
         claude_port=StubClaudePort(),
@@ -77,7 +77,7 @@ class TestPlanningPipelineBudget:
         assert pipeline._total_budget_usd == 5.0
 
     def test_custom_budget(self, tmp_path: Path) -> None:
-        config = RalphConfig(planning={"budget_usd": 12.5})
+        config = TullaConfig(planning={"budget_usd": 12.5})
         p = planning_pipeline(
             claude_port=StubClaudePort(),
             work_dir=tmp_path,
@@ -98,7 +98,7 @@ class TestPlanningPipelineConfig:
     def test_default_discovery_dir_empty(self, pipeline: Pipeline) -> None:
         assert pipeline._config["discovery_dir"] == ""
 
-    def test_custom_discovery_dir(self, tmp_path: Path, config: RalphConfig) -> None:
+    def test_custom_discovery_dir(self, tmp_path: Path, config: TullaConfig) -> None:
         p = planning_pipeline(
             claude_port=StubClaudePort(),
             work_dir=tmp_path,
@@ -107,3 +107,24 @@ class TestPlanningPipelineConfig:
             discovery_dir="/some/discovery/output",
         )
         assert p._config["discovery_dir"] == "/some/discovery/output"
+
+
+# ===================================================================
+# Granularity thresholds forwarded from config
+# ===================================================================
+
+
+class TestPlanningPipelineGranularityThresholds:
+    """planning_pipeline() forwards granularity threshold fields to config."""
+
+    def test_config_contains_max_files_per_requirement(self, pipeline: Pipeline) -> None:
+        assert pipeline._config["max_files_per_requirement"] == 3
+
+    def test_config_contains_min_wpf_blocking(self, pipeline: Pipeline) -> None:
+        assert pipeline._config["min_wpf_blocking"] == 12.0
+
+    def test_config_contains_min_wpf_advisory(self, pipeline: Pipeline) -> None:
+        assert pipeline._config["min_wpf_advisory"] == 15.0
+
+    def test_config_contains_max_granularity_retries(self, pipeline: Pipeline) -> None:
+        assert pipeline._config["max_granularity_retries"] == 1

@@ -1,4 +1,4 @@
-"""Check mode function for Ralph script hygiene.
+"""Check mode function for Tulla script hygiene.
 
 Provides a standalone entry point for running hygiene in check (dry-run)
 mode. Inspects work directories and reports stale files without removing
@@ -10,8 +10,8 @@ Exit code semantics:
     1 -- issues found (stale files detected)
 
 Integrates with:
-    - ralph.hygiene.args for HygieneConfig / HygieneMode
-    - ralph.hygiene.preflight for inspection and reporting
+    - tulla.hygiene.args for HygieneConfig / HygieneMode
+    - tulla.hygiene.preflight for inspection and reporting
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from ralph.hygiene.args import HygieneConfig, HygieneMode
-from ralph.hygiene.preflight import (
+from tulla.hygiene.args import HygieneConfig, HygieneMode
+from tulla.hygiene.preflight import (
     DEFAULT_STALE_THRESHOLD_SECS,
     HygieneReport,
     run_preflight_hygiene,
@@ -83,7 +83,7 @@ def run_check_mode_cli(
 
     This is the CLI-oriented entry point that combines inspection,
     reporting, and exit-code determination. Suitable for use as the
-    main logic behind ``--check`` in a Ralph script.
+    main logic behind ``--check`` in a Tulla script.
 
     Args:
         directories: Work directories to inspect.

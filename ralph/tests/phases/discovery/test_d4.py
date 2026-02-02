@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.discovery.d4 – D4Phase."""
+"""Tests for tulla.phases.discovery.d4 – D4Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.discovery.d4 import D4Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.discovery.d4 import D4Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures

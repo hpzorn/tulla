@@ -1,4 +1,4 @@
-"""Tests for ralph.infrastructure.logging module."""
+"""Tests for tulla.infrastructure.logging module."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import structlog
 
-from ralph.infrastructure.logging import configure_logging
+from tulla.infrastructure.logging import configure_logging
 
 
 # ---------------------------------------------------------------------------

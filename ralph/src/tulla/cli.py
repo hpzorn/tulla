@@ -1,6 +1,6 @@
-"""Click-based CLI for the Ralph agent system.
+"""Click-based CLI for the Tulla agent system.
 
-Provides the ``ralph`` command group with a ``run`` subcommand that
+Provides the ``tulla`` command group with a ``run`` subcommand that
 dispatches to agent-specific pipeline factories.
 
 Exit codes:
@@ -20,12 +20,12 @@ from typing import Any
 
 import click
 
-from ralph.adapters.claude_cli import ClaudeCLIAdapter
-from ralph.adapters.ontology_mcp import OntologyMCPAdapter
-from ralph.config import RalphConfig
-from ralph.core.phase import PhaseStatus
-from ralph.core.pipeline import Pipeline, PipelineResult
-from ralph.infrastructure.logging import configure_logging
+from tulla.adapters.claude_cli import ClaudeCLIAdapter
+from tulla.adapters.ontology_mcp import OntologyMCPAdapter
+from tulla.config import TullaConfig
+from tulla.core.phase import PhaseStatus
+from tulla.core.pipeline import Pipeline, PipelineResult
+from tulla.infrastructure.logging import configure_logging
 
 # ---------------------------------------------------------------------------
 # Valid agent names and their default modes
@@ -47,7 +47,7 @@ EXIT_TIMEOUT = 124
 def _build_pipeline(
     agent: str,
     idea_id: int,
-    config: RalphConfig,
+    config: TullaConfig,
     work_dir: Path,
     mode: str | None,
     discovery_dir: str | None = None,
@@ -62,7 +62,7 @@ def _build_pipeline(
     idea_str = str(idea_id)
 
     if agent == "discovery":
-        from ralph.phases.discovery.pipeline import discovery_pipeline
+        from tulla.phases.discovery.pipeline import discovery_pipeline
 
         effective_mode = mode if mode else "upstream"
         return discovery_pipeline(
@@ -74,7 +74,7 @@ def _build_pipeline(
         )
 
     if agent == "planning":
-        from ralph.phases.planning.pipeline import planning_pipeline
+        from tulla.phases.planning.pipeline import planning_pipeline
 
         effective_discovery_dir = discovery_dir if discovery_dir else ""
         effective_research_dir = research_dir if research_dir else ""
@@ -88,7 +88,7 @@ def _build_pipeline(
         )
 
     if agent == "research":
-        from ralph.phases.research.pipeline import research_pipeline
+        from tulla.phases.research.pipeline import research_pipeline
 
         effective_planning_dir = mode if mode else ""
         effective_discovery_dir = discovery_dir if discovery_dir else ""
@@ -102,12 +102,12 @@ def _build_pipeline(
         )
 
     if agent == "epistemology":
-        from ralph.phases.epistemology.contradiction import ContradictionPhase
-        from ralph.phases.epistemology.domain import DomainPhase
-        from ralph.phases.epistemology.idea import IdeaPhase
-        from ralph.phases.epistemology.pool import PoolPhase
-        from ralph.phases.epistemology.problem import ProblemPhase
-        from ralph.phases.epistemology.signal import SignalPhase
+        from tulla.phases.epistemology.contradiction import ContradictionPhase
+        from tulla.phases.epistemology.domain import DomainPhase
+        from tulla.phases.epistemology.idea import IdeaPhase
+        from tulla.phases.epistemology.pool import PoolPhase
+        from tulla.phases.epistemology.problem import ProblemPhase
+        from tulla.phases.epistemology.signal import SignalPhase
 
         ep_modes: dict[str, tuple[str, Any]] = {
             "pool": ("ep-pool", PoolPhase()),
@@ -152,7 +152,7 @@ def _build_pipeline(
 
 def _run_implementation(
     idea_id: int,
-    config: RalphConfig,
+    config: TullaConfig,
     work_dir: Path,
     dry_run: bool,
 ) -> None:
@@ -161,7 +161,7 @@ def _run_implementation(
     Unlike other agents, implementation uses a loop-based architecture
     (Find→Implement→Commit→Verify→Status) rather than a linear pipeline.
     """
-    from ralph.phases.implementation.loop import ImplementationLoop
+    from tulla.phases.implementation.loop import ImplementationLoop
 
     claude_port = ClaudeCLIAdapter()
     ontology_port = OntologyMCPAdapter()
@@ -308,13 +308,13 @@ def _report_result(result: PipelineResult) -> int:
 )
 @click.pass_context
 def main(ctx: click.Context, config_path: str | None) -> None:
-    """Ralph — ontology-driven idea hygiene and lifecycle agent."""
+    """Tulla — ontology-driven idea hygiene and lifecycle agent."""
     ctx.ensure_object(dict)
 
     if config_path:
-        ctx.obj["config"] = RalphConfig.from_yaml(config_path)
+        ctx.obj["config"] = TullaConfig.from_yaml(config_path)
     else:
-        ctx.obj["config"] = RalphConfig()
+        ctx.obj["config"] = TullaConfig()
 
 
 @main.command()
@@ -388,7 +388,7 @@ def run(
 
     AGENT is one of: discovery, planning, research, implementation, epistemology.
     """
-    config: RalphConfig = ctx.obj["config"]
+    config: TullaConfig = ctx.obj["config"]
 
     # Resolve work directory to absolute path — Claude CLI may have a
     # different cwd than the Python process, so relative paths break.
@@ -462,7 +462,7 @@ def run(
 )
 def status(idea: int) -> None:
     """Show PRD requirement status for a given idea."""
-    from ralph.commands.status import format_status_table, query_prd_status
+    from tulla.commands.status import format_status_table, query_prd_status
 
     ontology = OntologyMCPAdapter()
     prd_context = f"prd-idea-{idea}"

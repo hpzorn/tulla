@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ralph"
+name = "tulla"
 version = "0.1.0"
-description = "Ralph – ontology-driven idea hygiene and lifecycle agent"
+description = "Tulla – ontology-driven idea hygiene and lifecycle agent"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-ralph = "ralph.cli:main"
+tulla = "tulla.cli:main"
 
 [tool.mypy]
 python_version = "3.11"
@@ -36,4 +36,4 @@ module = "tests.*"
 disallow_untyped_defs = false
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ralph"]
+packages = ["src/tulla"]

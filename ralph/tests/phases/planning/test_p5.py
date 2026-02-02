@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.planning.p5 – P5Phase."""
+"""Tests for tulla.phases.planning.p5 – P5Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.planning.p5 import P5Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.planning.p5 import P5Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -81,13 +81,13 @@ The following unknowns must be resolved before implementation.
 **Suggested Approach**: Query ontology-server
 **Acceptable Answer Format**: List of covered attributes
 
-## Handoff to Research-Ralph
+## Handoff to Research-Tulla
 
-Run: `./research-ralph.sh --idea idea-42` with focus on:
+Run: `./research-tulla.sh --idea idea-42` with focus on:
 - MCP rate limits
 - iSAQB coverage
 
-After research completes, re-run planning-ralph to update the plan.
+After research completes, re-run planning-tulla to update the plan.
 
 ---
 blocked

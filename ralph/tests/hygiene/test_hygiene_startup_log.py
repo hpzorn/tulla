@@ -1,4 +1,4 @@
-"""Tests for ralph.hygiene.startup_log — pre-flight decision logging."""
+"""Tests for tulla.hygiene.startup_log — pre-flight decision logging."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from ralph.hygiene.args import HygieneConfig, HygieneMode
-from ralph.hygiene.startup_log import (
+from tulla.hygiene.args import HygieneConfig, HygieneMode
+from tulla.hygiene.startup_log import (
     PreflightDecision,
     _detect_source,
     build_preflight_decision,
@@ -48,7 +48,7 @@ def config_with_remaining() -> HygieneConfig:
 @pytest.fixture()
 def work_dirs() -> list[Path]:
     """Sample work directories."""
-    return [Path("./work"), Path("/tmp/ralph-work")]
+    return [Path("./work"), Path("/tmp/tulla-work")]
 
 
 # ---------------------------------------------------------------------------
@@ -61,13 +61,13 @@ class TestPreflightDecision:
 
     def test_fields(self) -> None:
         d = PreflightDecision(
-            script_name="test-ralph",
+            script_name="test-tulla",
             mode="clean",
             source="explicit",
             work_dirs=["./work"],
             remaining_args=["--idea", "42"],
         )
-        assert d.script_name == "test-ralph"
+        assert d.script_name == "test-tulla"
         assert d.mode == "clean"
         assert d.source == "explicit"
         assert d.work_dirs == ["./work"]
@@ -249,7 +249,7 @@ class TestLogPreflightDecision:
     def test_emits_info_log(
         self, clean_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
     ) -> None:
-        with caplog.at_level(logging.INFO, logger="ralph.hygiene.startup_log"):
+        with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("my-script", clean_config, work_dirs, argv=["--clean"])
         assert any("Pre-flight decision" in r.message for r in caplog.records)
         assert any("my-script" in r.message for r in caplog.records)
@@ -259,21 +259,21 @@ class TestLogPreflightDecision:
     def test_logs_default_source(
         self, clean_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
     ) -> None:
-        with caplog.at_level(logging.INFO, logger="ralph.hygiene.startup_log"):
+        with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", clean_config, work_dirs, argv=[])
         assert any("source=default" in r.message for r in caplog.records)
 
     def test_logs_check_mode(
         self, check_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
     ) -> None:
-        with caplog.at_level(logging.INFO, logger="ralph.hygiene.startup_log"):
+        with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", check_config, work_dirs, argv=["--check"])
         assert any("mode=check" in r.message for r in caplog.records)
 
     def test_logs_no_clean_mode(
         self, no_clean_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
     ) -> None:
-        with caplog.at_level(logging.INFO, logger="ralph.hygiene.startup_log"):
+        with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", no_clean_config, work_dirs, argv=["--no-clean"])
         assert any("mode=no-clean" in r.message for r in caplog.records)
 
@@ -281,7 +281,7 @@ class TestLogPreflightDecision:
         self, config_with_remaining: HygieneConfig, work_dirs: list[Path],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        with caplog.at_level(logging.DEBUG, logger="ralph.hygiene.startup_log"):
+        with caplog.at_level(logging.DEBUG, logger="tulla.hygiene.startup_log"):
             log_preflight_decision(
                 "test", config_with_remaining, work_dirs,
                 argv=["--clean", "--idea", "42"],
@@ -294,7 +294,7 @@ class TestLogPreflightDecision:
         self, clean_config: HygieneConfig, work_dirs: list[Path],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        with caplog.at_level(logging.DEBUG, logger="ralph.hygiene.startup_log"):
+        with caplog.at_level(logging.DEBUG, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", clean_config, work_dirs, argv=["--clean"])
         debug_msgs = [r.message for r in caplog.records if r.levelno == logging.DEBUG]
         assert not any("Remaining args" in m for m in debug_msgs)

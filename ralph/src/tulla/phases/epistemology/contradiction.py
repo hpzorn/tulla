@@ -10,7 +10,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import ContradictionOutput
 
@@ -34,8 +34,8 @@ class ContradictionPhase(Phase[ContradictionOutput]):
             "\n"
             "## Instructions\n"
             "\n"
-            f"1. Read the idea: mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
-            "2. Query neighbours: mcp__idea-pool__query_ideas\n"
+            f"1. Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
+            "2. Query neighbours: mcp__ontology-server__query_ideas\n"
             "3. Recall known facts: mcp__ontology-server__recall_facts\n"
             "4. For each pair of claims or facts:\n"
             "   - Do they logically contradict each other?\n"
@@ -69,8 +69,8 @@ class ContradictionPhase(Phase[ContradictionOutput]):
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return [
-            {"name": "mcp__idea-pool__read_idea"},
-            {"name": "mcp__idea-pool__query_ideas"},
+            {"name": "mcp__ontology-server__get_idea"},
+            {"name": "mcp__ontology-server__query_ideas"},
             {"name": "mcp__ontology-server__recall_facts"},
             {"name": "mcp__ontology-server__query_ontology"},
             {"name": "Read"},

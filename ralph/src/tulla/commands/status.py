@@ -1,4 +1,4 @@
-"""Pydantic models and query logic for the ``ralph status`` command."""
+"""Pydantic models and query logic for the ``tulla status`` command."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import os
 
 from pydantic import BaseModel, Field
 
-from ralph.phases.implementation.models import RequirementStatus
-from ralph.ports.ontology import OntologyPort
+from tulla.phases.implementation.models import RequirementStatus
+from tulla.ports.ontology import OntologyPort
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from ralph.hygiene.fact_update import (
+from tulla.hygiene.fact_update import (
     FactUpdate,
     FactUpdateError,
     apply_fact_update,

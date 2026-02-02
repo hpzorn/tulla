@@ -13,7 +13,7 @@ import subprocess
 import time
 from typing import Any
 
-from ralph.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
+from tulla.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,21 @@ class ClaudeCLIAdapter(ClaudePort):
         elapsed = time.monotonic() - start
         output_json = self._try_parse_json(proc.stdout)
         cost = self._extract_cost(output_json)
+
+        logger.debug(
+            "Claude subprocess completed",
+            extra={
+                "exit_code": proc.returncode,
+                "cost_usd": cost,
+                "duration_s": round(elapsed, 2),
+                "stdout_length": len(proc.stdout),
+                "stderr_length": len(proc.stderr),
+            },
+        )
+        if proc.stdout:
+            logger.debug("Claude stdout", extra={"output": proc.stdout})
+        if proc.stderr:
+            logger.debug("Claude stderr", extra={"output": proc.stderr})
 
         return ClaudeResult(
             exit_code=proc.returncode,

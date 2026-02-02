@@ -1,7 +1,7 @@
-"""Trap handler for clean exit logging in Ralph scripts.
+"""Trap handler for clean exit logging in Tulla scripts.
 
 Installs signal handlers that log a clean shutdown message when a
-Ralph script is interrupted or terminated. This ensures that even
+Tulla script is interrupted or terminated. This ensures that even
 abnormal exits produce structured log output useful for debugging
 and post-mortem analysis.
 
@@ -11,10 +11,10 @@ Trapped signals:
 
 Usage::
 
-    from ralph.hygiene import install_trap_handler
+    from tulla.hygiene import install_trap_handler
 
     def main() -> None:
-        cleanup = install_trap_handler(script_name="research-ralph")
+        cleanup = install_trap_handler(script_name="research-tulla")
         try:
             # ... main logic ...
         finally:
@@ -43,7 +43,7 @@ class TrapContext:
     """Mutable context tracking the state of an installed trap handler.
 
     Attributes:
-        script_name: Name of the Ralph script that installed the trap.
+        script_name: Name of the Tulla script that installed the trap.
         start_time: Monotonic timestamp when the trap was installed.
         exit_logged: Whether the exit log message has already been emitted.
         original_handlers: Original signal handlers saved before installation,
@@ -149,7 +149,7 @@ def install_trap_handler(
          log exit and restore original signal handlers.
 
     Args:
-        script_name: Name of the Ralph script (used in log messages).
+        script_name: Name of the Tulla script (used in log messages).
         signals: Tuple of signals to trap. Defaults to (SIGINT, SIGTERM).
         exit_func: Callable to terminate the process in signal handlers.
             Defaults to sys.exit.

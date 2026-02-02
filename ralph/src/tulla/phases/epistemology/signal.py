@@ -10,7 +10,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import SignalOutput
 
@@ -34,8 +34,8 @@ class SignalPhase(Phase[SignalOutput]):
             "\n"
             "## Instructions\n"
             "\n"
-            f"1. Read the idea: mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
-            "2. Query the broader pool: mcp__idea-pool__query_ideas\n"
+            f"1. Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
+            "2. Query the broader pool: mcp__ontology-server__query_ideas\n"
             "3. Recall recent facts: mcp__ontology-server__recall_recent_facts\n"
             "4. Scan the codebase for patterns using Glob/Grep\n"
             "5. Look for:\n"
@@ -72,8 +72,8 @@ class SignalPhase(Phase[SignalOutput]):
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return [
-            {"name": "mcp__idea-pool__read_idea"},
-            {"name": "mcp__idea-pool__query_ideas"},
+            {"name": "mcp__ontology-server__get_idea"},
+            {"name": "mcp__ontology-server__query_ideas"},
             {"name": "mcp__ontology-server__recall_facts"},
             {"name": "mcp__ontology-server__recall_recent_facts"},
             {"name": "Read"},

@@ -1,4 +1,4 @@
-"""Phase base class and supporting types for Ralph's pipeline execution."""
+"""Phase base class and supporting types for Tulla's pipeline execution."""
 
 from __future__ import annotations
 
@@ -155,14 +155,14 @@ class Phase(ABC, Generic[T]):
     ) -> Any:
         """Invoke Claude via the adapter in ``ctx.config["claude_port"]``.
 
-        Builds a :class:`~ralph.ports.claude.ClaudeRequest` from the prompt,
+        Builds a :class:`~tulla.ports.claude.ClaudeRequest` from the prompt,
         tools, and budget, then delegates to the injected
-        :class:`~ralph.ports.claude.ClaudePort`.  Subclasses may override
+        :class:`~tulla.ports.claude.ClaudePort`.  Subclasses may override
         for custom invocation behaviour.
 
         Raises :class:`TimeoutError` if the Claude invocation times out.
         """
-        from ralph.ports.claude import ClaudeRequest
+        from tulla.ports.claude import ClaudeRequest
 
         claude_port = ctx.config.get("claude_port")
         if claude_port is None:
@@ -275,6 +275,11 @@ class Phase(ABC, Generic[T]):
             # Extract cost from ClaudeResult if available
             if hasattr(raw, "cost_usd"):
                 cost_usd = raw.cost_usd
+            if hasattr(raw, "output_text") and raw.output_text:
+                log.debug(
+                    "Claude output for phase",
+                    extra={"output": raw.output_text},
+                )
         except TimeoutError:
             log.warning("Phase timed out")
             return PhaseResult(

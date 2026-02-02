@@ -2,7 +2,7 @@
 
 Defines the :class:`OntologyPort` ABC whose method surface mirrors the
 ontology-server MCP tools (query_ideas, get_idea, store_fact, etc.).
-Concrete adapters (MCP client, mock) are provided in ``ralph.adapters``
+Concrete adapters (MCP client, mock) are provided in ``tulla.adapters``
 and belong to Phase 2.
 """
 
@@ -17,7 +17,7 @@ class OntologyPort(ABC):
 
     Each method corresponds to an ontology-server MCP tool and uses
     compatible typed signatures with ``dict[str, Any]`` return types.
-    Concrete implementations live in ``ralph.adapters``.
+    Concrete implementations live in ``tulla.adapters``.
     """
 
     @abstractmethod

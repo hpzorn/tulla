@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.planning.p3 – P3Phase."""
+"""Tests for tulla.phases.planning.p3 – P3Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.planning.p3 import P3Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.planning.p3 import P3Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -97,7 +97,7 @@ Error handling via ParseError.
 
 ## File Structure
 ```
-ralph/src/ralph/phases/planning/
+tulla/src/tulla/phases/planning/
 ├── p1.py
 ├── p2.py
 ├── p3.py

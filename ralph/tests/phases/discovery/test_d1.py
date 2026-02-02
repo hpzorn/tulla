@@ -1,4 +1,4 @@
-"""Tests for ralph.phases.discovery.d1 – D1Phase."""
+"""Tests for tulla.phases.discovery.d1 – D1Phase."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import ParseError, PhaseContext, PhaseStatus
-from ralph.phases.discovery.d1 import D1Phase
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
+from tulla.phases.discovery.d1 import D1Phase
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -52,7 +52,7 @@ A sample idea for testing.
 ## Existing Systems & Tools
 | Component | Location | Relevance |
 |-----------|----------|-----------|
-| mcp__idea-pool__read_idea | MCP | high |
+| mcp__ontology-server__get_idea | MCP | high |
 | mcp__ontology-server__query | MCP | medium |
 | Glob | built-in | high |
 
@@ -63,7 +63,7 @@ Some prior work was done.
 Missing integration tests.
 
 ## Ecosystem Context
-Fits into the Ralph pipeline.
+Fits into the Tulla pipeline.
 """
 
 
@@ -105,7 +105,7 @@ class TestGetTools:
     ) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
-        assert any("idea-pool" in name or "idea_pool" in name for name in tool_names)
+        assert any("ontology-server" in name for name in tool_names)
 
     def test_includes_read_write_glob_grep(
         self, phase: D1Phase, ctx: PhaseContext
@@ -158,7 +158,7 @@ class TestParseOutputSuccess:
 
         assert result.inventory_file == inventory_file
         assert result.tools_found == 3
-        assert result.mcp_servers_found == 2  # idea-pool, ontology-server
+        assert result.mcp_servers_found == 1  # ontology-server
 
     def test_zero_tools_when_table_empty(
         self, phase: D1Phase, ctx: PhaseContext
@@ -207,6 +207,6 @@ class TestExecuteWithMock:
         assert result.data is not None
         assert result.data.inventory_file == ctx.work_dir / "d1-inventory.md"
         assert result.data.tools_found == 3
-        assert result.data.mcp_servers_found == 2
+        assert result.data.mcp_servers_found == 1  # ontology-server
         assert result.error is None
         assert result.duration_s > 0

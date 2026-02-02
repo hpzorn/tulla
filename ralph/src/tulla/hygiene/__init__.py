@@ -1,7 +1,7 @@
-"""ralph.hygiene -- Shared hygiene library for Ralph scripts.
+"""tulla.hygiene -- Shared hygiene library for Tulla scripts.
 
 This package consolidates all hygiene functions into a single importable
-library that any Ralph script can use. It provides:
+library that any Tulla script can use. It provides:
 
 - **Argument parsing**: ``parse_hygiene_args``, ``HygieneConfig``, ``HygieneMode``
 - **Pre-flight cleanup**: ``run_preflight_hygiene``, ``inspect_directory``
@@ -14,7 +14,7 @@ library that any Ralph script can use. It provides:
 
 Usage::
 
-    from ralph.hygiene import hygiene_gate, install_trap_handler
+    from tulla.hygiene import hygiene_gate, install_trap_handler
     from pathlib import Path
 
     def main() -> None:
@@ -30,7 +30,7 @@ Usage::
 """
 
 # Args module -- core types and parsing
-from ralph.hygiene.args import (
+from tulla.hygiene.args import (
     HygieneConfig,
     HygieneMode,
     build_hygiene_parser,
@@ -38,7 +38,7 @@ from ralph.hygiene.args import (
 )
 
 # Pre-flight hygiene
-from ralph.hygiene.preflight import (
+from tulla.hygiene.preflight import (
     ALL_CLEANABLE_SUFFIXES,
     DEFAULT_STALE_THRESHOLD_SECS,
     HygieneReport,
@@ -48,20 +48,20 @@ from ralph.hygiene.preflight import (
 )
 
 # Check mode
-from ralph.hygiene.check import (
+from tulla.hygiene.check import (
     check_mode_exit_code,
     run_check_mode,
     run_check_mode_cli,
 )
 
 # Control flow gate
-from ralph.hygiene.gate import (
+from tulla.hygiene.gate import (
     GateResult,
     hygiene_gate,
 )
 
 # Help text
-from ralph.hygiene.help import (
+from tulla.hygiene.help import (
     HYGIENE_HELP_BODY,
     HYGIENE_HELP_HEADER,
     HYGIENE_USAGE_LINE,
@@ -72,21 +72,21 @@ from ralph.hygiene.help import (
 )
 
 # Trap handler
-from ralph.hygiene.trap import (
+from tulla.hygiene.trap import (
     TRAPPED_SIGNALS,
     TrapContext,
     install_trap_handler,
 )
 
 # Startup logging
-from ralph.hygiene.startup_log import (
+from tulla.hygiene.startup_log import (
     PreflightDecision,
     build_preflight_decision,
     log_preflight_decision,
 )
 
 # Fact update utilities
-from ralph.hygiene.fact_update import (
+from tulla.hygiene.fact_update import (
     FactStore,
     FactUpdate,
     FactUpdateError,

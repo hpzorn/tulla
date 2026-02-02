@@ -1,4 +1,4 @@
-"""Shared test fixtures for the ralph test suite.
+"""Shared test fixtures for the tulla test suite.
 
 Provides reusable fixtures that multiple test modules depend on:
 
@@ -18,8 +18,8 @@ from typing import Any
 
 import pytest
 
-from ralph.adapters.claude_mock import MockClaudeAdapter
-from ralph.ports.claude import ClaudeResult
+from tulla.adapters.claude_mock import MockClaudeAdapter
+from tulla.ports.claude import ClaudeResult
 
 
 # ---------------------------------------------------------------------------

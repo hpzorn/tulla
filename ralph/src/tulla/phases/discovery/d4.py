@@ -11,7 +11,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import D4Output
 
@@ -36,7 +36,7 @@ class D4Phase(Phase[D4Output]):
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the D4 gap analysis prompt, ported from discovery-ralph.sh."""
+        """Build the D4 gap analysis prompt, ported from discovery-tulla.sh."""
         output_file = ctx.work_dir / "d4-gap-analysis.md"
         d1_file = ctx.work_dir / "d1-inventory.md"
         d2_file = ctx.work_dir / "d2-personas.md"
@@ -138,7 +138,7 @@ class D4Phase(Phase[D4Output]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during D4."""
         return [
-            {"name": "mcp__idea-pool__read_idea"},
+            {"name": "mcp__ontology-server__get_idea"},
             {"name": "Read"},
             {"name": "Write"},
             {"name": "mcp__ontology-server__query_ontology"},

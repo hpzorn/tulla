@@ -11,7 +11,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import P1Output
 
@@ -26,14 +26,14 @@ class P1Phase(Phase[P1Output]):
     """
 
     phase_id: str = "p1"
-    timeout_s: float = 300.0  # 5 minutes
+    timeout_s: float = 600.0  # 10 minutes
 
     # ------------------------------------------------------------------
     # Template hooks
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the P1 discovery context load prompt, ported from planning-ralph.sh."""
+        """Build the P1 discovery context load prompt, ported from planning-tulla.sh."""
         output_file = ctx.work_dir / "p1-discovery-context.md"
         planning_date = date.today().isoformat()
         discovery_dir = ctx.config.get("discovery_dir", "")
@@ -81,7 +81,7 @@ class P1Phase(Phase[P1Output]):
             "\n"
             "## Instructions\n"
             "\n"
-            f"1. Read the original idea: use mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
+            f"1. Read the original idea: use mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
             "\n"
             f"2. Read all discovery documents from: {discovery_dir}\n"
             "   - D1-inventory.md (technical inventory)\n"
@@ -128,7 +128,7 @@ class P1Phase(Phase[P1Output]):
             "   | ... | P0/P1/P2 | Implementation/Research/Design |\n"
             f"{research_output_section}"
             "   ## Open Research Questions (from D5)\n"
-            "   [List any questions that still need research-ralph, "
+            "   [List any questions that still need research-tulla, "
             "or 'None — all resolved by downstream research' if research answered them]\n"
             "\n"
             "   ## Planning Constraints\n"
@@ -142,7 +142,7 @@ class P1Phase(Phase[P1Output]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during P1."""
         return [
-            {"name": "mcp__idea-pool__read_idea"},
+            {"name": "mcp__ontology-server__get_idea"},
             {"name": "Read"},
             {"name": "Write"},
             {"name": "Glob"},

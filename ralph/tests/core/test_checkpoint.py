@@ -1,4 +1,4 @@
-"""Tests for ralph.core.checkpoint module."""
+"""Tests for tulla.core.checkpoint module."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ralph.core.checkpoint import CheckpointStore
+from tulla.core.checkpoint import CheckpointStore
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +134,7 @@ class TestAtomicWriteSafety:
     def test_failed_write_does_not_create_checkpoint(
         self, store: CheckpointStore
     ) -> None:
-        with patch("ralph.core.checkpoint.json.dump", side_effect=OSError("disk full")):
+        with patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")):
             with pytest.raises(OSError, match="disk full"):
                 store.save("phase-x", {"will": "fail"})
 
@@ -147,7 +147,7 @@ class TestAtomicWriteSafety:
     ) -> None:
         store.save("phase-x", {"version": 1})
 
-        with patch("ralph.core.checkpoint.json.dump", side_effect=OSError("disk full")):
+        with patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")):
             with pytest.raises(OSError, match="disk full"):
                 store.save("phase-x", {"version": 2})
 
@@ -158,7 +158,7 @@ class TestAtomicWriteSafety:
     def test_no_temp_files_left_on_failure(
         self, store: CheckpointStore, tmp_path: Path
     ) -> None:
-        with patch("ralph.core.checkpoint.json.dump", side_effect=OSError("disk full")):
+        with patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")):
             with pytest.raises(OSError):
                 store.save("phase-y", {"data": "test"})
 

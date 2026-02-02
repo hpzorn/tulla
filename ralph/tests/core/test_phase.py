@@ -1,4 +1,4 @@
-"""Tests for ralph.core.phase module."""
+"""Tests for tulla.core.phase module."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from ralph.core.phase import (
+from tulla.core.phase import (
     ParseError,
     Phase,
     PhaseContext,

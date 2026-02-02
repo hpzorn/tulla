@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ralph.core.checkpoint import CheckpointStore
-from ralph.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.checkpoint import CheckpointStore
+from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
 
 
 # ---------------------------------------------------------------------------

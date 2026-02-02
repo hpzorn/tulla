@@ -107,7 +107,7 @@ class TestTullaConfigDefaults:
 
     def test_implementation_budget(self) -> None:
         cfg = TullaConfig()
-        assert cfg.implementation.budget_usd == 10.0
+        assert cfg.implementation.budget_usd == 30.0
 
     def test_implementation_permission_mode(self) -> None:
         cfg = TullaConfig()
@@ -210,7 +210,7 @@ class TestPerAgentOverrides:
         assert cfg.discovery.budget_usd == 99.0
         # Others unchanged
         assert cfg.research.budget_usd == 8.0
-        assert cfg.implementation.budget_usd == 10.0
+        assert cfg.implementation.budget_usd == 30.0
 
     def test_override_preserves_other_defaults(self) -> None:
         cfg = TullaConfig(

@@ -2,7 +2,7 @@
 
 Defines the request/result dataclasses and the abstract :class:`ClaudePort`
 interface.  Concrete adapters (subprocess, SDK, mock) are provided in
-``ralph.adapters`` and belong to Phase 2.
+``tulla.adapters`` and belong to Phase 2.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ class ClaudePort(ABC):
     """Abstract interface for invoking Claude.
 
     Concrete implementations (subprocess wrapper, SDK client, test stub)
-    live in ``ralph.adapters`` and are wired in at composition time.
+    live in ``tulla.adapters`` and are wired in at composition time.
     """
 
     @abstractmethod

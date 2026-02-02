@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from ralph.ports.ontology import OntologyPort
+from tulla.ports.ontology import OntologyPort
 
 from .models import RequirementStatus, StatusOutput
 

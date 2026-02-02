@@ -1,6 +1,6 @@
-"""Pre-flight hygiene function for Ralph scripts.
+"""Pre-flight hygiene function for Tulla scripts.
 
-Performs cleanup of stale state before a Ralph script run.
+Performs cleanup of stale state before a Tulla script run.
 Inspects and optionally removes:
   - Stale lock files (older than a configurable threshold)
   - Orphaned temp files in work directories
@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence
 
-from ralph.hygiene.args import HygieneConfig
+from tulla.hygiene.args import HygieneConfig
 
 logger = logging.getLogger(__name__)
 

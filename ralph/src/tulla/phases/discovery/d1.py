@@ -10,7 +10,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import D1Output
 
@@ -31,7 +31,7 @@ class D1Phase(Phase[D1Output]):
     # ------------------------------------------------------------------
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the D1 inventory prompt, ported from discovery-ralph.sh."""
+        """Build the D1 inventory prompt, ported from discovery-tulla.sh."""
         output_file = ctx.work_dir / "d1-inventory.md"
         discovery_date = date.today().isoformat()
 
@@ -44,10 +44,10 @@ class D1Phase(Phase[D1Output]):
             "\n"
             "## Instructions\n"
             "\n"
-            f"1. Read the idea: mcp__idea-pool__read_idea with identifier {ctx.idea_id}\n"
+            f"1. Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
             "\n"
             "2. Search for related work:\n"
-            "   - Use mcp__idea-pool__query_ideas to find connected ideas\n"
+            "   - Use mcp__ontology-server__query_ideas to find connected ideas\n"
             "   - Use Glob/Grep to find related code/files in the codebase\n"
             "\n"
             "3. Catalog existing components:\n"
@@ -92,8 +92,8 @@ class D1Phase(Phase[D1Output]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         """Return tool definitions available during D1."""
         return [
-            {"name": "mcp__idea-pool__read_idea"},
-            {"name": "mcp__idea-pool__query_ideas"},
+            {"name": "mcp__ontology-server__get_idea"},
+            {"name": "mcp__ontology-server__query_ideas"},
             {"name": "Read"},
             {"name": "Write"},
             {"name": "Glob"},

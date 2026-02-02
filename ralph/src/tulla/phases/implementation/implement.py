@@ -11,7 +11,7 @@ import logging
 import time
 from typing import Any
 
-from ralph.ports.claude import ClaudePort, ClaudeRequest
+from tulla.ports.claude import ClaudePort, ClaudeRequest
 
 from .models import FindOutput, ImplementOutput
 
@@ -100,7 +100,7 @@ class ImplementPhase:
     ) -> str:
         """Build the implementation prompt for Claude."""
         lines = [
-            f"You are Implementation-Ralph, an ontology-driven implementation agent.",
+            f"You are Implementation-Tulla, an ontology-driven implementation agent.",
             "",
             "## Your Task",
             f"Implement requirement: {requirement.requirement_id}",

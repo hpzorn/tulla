@@ -1,7 +1,7 @@
 """Discovery pipeline factory.
 
 Provides :func:`discovery_pipeline`, a convenience factory that assembles
-the five discovery sub-phases (D1–D5) into a :class:`~ralph.core.pipeline.Pipeline`
+the five discovery sub-phases (D1–D5) into a :class:`~tulla.core.pipeline.Pipeline`
 ready for execution.
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ralph.config import RalphConfig
-from ralph.core.pipeline import Pipeline
+from tulla.config import TullaConfig
+from tulla.core.pipeline import Pipeline
 
 from .d1 import D1Phase
 from .d2 import D2Phase
@@ -24,7 +24,7 @@ def discovery_pipeline(
     claude_port: Any,
     work_dir: Path,
     idea_id: str,
-    config: RalphConfig,
+    config: TullaConfig,
     mode: str = "upstream",
 ) -> Pipeline:
     """Create a discovery :class:`Pipeline` with phases D1 through D5.
@@ -33,7 +33,7 @@ def discovery_pipeline(
         claude_port: Claude invocation adapter forwarded to each phase.
         work_dir: Scratch directory for this pipeline run.
         idea_id: Identifier of the idea being discovered.
-        config: Root Ralph configuration; ``config.discovery.budget_usd``
+        config: Root Tulla configuration; ``config.discovery.budget_usd``
             is used as the pipeline's total budget.
         mode: Discovery mode passed to D5 (``"upstream"`` or ``"downstream"``).
 

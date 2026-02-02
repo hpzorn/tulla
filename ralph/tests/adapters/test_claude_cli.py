@@ -1,4 +1,4 @@
-"""Tests for ralph.adapters.claude_cli module."""
+"""Tests for tulla.adapters.claude_cli module."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ralph.adapters.claude_cli import ClaudeCLIAdapter
-from ralph.ports.claude import ClaudeRequest, ClaudeResult
+from tulla.adapters.claude_cli import ClaudeCLIAdapter
+from tulla.ports.claude import ClaudeRequest, ClaudeResult
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +213,7 @@ class TestExtractCost:
 class TestTimeoutHandling:
     """Tests for subprocess timeout handling in run()."""
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_timeout_returns_timed_out_result(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
@@ -228,7 +228,7 @@ class TestTimeoutHandling:
         assert result.exit_code == 124
         assert result.duration_seconds > 0
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_no_timeout_when_zero(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
@@ -245,7 +245,7 @@ class TestTimeoutHandling:
         _, kwargs = mock_run.call_args
         assert kwargs["timeout"] is None
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_timeout_passed_to_subprocess(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
@@ -271,7 +271,7 @@ class TestTimeoutHandling:
 class TestRun:
     """Tests for the full run() method with mocked subprocess."""
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_successful_run_parses_json(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
@@ -291,7 +291,7 @@ class TestRun:
         assert result.cost_usd == pytest.approx(0.01)
         assert result.duration_seconds > 0
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_non_json_output_degrades_gracefully(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
@@ -309,7 +309,7 @@ class TestRun:
         assert result.output_json is None
         assert result.cost_usd == 0.0
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_nonzero_exit_code(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
@@ -325,7 +325,7 @@ class TestRun:
         assert result.exit_code == 1
         assert result.timed_out is False
 
-    @patch("ralph.adapters.claude_cli.subprocess.run")
+    @patch("tulla.adapters.claude_cli.subprocess.run")
     def test_result_is_claude_result_instance(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:

@@ -1,6 +1,6 @@
 """ImplementationLoop — custom orchestrator for Find-Implement-Verify loop.
 
-Unlike the linear :class:`~ralph.core.pipeline.Pipeline` used by
+Unlike the linear :class:`~tulla.core.pipeline.Pipeline` used by
 Discovery, Planning, and Research, the Implementation phase uses a
 loop-based architecture:
 
@@ -20,9 +20,9 @@ from typing import Any
 
 import click
 
-from ralph.config import RalphConfig
-from ralph.ports.claude import ClaudePort
-from ralph.ports.ontology import OntologyPort
+from tulla.config import TullaConfig
+from tulla.ports.claude import ClaudePort
+from tulla.ports.ontology import OntologyPort
 
 from .commit import CommitPhase
 from .find import FindPhase
@@ -51,7 +51,7 @@ class ImplementationLoop:
         ontology_port: Ontology-server adapter.
         project_root: Root directory of the project.
         prd_context: Ontology context for PRD facts (e.g. ``"prd-idea-54"``).
-        config: Ralph configuration.
+        config: Tulla configuration.
         max_retries: Max verification retries per requirement.
         total_budget_usd: Total dollar budget for the loop.
     """
@@ -69,7 +69,7 @@ class ImplementationLoop:
         ontology_port: OntologyPort,
         project_root: Path,
         prd_context: str,
-        config: RalphConfig,
+        config: TullaConfig,
         max_retries: int = 2,
         total_budget_usd: float = 10.0,
     ) -> None:
@@ -125,6 +125,7 @@ class ImplementationLoop:
     def _log(msg: str) -> None:
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         click.echo(f"[{ts}] {msg}", err=True)
+        logger.info(msg)
 
     @staticmethod
     def _separator() -> None:
@@ -211,7 +212,7 @@ class ImplementationLoop:
         """
         # --- Startup banner ---
         self._separator()
-        self._log("Implementation-Ralph starting")
+        self._log("Implementation-Tulla starting")
         self._log(f"PRD Context: {self._prd_context}")
         self._log(f"Budget: ${self._total_budget_usd:.2f} USD")
         self._log(f"Max retries: {self._max_retries}")
@@ -399,7 +400,7 @@ class ImplementationLoop:
 
         # --- Final summary ---
         self._separator()
-        self._log("Implementation-Ralph finished")
+        self._log("Implementation-Tulla finished")
         self._log(
             f"Requirements completed: {loop_result.requirements_completed},"
             f" blocked: {loop_result.requirements_blocked}"

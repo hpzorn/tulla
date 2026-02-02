@@ -11,7 +11,7 @@ import re
 from datetime import date
 from typing import Any
 
-from ralph.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import R4Output
 
@@ -25,7 +25,7 @@ class R4Phase(Phase[R4Output]):
     """
 
     phase_id: str = "r4"
-    timeout_s: float = 600.0  # 10 minutes
+    timeout_s: float = 1200.0  # 20 minutes
 
     # ------------------------------------------------------------------
     # Template hooks
@@ -136,7 +136,7 @@ class R4Phase(Phase[R4Output]):
         )
 
     def get_timeout_seconds(self) -> float:
-        """Return the R4 timeout in seconds (10 minutes)."""
+        """Return the R4 timeout in seconds (20 minutes)."""
         return self.timeout_s
 
 
