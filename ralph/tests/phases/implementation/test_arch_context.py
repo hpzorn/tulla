@@ -32,8 +32,13 @@ from tulla.ports.ontology import OntologyPort
 class StubOntology(OntologyPort):
     """Minimal ontology stub returning pre-configured fact lists."""
 
-    def __init__(self, facts_by_key: dict[str, list[dict[str, str]]] | None = None):
+    def __init__(
+        self,
+        facts_by_key: dict[str, list[dict[str, str]]] | None = None,
+        sparql_results: dict[str, dict[str, Any]] | None = None,
+    ):
         self._facts = facts_by_key or {}
+        self._sparql_results = sparql_results or {}
         self.store_calls: list[dict[str, Any]] = []
 
     def _key(self, **kw: Any) -> str:
@@ -79,6 +84,9 @@ class StubOntology(OntologyPort):
         return {}
 
     def sparql_query(self, query: str, **kw: Any) -> dict[str, Any]:
+        for substring, result in self._sparql_results.items():
+            if substring in query:
+                return result
         return {}
 
     def update_idea(self, idea_id: str, **kw: Any) -> dict[str, Any]:
