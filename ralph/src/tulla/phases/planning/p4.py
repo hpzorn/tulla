@@ -149,10 +149,44 @@ class P4Phase(Phase[P4Output]):
             file_changes_section = _extract_section(content, "File Changes Summary")
             estimated_tasks = _count_table_rows(file_changes_section)
 
+        # -- Per-task granularity extraction --
+        max_files = int(ctx.config.get("max_files_per_requirement", 3))
+        min_wpf = float(ctx.config.get("min_wpf_blocking", 12.0))
+
+        coarse_tasks: list[dict[str, Any]] = []
+        for task_match in re.finditer(
+            r"####\s+Task\s+(\d+\.\d+):\s*(.+?)(?=\n####\s+Task|\n###\s+Phase|\n##\s|\Z)",
+            content,
+            re.DOTALL,
+        ):
+            task_id = task_match.group(1)
+            task_body = task_match.group(2)
+
+            files = _extract_task_files(task_body)
+            details = _extract_task_details(task_body)
+
+            file_count = len(files)
+            word_count = len(details.split()) if details else 0
+            wpf = word_count / file_count if file_count > 0 else 0.0
+            homogeneous = _check_homogeneity(files)
+
+            if file_count > max_files and not homogeneous and wpf < min_wpf:
+                coarse_tasks.append({
+                    "task": task_id,
+                    "file_count": file_count,
+                    "word_count": word_count,
+                    "wpf": round(wpf, 2),
+                    "homogeneous": homogeneous,
+                })
+
+        granularity_passed = len(coarse_tasks) == 0
+
         return P4Output(
             schedule_file=schedule_file,
             phase_count=phase_count,
             estimated_tasks=estimated_tasks,
+            coarse_tasks=coarse_tasks,
+            granularity_passed=granularity_passed,
         )
 
     def get_timeout_seconds(self) -> float:
@@ -184,6 +218,26 @@ def _check_homogeneity(files: list[str]) -> bool:
         return True
 
     return False
+
+
+def _extract_task_files(task_body: str) -> list[str]:
+    """Extract file paths from a ``**File(s)**: ...`` line inside a task block."""
+    match = re.search(r"\*\*File\(s\)\*\*:\s*(.+)", task_body)
+    if not match:
+        return []
+    raw = match.group(1).strip()
+    # Strip backticks and split on commas or whitespace-separated entries.
+    raw = raw.replace("`", "")
+    parts = [p.strip() for p in re.split(r"[,\s]+", raw) if p.strip()]
+    return parts
+
+
+def _extract_task_details(task_body: str) -> str:
+    """Extract the Details text from a ``**Details**: ...`` line inside a task block."""
+    match = re.search(
+        r"\*\*Details\*\*:\s*(.+?)(?=\n\*\*[A-Z]|\Z)", task_body, re.DOTALL
+    )
+    return match.group(1).strip() if match else ""
 
 
 def _extract_section(content: str, heading: str) -> str:
