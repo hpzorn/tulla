@@ -248,6 +248,9 @@ class P6Phase(Phase[P6Output]):
             "- `prd:verification` (string) - How to verify completion\n"
             "- `prd:relatedADR` (string, multi-valued) - Links requirement to an architecture decision (e.g. \"arch:adr-{idea_id}-1\")\n"
             "- `prd:qualityFocus` (string) - Quality attribute this requirement primarily addresses (e.g. \"Testability\")\n"
+            "- `prd:filesCount` (integer) - Number of files this requirement touches\n"
+            "- `prd:descriptionWordCount` (integer) - Word count of the requirement description\n"
+            "- `prd:wordsPerFile` (float) - Ratio of description words to files (descriptionWordCount / filesCount)\n"
             "\n"
             "## Instructions\n"
             "\n"
@@ -311,6 +314,17 @@ class P6Phase(Phase[P6Output]):
             "not the A-box (fact store).\n"
             "     Implementation-Tulla reads requirements via recall_facts, "
             "which only sees the A-box.\n"
+            "   - For EACH requirement, also store granularity metrics via store_fact:\n"
+            "     a. Count the files listed in `prd:files` → store as `prd:filesCount` (integer)\n"
+            "     b. Count the words in `prd:description` → store as `prd:descriptionWordCount` (integer)\n"
+            "     c. Compute wordsPerFile = descriptionWordCount / filesCount → store as `prd:wordsPerFile` (float, rounded to 2 decimals)\n"
+            "     Example store_fact calls for each requirement:\n"
+            f'       subject="prd:req-{idea_id}-X-Y", predicate="prd:filesCount", '
+            f'object="3", context="prd-idea-{idea_id}"\n'
+            f'       subject="prd:req-{idea_id}-X-Y", predicate="prd:descriptionWordCount", '
+            f'object="45", context="prd-idea-{idea_id}"\n'
+            f'       subject="prd:req-{idea_id}-X-Y", predicate="prd:wordsPerFile", '
+            f'object="15.0", context="prd-idea-{idea_id}"\n'
             "\n"
             f"5. Write a summary to: {summary_file}\n"
             "\n"
