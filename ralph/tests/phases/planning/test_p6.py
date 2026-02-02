@@ -5,12 +5,15 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext
+from tulla.adapters.claude_mock import MockClaudeAdapter
+from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
 from tulla.phases.planning.models import P6Output
-from tulla.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS
+from tulla.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS, _group_files_by_directory
+from tulla.ports.claude import ClaudeResult
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +106,23 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert 'prd:relatedADR "arch:adr-42' in prompt
         assert 'prd:qualityFocus "[Quality attribute]"' in prompt
+
+    def test_no_feedback_by_default(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "Granularity Feedback" not in prompt
+
+    def test_appends_granularity_feedback(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        ctx.config["granularity_feedback"] = "Split prd:req-42-1-1 into smaller parts."
+        prompt = phase.build_prompt(ctx)
+        assert prompt.endswith(
+            "## Granularity Feedback (MUST address)\n"
+            "Split prd:req-42-1-1 into smaller parts."
+        )
+
+    def test_feedback_empty_string_not_appended(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        ctx.config["granularity_feedback"] = ""
+        prompt = phase.build_prompt(ctx)
+        assert "Granularity Feedback" not in prompt
 
 
 # ===================================================================
@@ -385,3 +405,614 @@ class TestValidateOutputBlocking:
 
         with pytest.raises(ValueError, match="P6 granularity gate failed"):
             phase.validate_output(ctx, parsed)
+
+
+# ===================================================================
+# _MockP6Phase helper (prd:req-64-4-4)
+# ===================================================================
+
+
+class _MockP6Phase(P6Phase):
+    """P6Phase subclass with controllable Turtle output per attempt.
+
+    Accepts a list of Turtle strings.  On each ``run_claude`` call the
+    next entry is written to the work directory, allowing tests to
+    simulate a sequence of coarse → fine outputs across retries without
+    ``unittest.mock.patch``.
+    """
+
+    def __init__(
+        self,
+        turtle_per_attempt: list[str],
+        summary: str = "# Summary\n",
+    ) -> None:
+        super().__init__()
+        self._turtle_per_attempt = list(turtle_per_attempt)
+        self._summary = summary
+        self._call_count = 0
+        self.captured_prompts: list[str] = []
+
+    @property
+    def call_count(self) -> int:
+        return self._call_count
+
+    def run_claude(
+        self,
+        ctx: PhaseContext,
+        prompt: str,
+        tools: list[dict[str, Any]],
+    ) -> ClaudeResult:
+        self.captured_prompts.append(prompt)
+        idx = min(self._call_count, len(self._turtle_per_attempt) - 1)
+        turtle_text = self._turtle_per_attempt[idx]
+        self._call_count += 1
+
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(turtle_text)
+        (ctx.work_dir / "p6-prd-summary.md").write_text(self._summary)
+        return ClaudeResult(exit_code=0, output_text="done", cost_usd=0.1)
+
+
+# ===================================================================
+# TestExecuteRetryLoop (prd:req-64-4-1)
+# ===================================================================
+
+
+FINE_TURTLE = """\
+@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+prd:req-42-1-1 a prd:Requirement ;
+    prd:taskId "1.1" ;
+    prd:title "First task" ;
+    prd:description "Implement the first component" ;
+    prd:status prd:Pending ;
+    prd:files "src/a.py" ;
+    prd:relatedADR "arch:adr-42-1" ;
+    prd:qualityFocus "Maintainability" .
+
+prd:req-42-1-2 a prd:Requirement ;
+    prd:taskId "1.2" ;
+    prd:title "Second task" ;
+    prd:description "Implement the second component" ;
+    prd:status prd:Pending ;
+    prd:files "src/b.py" ;
+    prd:relatedADR "arch:adr-42-1" ;
+    prd:qualityFocus "Correctness" .
+"""
+
+
+class TestExecuteRetryLoop:
+    """P6Phase.execute() retries on validation failure with granularity feedback."""
+
+    def test_success_after_one_retry(self, ctx: PhaseContext) -> None:
+        """First run_claude produces coarse Turtle, second produces fine: SUCCESS after 1 retry."""
+        call_count = 0
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            nonlocal call_count
+            call_count += 1
+            turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
+            summary_file = ctx_.work_dir / "p6-prd-summary.md"
+            if call_count == 1:
+                turtle_file.write_text(SAMPLE_TURTLE_COARSE)
+            else:
+                turtle_file.write_text(FINE_TURTLE)
+            summary_file.write_text("# Summary\n")
+            return ClaudeResult(exit_code=0, output_text="done", cost_usd=0.1)
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert result.data is not None
+        assert result.data.granularity_passed is True
+        assert call_count == 2
+        assert result.metadata.get("attempts") == 2
+
+    def test_fails_after_retries_exhausted(self, ctx: PhaseContext) -> None:
+        """All attempts produce coarse Turtle: FAILURE after retries exhausted."""
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
+            summary_file = ctx_.work_dir / "p6-prd-summary.md"
+            turtle_file.write_text(SAMPLE_TURTLE_COARSE)
+            summary_file.write_text("# Summary\n")
+            return ClaudeResult(exit_code=0, output_text="done")
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.FAILURE
+        assert "granularity gate failed" in (result.error or "")
+
+    def test_no_retry_on_parse_error(self, ctx: PhaseContext) -> None:
+        """ParseError is not retried — immediate FAILURE."""
+        call_count = 0
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            nonlocal call_count
+            call_count += 1
+            # Do NOT write the turtle file — triggers ParseError
+            return ClaudeResult(exit_code=0, output_text="done")
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 2
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.FAILURE
+        assert "parsing failed" in (result.error or "").lower()
+        assert call_count == 1  # No retry
+
+    def test_no_retry_on_timeout(self, ctx: PhaseContext) -> None:
+        """TimeoutError is not retried — immediate TIMEOUT."""
+        call_count = 0
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            nonlocal call_count
+            call_count += 1
+            raise TimeoutError("timed out")
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 2
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.TIMEOUT
+        assert call_count == 1  # No retry
+
+    def test_default_max_retries_is_one(self, ctx: PhaseContext) -> None:
+        """Default max_granularity_retries is 1 when not in config."""
+        call_count = 0
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            nonlocal call_count
+            call_count += 1
+            turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
+            summary_file = ctx_.work_dir / "p6-prd-summary.md"
+            turtle_file.write_text(SAMPLE_TURTLE_COARSE)
+            summary_file.write_text("# Summary\n")
+            return ClaudeResult(exit_code=0, output_text="done")
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        # Do NOT set max_granularity_retries — should default to 1
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.FAILURE
+        assert call_count == 2  # 1 initial + 1 retry
+
+    def test_feedback_injected_on_retry(self, ctx: PhaseContext) -> None:
+        """On retry, granularity feedback is injected into the prompt."""
+        prompts: list[str] = []
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            prompts.append(prompt)
+            turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
+            summary_file = ctx_.work_dir / "p6-prd-summary.md"
+            if len(prompts) == 1:
+                turtle_file.write_text(SAMPLE_TURTLE_COARSE)
+            else:
+                turtle_file.write_text(FINE_TURTLE)
+            summary_file.write_text("# Summary\n")
+            return ClaudeResult(exit_code=0, output_text="done")
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert len(prompts) == 2
+        # First prompt should NOT have feedback
+        assert "Granularity Feedback" not in prompts[0]
+        # Second prompt SHOULD have feedback
+        assert "Granularity Feedback" in prompts[1]
+        assert "too coarse" in prompts[1]
+
+    def test_first_attempt_succeeds_no_retry(self, ctx: PhaseContext) -> None:
+        """Fine Turtle on first attempt — SUCCESS without retry."""
+        call_count = 0
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            nonlocal call_count
+            call_count += 1
+            turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
+            summary_file = ctx_.work_dir / "p6-prd-summary.md"
+            turtle_file.write_text(FINE_TURTLE)
+            summary_file.write_text("# Summary\n")
+            return ClaudeResult(exit_code=0, output_text="done")
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert call_count == 1
+        assert result.metadata.get("attempts") == 1
+
+
+# ===================================================================
+# TestGroupFilesByDirectory (helper, prd:req-64-4-2)
+# ===================================================================
+
+
+class TestGroupFilesByDirectory:
+    """_group_files_by_directory() groups file paths by parent directory."""
+
+    def test_groups_by_dir(self) -> None:
+        files = ["src/a.py", "src/b.py", "lib/c.py"]
+        result = _group_files_by_directory(files)
+        assert result == {"src": ["a.py", "b.py"], "lib": ["c.py"]}
+
+    def test_bare_files_use_dot(self) -> None:
+        files = ["a.py", "b.py"]
+        result = _group_files_by_directory(files)
+        assert result == {".": ["a.py", "b.py"]}
+
+    def test_empty_list(self) -> None:
+        assert _group_files_by_directory([]) == {}
+
+    def test_nested_dirs(self) -> None:
+        files = ["src/core/a.py", "src/core/b.py", "src/cli/c.py"]
+        result = _group_files_by_directory(files)
+        assert result == {"src/core": ["a.py", "b.py"], "src/cli": ["c.py"]}
+
+
+# ===================================================================
+# TestBuildGranularityFeedback (prd:req-64-4-2)
+# ===================================================================
+
+
+COARSE_MULTI_DIR_TURTLE = """\
+@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+prd:req-42-1-1 a prd:Requirement ;
+    prd:taskId "1.1" ;
+    prd:title "Bootstrap Everything" ;
+    prd:description "Create files" ;
+    prd:status prd:Pending ;
+    prd:files "src/core/a.py, src/core/b.ts, src/cli/c.go, lib/d.rs" ;
+    prd:relatedADR "arch:adr-42-1" ;
+    prd:qualityFocus "Maintainability" .
+"""
+
+
+class TestBuildGranularityFeedback:
+    """P6Phase._build_granularity_feedback() returns Template A markdown with metrics and split plans."""
+
+    def test_returns_empty_for_no_coarse(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        """When there are no coarse requirements, returns empty string."""
+        parsed = P6Output(
+            turtle_file=ctx.work_dir / "p6-prd-export.ttl",
+            summary_file=ctx.work_dir / "p6-prd-summary.md",
+            requirements_exported=1,
+            prd_context="prd-idea-42",
+            coarse_requirements=[],
+            granularity_passed=True,
+        )
+        result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
+        assert phase._build_granularity_feedback(result) == ""
+
+    def test_returns_empty_for_none_data(self, phase: P6Phase) -> None:
+        """When result.data is None, returns empty string."""
+        result = PhaseResult(status=PhaseStatus.FAILURE, data=None)
+        assert phase._build_granularity_feedback(result) == ""
+
+    def test_contains_specific_metrics(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        """Feedback includes file count, wpf, and word count for each coarse requirement."""
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(COARSE_MULTI_DIR_TURTLE)
+        parsed = P6Output(
+            turtle_file=ctx.work_dir / "p6-prd-export.ttl",
+            summary_file=ctx.work_dir / "p6-prd-summary.md",
+            requirements_exported=1,
+            prd_context="prd-idea-42",
+            coarse_requirements=[{
+                "requirement": "prd:req-42-1-1",
+                "file_count": 4,
+                "word_count": 2,
+                "wpf": 0.5,
+                "homogeneous": False,
+            }],
+            granularity_passed=False,
+        )
+        result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
+        feedback = phase._build_granularity_feedback(result)
+
+        assert "prd:req-42-1-1" in feedback
+        assert "**Files**: 4" in feedback
+        assert "**Words-per-file (wpf)**: 0.5" in feedback
+        assert "**Total description words**: 2" in feedback
+
+    def test_contains_directory_split_suggestions(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        """Feedback groups files by directory and suggests split boundaries."""
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(COARSE_MULTI_DIR_TURTLE)
+        parsed = P6Output(
+            turtle_file=ctx.work_dir / "p6-prd-export.ttl",
+            summary_file=ctx.work_dir / "p6-prd-summary.md",
+            requirements_exported=1,
+            prd_context="prd-idea-42",
+            coarse_requirements=[{
+                "requirement": "prd:req-42-1-1",
+                "file_count": 4,
+                "word_count": 2,
+                "wpf": 0.5,
+                "homogeneous": False,
+            }],
+            granularity_passed=False,
+        )
+        result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
+        feedback = phase._build_granularity_feedback(result)
+
+        assert "Suggested splits by directory" in feedback
+        assert "`lib/`" in feedback
+        assert "`src/cli/`" in feedback
+        assert "`src/core/`" in feedback
+
+    def test_contains_critic_instructions(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        """Feedback includes CRITIC framework splitting instructions."""
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(COARSE_MULTI_DIR_TURTLE)
+        parsed = P6Output(
+            turtle_file=ctx.work_dir / "p6-prd-export.ttl",
+            summary_file=ctx.work_dir / "p6-prd-summary.md",
+            requirements_exported=1,
+            prd_context="prd-idea-42",
+            coarse_requirements=[{
+                "requirement": "prd:req-42-1-1",
+                "file_count": 4,
+                "word_count": 2,
+                "wpf": 0.5,
+                "homogeneous": False,
+            }],
+            granularity_passed=False,
+        )
+        result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
+        feedback = phase._build_granularity_feedback(result)
+
+        assert "Action required" in feedback
+        assert "at most **3 files**" in feedback
+        assert "12 words per file" in feedback
+        assert "single directory" in feedback
+        assert "prd:dependsOn" in feedback
+
+    def test_header_present(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        """Feedback starts with a header about coarse requirements."""
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(COARSE_MULTI_DIR_TURTLE)
+        parsed = P6Output(
+            turtle_file=ctx.work_dir / "p6-prd-export.ttl",
+            summary_file=ctx.work_dir / "p6-prd-summary.md",
+            requirements_exported=1,
+            prd_context="prd-idea-42",
+            coarse_requirements=[{
+                "requirement": "prd:req-42-1-1",
+                "file_count": 4,
+                "word_count": 2,
+                "wpf": 0.5,
+                "homogeneous": False,
+            }],
+            granularity_passed=False,
+        )
+        result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
+        feedback = phase._build_granularity_feedback(result)
+
+        assert feedback.startswith("The following requirements are **too coarse**")
+
+    def test_well_formed_markdown(self, phase: P6Phase, ctx: PhaseContext) -> None:
+        """Feedback is well-formed markdown with headers and bullet points."""
+        (ctx.work_dir / "p6-prd-export.ttl").write_text(COARSE_MULTI_DIR_TURTLE)
+        parsed = P6Output(
+            turtle_file=ctx.work_dir / "p6-prd-export.ttl",
+            summary_file=ctx.work_dir / "p6-prd-summary.md",
+            requirements_exported=1,
+            prd_context="prd-idea-42",
+            coarse_requirements=[{
+                "requirement": "prd:req-42-1-1",
+                "file_count": 4,
+                "word_count": 2,
+                "wpf": 0.5,
+                "homogeneous": False,
+            }],
+            granularity_passed=False,
+        )
+        result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
+        feedback = phase._build_granularity_feedback(result)
+
+        # Should have markdown headers
+        assert "### prd:req-42-1-1" in feedback
+        # Should have bullet points
+        assert "- **Files**:" in feedback
+        assert "- **Suggested splits" in feedback
+        assert "- **Action required**:" in feedback
+
+    def test_execute_uses_template_a_feedback(self, ctx: PhaseContext) -> None:
+        """On retry, execute() injects Template A feedback (not raw exception text)."""
+        prompts: list[str] = []
+
+        def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
+            prompts.append(prompt)
+            turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
+            summary_file = ctx_.work_dir / "p6-prd-summary.md"
+            if len(prompts) == 1:
+                turtle_file.write_text(COARSE_MULTI_DIR_TURTLE)
+            else:
+                turtle_file.write_text(FINE_TURTLE)
+            summary_file.write_text("# Summary\n")
+            return ClaudeResult(exit_code=0, output_text="done", cost_usd=0.1)
+
+        phase = P6Phase()
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        with patch.object(phase, "run_claude", side_effect=_side_effect):
+            result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert len(prompts) == 2
+        # Second prompt should contain Template A feedback elements
+        assert "Suggested splits by directory" in prompts[1]
+        assert "Action required" in prompts[1]
+        assert "Words-per-file" in prompts[1]
+
+
+# ===================================================================
+# TestRetryMechanism — _MockP6Phase-based (prd:req-64-4-4)
+# ===================================================================
+
+
+class TestRetryMechanism:
+    """End-to-end retry tests using _MockP6Phase (controllable Turtle per attempt)."""
+
+    def test_succeeds_without_retry(self, ctx: PhaseContext) -> None:
+        """Fine Turtle on the first attempt — succeeds with no retry."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 2
+
+        phase = _MockP6Phase(turtle_per_attempt=[FINE_TURTLE])
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert result.data is not None
+        assert result.data.granularity_passed is True
+        assert phase.call_count == 1
+        assert result.metadata.get("attempts") == 1
+
+    def test_retries_on_coarse_then_succeeds(self, ctx: PhaseContext) -> None:
+        """First attempt coarse, second fine — succeeds after 1 retry."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        phase = _MockP6Phase(turtle_per_attempt=[SAMPLE_TURTLE_COARSE, FINE_TURTLE])
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert result.data is not None
+        assert result.data.granularity_passed is True
+        assert phase.call_count == 2
+        assert result.metadata.get("attempts") == 2
+
+    def test_fails_after_exhaustion(self, ctx: PhaseContext) -> None:
+        """All attempts produce coarse Turtle — failure after retries exhausted."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        phase = _MockP6Phase(
+            turtle_per_attempt=[SAMPLE_TURTLE_COARSE, SAMPLE_TURTLE_COARSE]
+        )
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.FAILURE
+        assert "granularity gate failed" in (result.error or "")
+        assert phase.call_count == 2
+
+    def test_feedback_appended_to_prompt(self, ctx: PhaseContext) -> None:
+        """On retry, granularity feedback is appended to the rebuilt prompt."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        phase = _MockP6Phase(turtle_per_attempt=[SAMPLE_TURTLE_COARSE, FINE_TURTLE])
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert len(phase.captured_prompts) == 2
+        # First prompt has no feedback
+        assert "Granularity Feedback" not in phase.captured_prompts[0]
+        # Second prompt carries the feedback section
+        assert "Granularity Feedback" in phase.captured_prompts[1]
+        assert "too coarse" in phase.captured_prompts[1]
+        assert "prd:req-42-1-1" in phase.captured_prompts[1]
+
+    def test_multiple_retries_before_success(self, ctx: PhaseContext) -> None:
+        """With max_retries=2, two coarse then fine — succeeds on third attempt."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 2
+
+        phase = _MockP6Phase(
+            turtle_per_attempt=[
+                SAMPLE_TURTLE_COARSE,
+                SAMPLE_TURTLE_COARSE,
+                FINE_TURTLE,
+            ]
+        )
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert phase.call_count == 3
+        assert result.metadata.get("attempts") == 3
+        # Feedback present in 2nd and 3rd prompts
+        assert "Granularity Feedback" not in phase.captured_prompts[0]
+        assert "Granularity Feedback" in phase.captured_prompts[1]
+        assert "Granularity Feedback" in phase.captured_prompts[2]
+
+
+# ===================================================================
+# TestBuildGranularityFeedbackViaMock (prd:req-64-4-4)
+# ===================================================================
+
+
+class TestBuildGranularityFeedbackViaMock:
+    """Verify feedback content via _MockP6Phase retry: flagged reqs, metrics, split plan."""
+
+    def test_feedback_includes_flagged_requirements(self, ctx: PhaseContext) -> None:
+        """Retry feedback names the specific coarse requirement IDs."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        phase = _MockP6Phase(
+            turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE]
+        )
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        retry_prompt = phase.captured_prompts[1]
+        assert "prd:req-42-1-1" in retry_prompt
+
+    def test_feedback_includes_metrics(self, ctx: PhaseContext) -> None:
+        """Retry feedback includes file count, wpf, and word count metrics."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        phase = _MockP6Phase(
+            turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE]
+        )
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        retry_prompt = phase.captured_prompts[1]
+        assert "**Files**:" in retry_prompt
+        assert "**Words-per-file (wpf)**:" in retry_prompt
+        assert "**Total description words**:" in retry_prompt
+
+    def test_feedback_includes_split_plan(self, ctx: PhaseContext) -> None:
+        """Retry feedback includes directory-based split suggestions."""
+        ctx.config["claude_port"] = MockClaudeAdapter()
+        ctx.config["max_granularity_retries"] = 1
+
+        phase = _MockP6Phase(
+            turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE]
+        )
+        result = phase.execute(ctx)
+
+        assert result.status == PhaseStatus.SUCCESS
+        retry_prompt = phase.captured_prompts[1]
+        assert "Suggested splits by directory" in retry_prompt
+        assert "Action required" in retry_prompt
+        assert "prd:dependsOn" in retry_prompt
