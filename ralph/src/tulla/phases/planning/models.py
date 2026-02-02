@@ -6,7 +6,7 @@ from dataclasses import dataclass as _dc_dataclass
 from pathlib import Path
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class PlanningInput(BaseModel):
     """Input parameters for a planning phase run."""
@@ -79,6 +79,8 @@ class P4Output(BaseModel):
     schedule_file: Path
     phase_count: int
     estimated_tasks: int
+    coarse_tasks: list[dict[str, Any]] = Field(default_factory=list)
+    granularity_passed: bool = True
 
 
 class P5Input(BaseModel):
@@ -117,3 +119,5 @@ class P6Output(BaseModel):
     summary_file: Path
     requirements_exported: int
     prd_context: str
+    adr_links: int = 0
+    quality_links: int = 0
