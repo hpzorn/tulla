@@ -1,7 +1,12 @@
 """Live SHACL validation: LightweightTraceResult through PhaseFactPersister.
 
-# @pattern:PortsAndAdapters -- Tests exercise the real OntologyMCPAdapter through OntologyPort to validate triples against ontology-server SHACL engine
-# @principle:DependencyInversion -- PhaseFactPersister depends on OntologyPort ABC; live adapter injected at test boundary
+# @pattern:PortsAndAdapters -- Tests inject OntologyMCPAdapter through OntologyPort ABC so the persister never knows the concrete adapter
+# @principle:DependencyInversion -- PhaseFactPersister constructor accepts OntologyPort; live vs. wrapper adapter chosen at test boundary
+# @pattern:MVC -- LightweightTraceResult (Model) validated independently of phase controllers and CLI view layer
+# @pattern:LayeredArchitecture -- Test imports cross layers: models (domain), phase_facts (core), ontology port (ports), adapter (infra)
+# @principle:SeparationOfConcerns -- Helper _make_trace_result isolates test-data construction from persistence and validation assertions
+# @principle:InformationHiding -- get_shape_for_phase hides the SHACL registry lookup; tests never reference shape URIs directly
+# @principle:LooseCoupling -- _FailingValidationWrapper delegates all calls except validate_instance, proving persister has no hidden adapter dependencies
 # @quality:Testability -- @pytest.mark.manual marker allows CI to skip server-dependent tests while enabling explicit local validation
 
 Verification criteria (prd:req-53-5-3):
@@ -312,10 +317,7 @@ class TestLiveSHACLValidation:
         ontology: OntologyPort,
     ) -> None:
         """PhaseFactPersister rolls back triples when validate_instance reports
-        non-conformance. Uses a thin wrapper to inject a validation failure.
-
-        # @principle:LooseCoupling -- Wrapper intercepts only validate_instance; all other calls pass through to the live adapter
-        """
+        non-conformance. Uses a thin wrapper to inject a validation failure."""
 
         class _FailingValidationWrapper(OntologyPort):
             """Delegates all calls to the real adapter except validate_instance,
