@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tulla.adapters.ontology_mcp import OntologyMCPAdapter
 from tulla.config import TullaConfig
 from tulla.core.pipeline import Pipeline
 
@@ -61,6 +62,8 @@ def research_pipeline(
         ("r6", R6Phase()),
     ]
 
+    ontology_port = OntologyMCPAdapter(base_url=config.ontology_server_url)
+
     return Pipeline(
         phases=phases,
         claude_port=claude_port,
@@ -71,6 +74,7 @@ def research_pipeline(
             "discovery_dir": discovery_dir,
             "permission_mode": config.research.permission_mode,
             "phase_timeouts": config.research.phase_timeouts,
+            "ontology_port": ontology_port,
         },
         total_budget_usd=config.research.budget_usd,
     )
