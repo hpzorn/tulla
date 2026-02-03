@@ -151,7 +151,7 @@ def _build_pipeline(
             change_description=description,
         )
 
-    # Implementation uses a loop, not a pipeline — handled separately in run()
+    # @principle:OpenClosedPrinciple -- _build_pipeline() is open for new agents via elif branches without modifying existing wiring
     raise click.ClickException(
         f"Agent '{agent}' pipeline is not yet implemented. "
         f"Available: discovery, planning, research, implementation, epistemology, lightweight"
