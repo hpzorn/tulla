@@ -1,40 +1,88 @@
 @prefix phase: <http://impl-ralph.io/phase#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix trace: <http://impl-ralph.io/trace#> .
-@prefix sh:    <http://www.w3.org/ns/shacl#> .
-@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
-
-# =============================================================================
-# Phase Output Ontology
-# Vocabulary for phase outputs, preservation links, and SHACL validation shapes.
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Classes
-# -----------------------------------------------------------------------------
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 phase:PhaseOutput a rdfs:Class ;
     rdfs:label "Phase Output" ;
     rdfs:comment "An output produced by a pipeline phase." .
 
-# -----------------------------------------------------------------------------
-# Properties
-# -----------------------------------------------------------------------------
+phase:53-d5 a phase:PhaseOutput ;
+    phase:forRequirement "53" ;
+    phase:preserves-mode "upstream" ;
+    phase:preserves-recommendation "research" ;
+    phase:producedBy "d5" .
 
-phase:preserves a rdf:Property ;
-    rdfs:label "preserves" ;
-    rdfs:comment "Generic superproperty for intent-preserving fields." ;
-    rdfs:domain phase:PhaseOutput .
+phase:53-p3 a phase:PhaseOutput ;
+    phase:forRequirement "53" ;
+    phase:preserves-circular_dependencies "0" ;
+    phase:preserves-total_dependencies "3" ;
+    phase:producedBy "p3" .
 
-phase:producedBy a rdf:Property ;
-    rdfs:label "produced by" ;
-    rdfs:comment "Links a phase output to the phase that produced it." ;
-    rdfs:domain phase:PhaseOutput .
+phase:53-r5 a phase:PhaseOutput ;
+    phase:forRequirement "53" ;
+    phase:preserves-experiments_passed "4" ;
+    phase:preserves-experiments_run "4" ;
+    phase:producedBy "r5" .
+
+phase:D5OutputShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path phase:producedBy ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-mode ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-recommendation ] ;
+    sh:targetClass phase:PhaseOutput .
+
+phase:P3OutputShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path phase:producedBy ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-total_dependencies ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-circular_dependencies ] ;
+    sh:targetClass phase:PhaseOutput .
+
+phase:R5OutputShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path phase:producedBy ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-experiments_run ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-experiments_passed ] ;
+    sh:targetClass phase:PhaseOutput .
+
+phase:LWTraceOutputShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path phase:producedBy ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-change_type ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-affected_files ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-conformance_assertion ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-commit_ref ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-change_summary ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-timestamp ] ;
+    sh:targetClass phase:PhaseOutput .
 
 phase:forRequirement a rdf:Property ;
     rdfs:label "for requirement" ;
     rdfs:comment "Links a phase output to the idea or requirement it addresses." ;
+    rdfs:domain phase:PhaseOutput .
+
+phase:preserves a rdf:Property ;
+    rdfs:label "preserves" ;
+    rdfs:comment "Generic superproperty for intent-preserving fields." ;
     rdfs:domain phase:PhaseOutput .
 
 trace:tracesTo a rdf:Property ;
@@ -43,60 +91,8 @@ trace:tracesTo a rdf:Property ;
     rdfs:domain phase:PhaseOutput ;
     rdfs:range phase:PhaseOutput .
 
-# -----------------------------------------------------------------------------
-# SHACL Shapes — Open (no sh:closed true)
-# -----------------------------------------------------------------------------
+phase:producedBy a rdf:Property ;
+    rdfs:label "produced by" ;
+    rdfs:comment "Links a phase output to the phase that produced it." ;
+    rdfs:domain phase:PhaseOutput .
 
-# -- D5 (Discovery) Shape ----------------------------------------------------
-
-phase:D5OutputShape a sh:NodeShape ;
-    sh:targetClass phase:PhaseOutput ;
-    sh:property [
-        sh:path phase:producedBy ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-    ] ;
-    sh:property [
-        sh:path phase:preserves-mode ;
-        sh:minCount 1 ;
-    ] ;
-    sh:property [
-        sh:path phase:preserves-recommendation ;
-        sh:minCount 1 ;
-    ] .
-
-# -- R5 (Research) Shape ------------------------------------------------------
-
-phase:R5OutputShape a sh:NodeShape ;
-    sh:targetClass phase:PhaseOutput ;
-    sh:property [
-        sh:path phase:producedBy ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-    ] ;
-    sh:property [
-        sh:path phase:preserves-experiments_run ;
-        sh:minCount 1 ;
-    ] ;
-    sh:property [
-        sh:path phase:preserves-experiments_passed ;
-        sh:minCount 1 ;
-    ] .
-
-# -- P3 (Planning) Shape -----------------------------------------------------
-
-phase:P3OutputShape a sh:NodeShape ;
-    sh:targetClass phase:PhaseOutput ;
-    sh:property [
-        sh:path phase:producedBy ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-    ] ;
-    sh:property [
-        sh:path phase:preserves-total_dependencies ;
-        sh:minCount 1 ;
-    ] ;
-    sh:property [
-        sh:path phase:preserves-circular_dependencies ;
-        sh:minCount 1 ;
-    ] .
