@@ -9,6 +9,8 @@ from typing import Any
 
 from tulla.core.checkpoint import CheckpointStore
 from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase_facts import PhaseFactPersister, collect_upstream_facts
+from tulla.ports.ontology import OntologyPort
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +72,18 @@ class Pipeline:
         self._checkpoint = CheckpointStore(work_dir)
         self._logger = logging.getLogger(__name__)
 
+        # Derive ordered phase-id sequence for upstream fact collection.
+        self._phase_sequence: list[str] = [pid for pid, _ in phases]
+
+        # Conditionally create persister when an ontology_port is available.
+        ontology_port = self._config.get("ontology_port")
+        if ontology_port is not None and isinstance(ontology_port, OntologyPort):
+            self._persister: PhaseFactPersister | None = PhaseFactPersister(
+                ontology_port,
+            )
+        else:
+            self._persister = None
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -81,12 +95,25 @@ class Pipeline:
         are loaded instead).  Execution stops immediately when a phase
         returns a non-SUCCESS status.
 
+        Pre-phase hook (when persister active): collects upstream facts
+        and injects them into the phase config as ``"upstream_facts"``.
+
+        Post-phase hook (when persister active): persists intent-annotated
+        fields to the ontology after a successful execute but before
+        checkpoint save.  If SHACL validation rolls back, the phase is
+        marked FAILURE and the pipeline stops.
+
         Returns a :class:`PipelineResult` summarising the run.
         """
         result = PipelineResult()
         budget_remaining = self._total_budget_usd
         skipping = start_from is not None
         prev_output: Any = None
+        predecessor_phase_id: str | None = None
+        ontology_port = self._config.get("ontology_port")
+        shape_registry: dict[str, str] = self._config.get(
+            "shape_registry", {},
+        )
 
         for phase_id, phase in self._phases:
             # --- Skip phases before start_from --------------------------
@@ -109,6 +136,16 @@ class Pipeline:
                 result.final_status = PhaseStatus.FAILURE
                 break
 
+            # --- Pre-phase hook: collect upstream facts -----------------
+            upstream_facts: list[dict[str, Any]] = []
+            if self._persister is not None and ontology_port is not None:
+                upstream_facts = collect_upstream_facts(
+                    ontology_port,
+                    self._idea_id,
+                    self._phase_sequence,
+                    phase_id,
+                )
+
             # --- Build context ------------------------------------------
             ctx = PhaseContext(
                 idea_id=self._idea_id,
@@ -117,6 +154,7 @@ class Pipeline:
                     **self._config,
                     "claude_port": self._claude_port,
                     "prev_output": prev_output,
+                    "upstream_facts": upstream_facts,
                 },
                 budget_remaining_usd=budget_remaining,
                 logger=self._logger,
@@ -130,6 +168,35 @@ class Pipeline:
             cost = phase_result.metadata.get("cost_usd", 0.0)
             result.total_cost_usd += cost
             budget_remaining -= cost
+
+            # --- Post-phase hook: persist facts -------------------------
+            if (
+                self._persister is not None
+                and phase_result.status == PhaseStatus.SUCCESS
+            ):
+                shacl_shape_id = shape_registry.get(phase_id)
+                persist_result = self._persister.persist(
+                    idea_id=self._idea_id,
+                    phase_id=phase_id,
+                    phase_result=phase_result,
+                    predecessor_phase_id=predecessor_phase_id,
+                    shacl_shape_id=shacl_shape_id,
+                )
+                if persist_result.rolled_back:
+                    self._logger.warning(
+                        "Phase %s facts rolled back — marking FAILURE",
+                        phase_id,
+                    )
+                    phase_result.status = PhaseStatus.FAILURE
+                    self._checkpoint.save(
+                        phase_id, phase_result.to_dict(),
+                    )
+                    result.final_status = PhaseStatus.FAILURE
+                    break
+                # Track predecessor only after a successful persist that
+                # actually stored facts.
+                if persist_result.stored_count > 0:
+                    predecessor_phase_id = phase_id
 
             # --- Save checkpoint ----------------------------------------
             self._checkpoint.save(phase_id, phase_result.to_dict())
