@@ -31,7 +31,7 @@ from tulla.infrastructure.logging import configure_logging
 # Valid agent names and their default modes
 # ---------------------------------------------------------------------------
 
-AGENTS = ("discovery", "planning", "research", "implementation", "epistemology")
+AGENTS = ("discovery", "planning", "research", "implementation", "epistemology", "lightweight")
 
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
@@ -52,6 +52,7 @@ def _build_pipeline(
     mode: str | None,
     discovery_dir: str | None = None,
     research_dir: str | None = None,
+    description: str = "",
 ) -> Pipeline:
     """Create the appropriate pipeline for *agent*.
 
@@ -138,10 +139,22 @@ def _build_pipeline(
             total_budget_usd=config.epistemology.budget_usd,
         )
 
+    # @pattern:Plugin -- Lightweight agent registered via elif branch; same factory contract as other agents
+    if agent == "lightweight":
+        from tulla.phases.lightweight.pipeline import lightweight_pipeline
+
+        return lightweight_pipeline(
+            claude_port=claude_port,
+            work_dir=work_dir,
+            idea_id=idea_str,
+            config=config,
+            change_description=description,
+        )
+
     # Implementation uses a loop, not a pipeline — handled separately in run()
     raise click.ClickException(
         f"Agent '{agent}' pipeline is not yet implemented. "
-        f"Available: discovery, planning, research, implementation, epistemology"
+        f"Available: discovery, planning, research, implementation, epistemology, lightweight"
     )
 
 
@@ -298,23 +311,24 @@ def _report_result(result: PipelineResult) -> int:
 # ---------------------------------------------------------------------------
 
 
+_DEFAULT_CONFIG_PATH = Path.home() / ".tulla" / "config.yaml"
+
+
 @click.group()
 @click.option(
     "--config",
     "config_path",
     type=click.Path(exists=False),
     default=None,
-    help="Path to a YAML configuration file.",
+    help="Path to a YAML configuration file (default: ~/.tulla/config.yaml).",
 )
 @click.pass_context
 def main(ctx: click.Context, config_path: str | None) -> None:
     """Tulla — ontology-driven idea hygiene and lifecycle agent."""
     ctx.ensure_object(dict)
 
-    if config_path:
-        ctx.obj["config"] = TullaConfig.from_yaml(config_path)
-    else:
-        ctx.obj["config"] = TullaConfig()
+    path = Path(config_path) if config_path else _DEFAULT_CONFIG_PATH
+    ctx.obj["config"] = TullaConfig.from_yaml(path)
 
 
 @main.command()
@@ -366,6 +380,12 @@ def main(ctx: click.Context, config_path: str | None) -> None:
     help="Research output directory (R1-R6 artifacts).",
 )
 @click.option(
+    "--description",
+    type=str,
+    default="",
+    help="Change description (used by the lightweight agent).",
+)
+@click.option(
     "--verbose", "-v",
     is_flag=True,
     default=False,
@@ -382,11 +402,12 @@ def run(
     work_dir: str | None,
     discovery_dir: str | None,
     research_dir: str | None,
+    description: str,
     verbose: bool,
 ) -> None:
     """Run an agent pipeline for a given idea.
 
-    AGENT is one of: discovery, planning, research, implementation, epistemology.
+    AGENT is one of: discovery, planning, research, implementation, epistemology, lightweight.
     """
     config: TullaConfig = ctx.obj["config"]
 
@@ -430,6 +451,7 @@ def run(
         mode=mode,
         discovery_dir=discovery_dir,
         research_dir=research_dir,
+        description=description,
     )
 
     # Dry-run: show plan and exit
