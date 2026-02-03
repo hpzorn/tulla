@@ -1,11 +1,14 @@
-"""Phase fact persistence: dataclasses and persister.
+"""Phase fact persistence: dataclasses, persister, and upstream collection.
 
 Provides :class:`PersistResult` — the return type used by the persister to
 communicate what happened during a persist-validate-rollback cycle — and
 :class:`PhaseFactPersister` which orchestrates the extraction, storage,
 validation, and optional rollback of intent-annotated phase output fields.
 
-Architecture decisions: arch:adr-67-1, arch:adr-67-2
+Also provides :func:`collect_upstream_facts` for iterative traversal of
+prior-phase facts (arch:adr-67-4).
+
+Architecture decisions: arch:adr-67-1, arch:adr-67-2, arch:adr-67-4
 """
 
 from __future__ import annotations
@@ -209,3 +212,52 @@ class PhaseFactPersister:
             )
 
         return PersistResult(stored_count=stored)
+
+
+def collect_upstream_facts(
+    ontology_port: OntologyPort,
+    idea_id: str,
+    phase_sequence: list[str],
+    current_phase_id: str,
+) -> list[dict[str, Any]]:
+    """Collect facts from all phases preceding *current_phase_id*.
+
+    Iterates over *phase_sequence* up to (but not including)
+    *current_phase_id*, calling ``recall_facts`` for each prior phase
+    using the context ``phase-idea-{idea_id}-{pid}``.
+
+    Returns a flat list of recalled fact dicts ordered by phase sequence.
+    If *current_phase_id* is the first phase or is not found in the
+    sequence, an empty list is returned.
+
+    Exceptions raised by ``recall_facts`` for any individual phase are
+    logged as warnings and skipped so that one failing phase does not
+    block downstream collection (arch:adr-67-4).
+    """
+    try:
+        current_idx = phase_sequence.index(current_phase_id)
+    except ValueError:
+        logger.warning(
+            "current_phase_id %r not found in phase_sequence — "
+            "returning empty upstream facts",
+            current_phase_id,
+        )
+        return []
+
+    if current_idx == 0:
+        return []
+
+    all_facts: list[dict[str, Any]] = []
+    for pid in phase_sequence[:current_idx]:
+        context = f"phase-idea-{idea_id}-{pid}"
+        try:
+            result = ontology_port.recall_facts(context=context)
+        except Exception as exc:
+            logger.warning(
+                "recall_facts failed for context %s: %s", context, exc,
+            )
+            continue
+        facts = result.get("facts", [])
+        all_facts.extend(facts)
+
+    return all_facts
