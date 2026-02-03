@@ -6,7 +6,8 @@ communicate what happened during a persist-validate-rollback cycle — and
 validation, and optional rollback of intent-annotated phase output fields.
 
 Also provides :func:`collect_upstream_facts` for iterative traversal of
-prior-phase facts (arch:adr-67-4).
+prior-phase facts, and :func:`traverse_chain` for link-following traversal
+of ``trace:tracesTo`` chains (arch:adr-67-4).
 
 Architecture decisions: arch:adr-67-1, arch:adr-67-2, arch:adr-67-4
 """
@@ -261,3 +262,100 @@ def collect_upstream_facts(
         all_facts.extend(facts)
 
     return all_facts
+
+
+_TRAVERSE_MAX_DEPTH = 20
+
+
+def traverse_chain(
+    ontology_port: OntologyPort,
+    idea_id: str,
+    phase_id: str,
+    *,
+    max_depth: int = _TRAVERSE_MAX_DEPTH,
+) -> list[dict[str, Any]]:
+    """Walk the ``trace:tracesTo`` chain from a phase back to the origin.
+
+    Starting from the subject ``phase:{idea_id}-{phase_id}``, iteratively
+    follows ``trace:tracesTo`` links by recalling facts with that predicate
+    for each subject.  Each hop produces a dict with::
+
+        {"subject": <phase URI>, "facts": [<recalled facts for that subject>]}
+
+    The returned list is ordered from *most recent* phase (the starting
+    subject) toward the *origin* (the phase with no ``tracesTo`` link),
+    i.e. reverse chronological order.
+
+    A ``max_depth`` guard (default 20) prevents infinite loops in case of
+    data corruption (cycles in ``tracesTo`` links).
+
+    Parameters:
+        ontology_port: The ontology port to query.
+        idea_id: The idea identifier.
+        phase_id: The phase identifier to start traversal from.
+        max_depth: Maximum hops before termination (default 20).
+
+    Returns:
+        Ordered list of dicts, each containing ``"subject"`` (the phase URI)
+        and ``"facts"`` (list of fact dicts for that subject).
+    """
+    chain: list[dict[str, Any]] = []
+    current_subject = f"phase:{idea_id}-{phase_id}"
+    visited: set[str] = set()
+
+    for _ in range(max_depth):
+        if current_subject in visited:
+            logger.warning(
+                "Cycle detected in tracesTo chain at %s — stopping",
+                current_subject,
+            )
+            break
+        visited.add(current_subject)
+
+        # Recall all facts for this subject
+        try:
+            all_facts_result = ontology_port.recall_facts(
+                subject=current_subject,
+            )
+        except Exception as exc:
+            logger.warning(
+                "recall_facts failed for subject %s: %s",
+                current_subject,
+                exc,
+            )
+            break
+
+        facts = all_facts_result.get("facts", [])
+        chain.append({"subject": current_subject, "facts": facts})
+
+        # Find the tracesTo link for this subject
+        try:
+            trace_result = ontology_port.recall_facts(
+                subject=current_subject,
+                predicate="trace:tracesTo",
+            )
+        except Exception as exc:
+            logger.warning(
+                "recall_facts for tracesTo failed at %s: %s",
+                current_subject,
+                exc,
+            )
+            break
+
+        trace_facts = trace_result.get("facts", [])
+        if not trace_facts:
+            # Origin reached — no more upstream links
+            break
+
+        # Follow the first tracesTo link
+        next_subject = trace_facts[0].get("object")
+        if not next_subject:
+            logger.warning(
+                "tracesTo fact at %s has no object — stopping",
+                current_subject,
+            )
+            break
+
+        current_subject = next_subject
+
+    return chain
