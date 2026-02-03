@@ -29,6 +29,10 @@ Ontology-server registration (prd:req-67-4-3):
     scans discover the symlinks automatically on (re)start.
 """
 
+# @principle:OpenClosedPrinciple -- new phases register shapes by adding a dict entry; consumers never change
+# @principle:HighCohesion -- single-purpose registry mapping phase IDs to SHACL shape URIs
+# @principle:InformationHiding -- get_shape_for_phase hides dict lookup so callers need not know the storage
+
 from __future__ import annotations
 
 from tulla.namespaces import PHASE_NS
