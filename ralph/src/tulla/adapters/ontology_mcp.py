@@ -204,6 +204,41 @@ class OntologyMCPAdapter(OntologyPort):
         return self._post(f"/ideas/{idea_id}/lifecycle", payload)
 
     # ------------------------------------------------------------------
+    # OntologyPort interface — Direct triple manipulation
+    # ------------------------------------------------------------------
+
+    _PHASE_ONTOLOGY = "phase-ontology"
+
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        ont = ontology or self._PHASE_ONTOLOGY
+        return self._post(f"/ontologies/{ont}/triples", {
+            "subject": subject,
+            "predicate": predicate,
+            "object": object,
+            "is_literal": is_literal,
+        })
+
+    def remove_triples_by_subject(
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        ont = ontology or self._PHASE_ONTOLOGY
+        resp = self._post(f"/ontologies/{ont}/triples/remove", {
+            "subject": subject,
+        })
+        return resp.get("removed", 0)
+
+    # ------------------------------------------------------------------
     # OntologyPort interface — SPARQL
     # ------------------------------------------------------------------
 
@@ -213,7 +248,10 @@ class OntologyMCPAdapter(OntologyPort):
         *,
         validate: bool = True,
     ) -> dict[str, Any]:
-        return self._post("/sparql", {"query": query, "validate": validate})
+        qs = urlencode({"query": query})
+        url = f"{self._base_url}/sparql?{qs}"
+        req = Request(url, data=b"", headers=self._headers(), method="POST")
+        return self._do(req)
 
     # ------------------------------------------------------------------
     # OntologyPort interface — SHACL Validation

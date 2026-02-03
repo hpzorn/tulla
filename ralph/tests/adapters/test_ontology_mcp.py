@@ -268,14 +268,13 @@ class TestEndpointMapping:
     def test_sparql_query_endpoint(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
-        mock_urlopen.return_value = _mock_urlopen({"bindings": []})
+        mock_urlopen.return_value = _mock_urlopen({"results": []})
         adapter.sparql_query("SELECT ?s WHERE { ?s ?p ?o }", validate=False)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/sparql"
-        sent = json.loads(req.data.decode("utf-8"))
-        assert sent["query"] == "SELECT ?s WHERE { ?s ?p ?o }"
-        assert sent["validate"] is False
+        assert req.full_url.startswith("http://localhost:3000/sparql?query=")
+        assert req.get_method() == "POST"
+        assert "SELECT" in req.full_url
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_update_idea_endpoint_and_payload(
@@ -440,3 +439,123 @@ class TestForgetByContext:
         count = adapter.forget_by_context("ctx")
 
         assert count == 1
+
+
+# ===================================================================
+# add_triple() tests
+# ===================================================================
+
+
+class TestAddTriple:
+    """Tests for OntologyMCPAdapter.add_triple()."""
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_posts_to_correct_endpoint(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"status": "added"})
+        adapter.add_triple("http://s", "http://p", "http://o")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:3000/ontologies/phase-ontology/triples"
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_sends_spo_payload(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"status": "added"})
+        adapter.add_triple("http://s", "http://p", "http://o", is_literal=True)
+
+        req = mock_urlopen.call_args[0][0]
+        sent = json.loads(req.data.decode("utf-8"))
+        assert sent == {
+            "subject": "http://s",
+            "predicate": "http://p",
+            "object": "http://o",
+            "is_literal": True,
+        }
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_custom_ontology(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"status": "added"})
+        adapter.add_triple("http://s", "http://p", "http://o", ontology="custom-onto")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:3000/ontologies/custom-onto/triples"
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_returns_response(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"status": "added"})
+        result = adapter.add_triple("http://s", "http://p", "http://o")
+        assert result == {"status": "added"}
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_default_is_literal_false(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"status": "added"})
+        adapter.add_triple("http://s", "http://p", "http://o")
+
+        req = mock_urlopen.call_args[0][0]
+        sent = json.loads(req.data.decode("utf-8"))
+        assert sent["is_literal"] is False
+
+
+# ===================================================================
+# remove_triples_by_subject() tests
+# ===================================================================
+
+
+class TestRemoveTriplesBySubject:
+    """Tests for OntologyMCPAdapter.remove_triples_by_subject()."""
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_posts_to_correct_endpoint(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"removed": 5})
+        adapter.remove_triples_by_subject("http://example/s1")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:3000/ontologies/phase-ontology/triples/remove"
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_sends_subject_in_payload(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"removed": 3})
+        adapter.remove_triples_by_subject("http://example/s1")
+
+        req = mock_urlopen.call_args[0][0]
+        sent = json.loads(req.data.decode("utf-8"))
+        assert sent == {"subject": "http://example/s1"}
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_returns_count(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"removed": 7})
+        count = adapter.remove_triples_by_subject("http://example/s1")
+        assert count == 7
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_returns_zero_on_error(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"error": "not found"})
+        count = adapter.remove_triples_by_subject("http://example/missing")
+        assert count == 0
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_custom_ontology(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"removed": 1})
+        adapter.remove_triples_by_subject("http://s", ontology="custom-onto")
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:3000/ontologies/custom-onto/triples/remove"

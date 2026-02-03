@@ -192,7 +192,7 @@ class FindPhase:
             logger.warning("SPARQL query 1 failed for %s", quality_focus, exc_info=True)
             return [], [], []
 
-        bindings1 = r1.get("bindings", [])
+        bindings1 = r1.get("results", [])
         patterns: list[str] = []
         seen_patterns: set[str] = set()
         for row in bindings1:
@@ -219,7 +219,7 @@ class FindPhase:
             logger.warning("SPARQL query 2 failed for %s", quality_focus, exc_info=True)
             return patterns, [], []
 
-        bindings2 = r2.get("bindings", [])
+        bindings2 = r2.get("results", [])
         principles: list[str] = []
         seen_principles: set[str] = set()
         for row in bindings2:
@@ -247,7 +247,7 @@ class FindPhase:
             logger.warning("SPARQL query 3 failed for %s", quality_focus, exc_info=True)
             return patterns, principles, []
 
-        bindings3 = r3.get("bindings", [])
+        bindings3 = r3.get("results", [])
         design_patterns: list[str] = []
         seen_design: set[str] = set()
         for row in bindings3:

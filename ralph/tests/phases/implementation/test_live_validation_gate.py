@@ -207,7 +207,7 @@ class FindPhase:
         except Exception:
             return [], [], []
 
-        bindings1 = r1.get("bindings", [])
+        bindings1 = r1.get("results", [])
         patterns = list(dict.fromkeys(
             row["pattern"] for row in bindings1 if row.get("pattern")
         ))
