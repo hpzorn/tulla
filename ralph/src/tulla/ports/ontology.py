@@ -102,3 +102,13 @@ class OntologyPort(ABC):
         reason: str = "",
     ) -> dict[str, Any]:
         """Update an idea's lifecycle state with transition validation."""
+
+    @abstractmethod
+    def validate_instance(
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate an instance against a SHACL shape via the ontology-server."""
