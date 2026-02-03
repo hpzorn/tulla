@@ -140,6 +140,8 @@ def _build_pipeline(
         )
 
     # @pattern:Plugin -- Lightweight agent registered via elif branch; same factory contract as other agents
+    # @principle:DependencyInversion -- CLI depends on Pipeline abstraction returned by factory, not on concrete phase classes
+    # @principle:HighCohesion -- All pipeline dispatch, dry-run display, and result reporting grouped in one CLI module
     if agent == "lightweight":
         from tulla.phases.lightweight.pipeline import lightweight_pipeline
 
