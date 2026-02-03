@@ -6,6 +6,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from tulla.core.intent import IntentField
+
 
 class ResearchInput(BaseModel):
     """Input parameters for a research phase run."""
@@ -52,8 +54,8 @@ class R5Output(BaseModel):
     """
 
     output_file: Path
-    experiments_run: int
-    experiments_passed: int
+    experiments_run: int = IntentField(description="Number of experiments executed")
+    experiments_passed: int = IntentField(description="Number of experiments that passed")
 
 
 class R6Output(BaseModel):
