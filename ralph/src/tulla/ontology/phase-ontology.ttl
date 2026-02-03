@@ -1,3 +1,7 @@
+# @pattern:EventSourcing -- Each PhaseOutput instance is an immutable event record; SHACL shapes enforce the structural contract of persisted trace events
+# @principle:OpenClosedPrinciple -- New phase shapes (e.g. LWTraceOutputShape) are added without modifying existing D5/P3/R5 shape definitions
+# @quality:Reliability -- SHACL NodeShapes guarantee structural completeness of KG-persisted phase outputs, enabling rollback on violation
+
 @prefix phase: <http://impl-ralph.io/phase#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
