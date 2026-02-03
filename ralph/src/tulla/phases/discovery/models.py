@@ -6,6 +6,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from tulla.core.intent import IntentField
+
 
 class DiscoveryInput(BaseModel):
     """Input parameters for a discovery phase run."""
@@ -51,5 +53,5 @@ class D5Output(BaseModel):
     """Output of D5 – Discovery Summary & Recommendation."""
 
     output_file: Path
-    mode: str
-    recommendation: str
+    mode: str = IntentField(description="Selected pipeline mode (research/plan/implement)")
+    recommendation: str = IntentField(description="Discovery recommendation for next steps")
