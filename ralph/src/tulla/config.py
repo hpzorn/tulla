@@ -120,6 +120,13 @@ class TullaConfig(BaseSettings):
             permission_mode="acceptEdits",
         ),
     )
+    lightweight: AgentConfig = Field(
+        default_factory=lambda: AgentConfig(
+            budget_usd=1.0,
+            phase_timeout_minutes=3,
+            permission_mode="acceptEdits",
+        ),
+    )
     epistemology: AgentConfig = Field(default_factory=AgentConfig)
 
     # -----------------------------------------------------------------
