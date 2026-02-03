@@ -76,6 +76,9 @@ def planning_pipeline(
             "min_wpf_advisory": config.planning.min_wpf_advisory,
             "max_granularity_retries": config.planning.max_granularity_retries,
             "ontology_port": ontology_port,
+            "phase_timeouts": config.planning.phase_timeouts,
+            "hydration_error_threshold": config.planning.hydration_error_threshold,
+            "ontology_query_limit": config.planning.ontology_query_limit,
         },
         total_budget_usd=config.planning.budget_usd,
     )

@@ -38,7 +38,19 @@ class VerifyPhase:
     """
 
     phase_id: str = "verify"
-    timeout_s: float = 600.0  # 10 minutes
+    timeout_s: float = 600.0  # 10 minutes (class-level fallback)
+
+    def __init__(
+        self,
+        timeout_s: float = 600.0,
+        apf_target: tuple[int, int] = (2, 5),
+        novel_word_threshold: int = 5,
+        verbose_word_limit: int = 50,
+    ) -> None:
+        self.timeout_s = timeout_s
+        self._apf_target = apf_target
+        self._novel_word_threshold = novel_word_threshold
+        self._verbose_word_limit = verbose_word_limit
 
     def execute(
         self,
@@ -128,7 +140,12 @@ class VerifyPhase:
             lines.extend(arch_lines)
 
         # --- Annotation Verification ---
-        ann_lines = self._build_annotation_verification(requirement)
+        ann_lines = self._build_annotation_verification(
+            requirement,
+            apf_target=self._apf_target,
+            novel_word_threshold=self._novel_word_threshold,
+            verbose_word_limit=self._verbose_word_limit,
+        )
         if ann_lines:
             lines.extend(ann_lines)
 
@@ -197,7 +214,12 @@ class VerifyPhase:
         return lines
 
     @staticmethod
-    def _build_annotation_verification(requirement: FindOutput) -> list[str]:
+    def _build_annotation_verification(
+        requirement: FindOutput,
+        apf_target: tuple[int, int] = APF_TARGET,
+        novel_word_threshold: int = 5,
+        verbose_word_limit: int = 50,
+    ) -> list[str]:
         """Build the optional Annotation Verification prompt section.
 
         Generates verification checks for annotations placed during
@@ -223,7 +245,7 @@ class VerifyPhase:
         if not items:
             return []
 
-        apf_lo, apf_hi = APF_TARGET
+        apf_lo, apf_hi = apf_target
 
         lines: list[str] = ["## Annotation Verification", ""]
 
@@ -261,16 +283,16 @@ class VerifyPhase:
         )
         lines.append("")
         lines.append(
-            "- **Hollow**: explanation restates the identifier without "
-            "adding code-specific detail (fewer than 5 novel words)"
+            f"- **Hollow**: explanation restates the identifier without "
+            f"adding code-specific detail (fewer than {novel_word_threshold} novel words)"
         )
         lines.append(
-            "- **Verbose**: explanation exceeds 50 words"
+            f"- **Verbose**: explanation exceeds {verbose_word_limit} words"
         )
         lines.append("")
         lines.append(
-            "Each explanation should be adequate: concise, code-specific, "
-            "and between 5 novel words and 50 total words."
+            f"Each explanation should be adequate: concise, code-specific, "
+            f"and between {novel_word_threshold} novel words and {verbose_word_limit} total words."
         )
         lines.append("")
 

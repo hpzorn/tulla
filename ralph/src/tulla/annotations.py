@@ -116,13 +116,17 @@ def calculate_apf(annotations: list[Annotation]) -> int:
 # ---------------------------------------------------------------------------
 
 
-def is_hollow(explanation: str, identifier: str) -> bool:
+def is_hollow(
+    explanation: str,
+    identifier: str,
+    novel_word_threshold: int = _NOVEL_WORD_THRESHOLD,
+) -> bool:
     """Detect whether *explanation* is a hollow label.
 
     A hollow explanation restates the identifier without adding
     code-specific information.  The heuristic splits *identifier* by
     PascalCase boundaries, removes filler words, and checks whether
-    fewer than :data:`_NOVEL_WORD_THRESHOLD` novel words remain.
+    fewer than *novel_word_threshold* novel words remain.
     """
     id_words = {
         w.lower()
@@ -132,25 +136,29 @@ def is_hollow(explanation: str, identifier: str) -> bool:
         w.lower() for w in re.findall(r"[a-z]+", explanation.lower())
     }
     novel_words = explanation_words - id_words - _FILLER_WORDS
-    return len(novel_words) < _NOVEL_WORD_THRESHOLD
+    return len(novel_words) < novel_word_threshold
 
 
-def classify_adequacy(annotation: Annotation) -> str:
+def classify_adequacy(
+    annotation: Annotation,
+    novel_word_threshold: int = _NOVEL_WORD_THRESHOLD,
+    verbose_word_limit: int = _VERBOSE_WORD_LIMIT,
+) -> str:
     """Classify *annotation* as ``"adequate"``, ``"hollow"``, or ``"verbose"``.
 
     Thresholds derived from exp3/exp4 calibration:
 
-    * **verbose** — explanation exceeds :data:`_VERBOSE_WORD_LIMIT` words.
-    * **hollow**  — explanation has fewer than :data:`_NOVEL_WORD_THRESHOLD`
+    * **verbose** — explanation exceeds *verbose_word_limit* words.
+    * **hollow**  — explanation has fewer than *novel_word_threshold*
       novel words beyond the identifier and filler words.
     * **adequate** — everything else (the desired outcome).
     """
     word_count = len(annotation.explanation.split())
 
-    if word_count > _VERBOSE_WORD_LIMIT:
+    if word_count > verbose_word_limit:
         return "verbose"
 
-    if is_hollow(annotation.explanation, annotation.identifier):
+    if is_hollow(annotation.explanation, annotation.identifier, novel_word_threshold):
         return "hollow"
 
     return "adequate"

@@ -13,21 +13,15 @@ from typing import Any
 
 import click
 
+from tulla.namespaces import REVERSE_PREFIXES
 from tulla.ports.ontology import OntologyPort
 
 from .models import FindOutput
 
 logger = logging.getLogger(__name__)
 
-# Prefix map matching p6.py namespace definitions
-_REVERSE_PREFIXES: dict[str, str] = {
-    "prd:": "http://impl-ralph.io/prd#",
-    "trace:": "http://impl-ralph.io/trace#",
-    "isaqb:": "http://impl-ralph.io/isaqb#",
-    "rdf:": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    "rdfs:": "http://www.w3.org/2000/01/rdf-schema#",
-    "xsd:": "http://www.w3.org/2001/XMLSchema#",
-}
+# Re-export for backward compatibility (used by tests)
+_REVERSE_PREFIXES = REVERSE_PREFIXES
 
 
 class FindPhase:
@@ -40,6 +34,16 @@ class FindPhase:
     """
 
     phase_id: str = "find"
+
+    def __init__(
+        self,
+        max_files_per_requirement: int = 3,
+        min_wpf_advisory: float = 15.0,
+        ontology_query_limit: int = 500,
+    ) -> None:
+        self._max_files = max_files_per_requirement
+        self._min_wpf = min_wpf_advisory
+        self._query_limit = ontology_query_limit
 
     def execute(
         self,
@@ -61,7 +65,7 @@ class FindPhase:
         all_facts = ontology.recall_facts(
             predicate="rdf:type",
             context=prd_context,
-            limit=500,
+            limit=self._query_limit,
         )
         results = all_facts.get("result", [])
         req_subjects = [
@@ -136,7 +140,7 @@ class FindPhase:
 
         Returns the input unchanged if no known prefix matches.
         """
-        for prefix, full_ns in _REVERSE_PREFIXES.items():
+        for prefix, full_ns in REVERSE_PREFIXES.items():
             if compact.startswith(prefix):
                 return compact.replace(prefix, full_ns, 1)
         return compact
@@ -284,11 +288,11 @@ class FindPhase:
         description = props.get("prd:description", "")
         word_count = len(description.split())
         wpf = word_count / len(files) if files else 0
-        if len(files) > 3 or wpf < 15:
+        if len(files) > self._max_files or wpf < self._min_wpf:
             msg = (
                 f"Requirement {req_id} may be under-specified: "
                 f"{len(files)} files, {word_count} words, "
-                f"wpf={wpf:.1f} (target ≥15 wpf, ≤3 files)"
+                f"wpf={wpf:.1f} (target ≥{self._min_wpf} wpf, ≤{self._max_files} files)"
             )
             logger.warning(msg)
             click.echo(f"⚠ {msg}", err=True)

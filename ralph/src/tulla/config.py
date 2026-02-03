@@ -46,6 +46,20 @@ class AgentConfig(BaseSettings):
     min_wpf_advisory: float = 15.0
     max_granularity_retries: int = 1
 
+    # Per-phase timeout overrides (phase_id -> seconds).
+    # Empty by default; phases fall back to their class-level timeout_s.
+    phase_timeouts: dict[str, float] = Field(default_factory=dict)
+
+    # Ontology query limits
+    ontology_query_limit: int = 500
+    hydration_error_threshold: float = 0.10
+
+    # Annotation thresholds (implementation phases)
+    apf_min: int = 2
+    apf_max: int = 5
+    novel_word_threshold: int = 5
+    verbose_word_limit: int = 50
+
 
 # ---------------------------------------------------------------------------
 # Root configuration

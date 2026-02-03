@@ -22,37 +22,15 @@ from typing import Any
 import click
 
 from tulla.core.phase import ParseError, Phase, PhaseContext, PhaseResult, PhaseStatus
+from tulla.namespaces import ISAQB_NS, PRD_NS, TRACE_NS, compact_uri
 
 from .models import P6Output
 from .p4 import _check_homogeneity
 
 logger = logging.getLogger(__name__)
 
-# PRD ontology namespaces (matches planning-tulla.sh)
-PRD_NS = "http://impl-ralph.io/prd#"
-TRACE_NS = "http://impl-ralph.io/trace#"
-
-ISAQB_NS = "http://impl-ralph.io/isaqb#"
-
-_PREFIXES = {
-    "http://impl-ralph.io/prd#": "prd:",
-    "http://impl-ralph.io/trace#": "trace:",
-    "http://impl-ralph.io/isaqb#": "isaqb:",
-    "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:",
-    "http://www.w3.org/2000/01/rdf-schema#": "rdfs:",
-    "http://www.w3.org/2001/XMLSchema#": "xsd:",
-}
-
-
-def _compact_uri(uri: str) -> str:
-    """Compact a full URI into prefixed form using known namespaces.
-
-    Returns the original string unchanged if no prefix matches.
-    """
-    for full, prefix in _PREFIXES.items():
-        if uri.startswith(full):
-            return prefix + uri[len(full):]
-    return uri
+# Re-export for backward compatibility (used by tests)
+_compact_uri = compact_uri
 
 
 class P6Phase(Phase[P6Output]):
@@ -106,12 +84,12 @@ class P6Phase(Phase[P6Output]):
         total = len(g)
 
         for s, p, o in g:
-            subj = _compact_uri(str(s))
-            pred = _compact_uri(str(p))
+            subj = compact_uri(str(s))
+            pred = compact_uri(str(p))
             if isinstance(o, Literal):
                 obj = str(o)
             else:
-                obj = _compact_uri(str(o))
+                obj = compact_uri(str(o))
 
             try:
                 ontology_port.store_fact(subj, pred, obj, context=prd_context)
@@ -125,7 +103,8 @@ class P6Phase(Phase[P6Output]):
             stored, total, errors,
         )
 
-        if total > 0 and errors / total > 0.10:
+        error_threshold = float(ctx.config.get("hydration_error_threshold", 0.10))
+        if total > 0 and errors / total > error_threshold:
             raise RuntimeError(
                 f"A-box hydration error rate too high: {errors}/{total} triples failed"
             )

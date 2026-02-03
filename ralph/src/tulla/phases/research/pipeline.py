@@ -70,6 +70,7 @@ def research_pipeline(
             "planning_dir": planning_dir,
             "discovery_dir": discovery_dir,
             "permission_mode": config.research.permission_mode,
+            "phase_timeouts": config.research.phase_timeouts,
         },
         total_budget_usd=config.research.budget_usd,
     )

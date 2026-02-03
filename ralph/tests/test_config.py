@@ -225,6 +225,71 @@ class TestPerAgentOverrides:
 # ---------------------------------------------------------------------------
 
 
+class TestConsolidatedConfigDefaults:
+    """New AgentConfig fields for consolidated configuration have correct defaults."""
+
+    def test_default_phase_timeouts_empty(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.phase_timeouts == {}
+
+    def test_default_ontology_query_limit(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.ontology_query_limit == 500
+
+    def test_default_hydration_error_threshold(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.hydration_error_threshold == 0.10
+
+    def test_default_apf_min(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.apf_min == 2
+
+    def test_default_apf_max(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.apf_max == 5
+
+    def test_default_novel_word_threshold(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.novel_word_threshold == 5
+
+    def test_default_verbose_word_limit(self) -> None:
+        cfg = AgentConfig()
+        assert cfg.verbose_word_limit == 50
+
+    def test_custom_phase_timeouts(self) -> None:
+        cfg = AgentConfig(phase_timeouts={"p6": 300.0, "implement": 1800.0})
+        assert cfg.phase_timeouts == {"p6": 300.0, "implement": 1800.0}
+
+    def test_custom_ontology_query_limit(self) -> None:
+        cfg = AgentConfig(ontology_query_limit=1000)
+        assert cfg.ontology_query_limit == 1000
+
+    def test_custom_hydration_error_threshold(self) -> None:
+        cfg = AgentConfig(hydration_error_threshold=0.05)
+        assert cfg.hydration_error_threshold == 0.05
+
+    def test_custom_apf_range(self) -> None:
+        cfg = AgentConfig(apf_min=3, apf_max=7)
+        assert cfg.apf_min == 3
+        assert cfg.apf_max == 7
+
+    def test_custom_annotation_thresholds(self) -> None:
+        cfg = AgentConfig(novel_word_threshold=8, verbose_word_limit=40)
+        assert cfg.novel_word_threshold == 8
+        assert cfg.verbose_word_limit == 40
+
+    def test_env_var_override_apf_min(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("TULLA_IMPLEMENTATION__APF_MIN", "3")
+        cfg = TullaConfig()
+        assert cfg.implementation.apf_min == 3
+
+    def test_phase_timeouts_override_preserves_defaults(self) -> None:
+        """Setting phase_timeouts does not change other defaults."""
+        cfg = AgentConfig(phase_timeouts={"p6": 300.0})
+        assert cfg.budget_usd == 5.0
+        assert cfg.ontology_query_limit == 500
+
+
 class TestCLIPrecedence:
     """Explicit keyword overrides beat env vars and YAML values."""
 

@@ -56,6 +56,7 @@ def discovery_pipeline(
         config={
             "mode": mode,
             "permission_mode": config.discovery.permission_mode,
+            "phase_timeouts": config.discovery.phase_timeouts,
         },
         total_budget_usd=config.discovery.budget_usd,
     )

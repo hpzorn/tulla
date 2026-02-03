@@ -173,7 +173,11 @@ class Phase(ABC, Generic[T]):
 
         tool_names = [t["name"] for t in tools if "name" in t]
         disallowed = self.get_disallowed_tools(ctx)
-        timeout = getattr(self, "timeout_s", 0.0)
+        phase_timeouts = ctx.config.get("phase_timeouts", {})
+        timeout = phase_timeouts.get(
+            getattr(self, "phase_id", ""),
+            getattr(self, "timeout_s", 0.0),
+        )
         permission_mode = ctx.config.get("permission_mode", "bypassPermissions")
 
         request = ClaudeRequest(

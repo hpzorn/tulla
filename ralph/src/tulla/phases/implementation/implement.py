@@ -27,7 +27,15 @@ class ImplementPhase:
     """
 
     phase_id: str = "implement"
-    timeout_s: float = 3600.0  # 60 minutes
+    timeout_s: float = 3600.0  # 60 minutes (class-level fallback)
+
+    def __init__(
+        self,
+        timeout_s: float = 3600.0,
+        apf_target: tuple[int, int] = (2, 5),
+    ) -> None:
+        self.timeout_s = timeout_s
+        self._apf_target = apf_target
 
     def execute(
         self,
@@ -120,7 +128,7 @@ class ImplementPhase:
             lines.extend(arch_lines)
 
         # --- Pattern Annotations (after Architecture Context) ---
-        ann_lines = self._build_annotation_section(requirement)
+        ann_lines = self._build_annotation_section(requirement, self._apf_target)
         if ann_lines:
             lines.extend(ann_lines)
 
@@ -220,7 +228,10 @@ class ImplementPhase:
         return lines
 
     @staticmethod
-    def _build_annotation_section(requirement: FindOutput) -> list[str]:
+    def _build_annotation_section(
+        requirement: FindOutput,
+        apf_target: tuple[int, int] = APF_TARGET,
+    ) -> list[str]:
         """Build the optional Pattern Annotations prompt section.
 
         Generates annotation instructions from *resolved_patterns* and
@@ -234,7 +245,7 @@ class ImplementPhase:
         if not items:
             return []
 
-        apf_lo, apf_hi = APF_TARGET
+        apf_lo, apf_hi = apf_target
         lines: list[str] = ["## Pattern Annotations", ""]
 
         # Format specification

@@ -81,11 +81,24 @@ class ImplementationLoop:
         self._max_retries = max_retries
         self._total_budget_usd = total_budget_usd
 
-        # Instantiate loop steps
-        self._find = FindPhase()
-        self._implement = ImplementPhase()
+        # Instantiate loop steps with config-driven thresholds
+        impl_cfg = config.implementation
+        self._find = FindPhase(
+            max_files_per_requirement=impl_cfg.max_files_per_requirement,
+            min_wpf_advisory=impl_cfg.min_wpf_advisory,
+            ontology_query_limit=impl_cfg.ontology_query_limit,
+        )
+        self._implement = ImplementPhase(
+            timeout_s=impl_cfg.phase_timeouts.get("implement", 3600.0),
+            apf_target=(impl_cfg.apf_min, impl_cfg.apf_max),
+        )
         self._commit = CommitPhase()
-        self._verify = VerifyPhase()
+        self._verify = VerifyPhase(
+            timeout_s=impl_cfg.phase_timeouts.get("verify", 600.0),
+            apf_target=(impl_cfg.apf_min, impl_cfg.apf_max),
+            novel_word_threshold=impl_cfg.novel_word_threshold,
+            verbose_word_limit=impl_cfg.verbose_word_limit,
+        )
         self._status = StatusPhase()
 
         # Architecture context and lessons (loaded once at loop start)
