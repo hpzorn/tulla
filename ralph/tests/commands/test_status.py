@@ -80,6 +80,15 @@ class StubOntology(OntologyPort):
     def forget_by_context(self, context: str) -> int:
         return 0
 
+    def validate_instance(
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        return {}
+
 
 # ---------------------------------------------------------------------------
 # TestQueryPrdStatus — 7 tests

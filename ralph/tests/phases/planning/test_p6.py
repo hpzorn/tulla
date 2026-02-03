@@ -1119,6 +1119,15 @@ class _MockOntologyPort(OntologyPort):
     def set_lifecycle(self, idea_id, new_state, *, reason=""):
         return {}
 
+    def validate_instance(
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        return {}
+
 
 # ===================================================================
 # TestHydrateAbox

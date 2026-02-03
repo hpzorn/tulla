@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from unittest.mock import MagicMock, call
 
 import pytest
+from pydantic import BaseModel
 
 from tulla.core.checkpoint import CheckpointStore
+from tulla.core.intent import IntentField
 from tulla.core.phase import (
     Phase,
     PhaseContext,
@@ -15,6 +18,7 @@ from tulla.core.phase import (
     PhaseStatus,
 )
 from tulla.core.pipeline import Pipeline, PipelineResult
+from tulla.ports.ontology import OntologyPort
 
 
 # ---------------------------------------------------------------------------
@@ -333,3 +337,263 @@ class TestPipelineCheckpointWriting:
         bad_data = store.load("bad")
         assert bad_data is not None
         assert bad_data["status"] == "FAILURE"
+
+
+# ---------------------------------------------------------------------------
+# Integration tests for pre-phase / post-phase hooks (prd:req-67-3-1)
+# ---------------------------------------------------------------------------
+
+
+class _AnnotatedOutput(BaseModel):
+    """Pydantic model with an IntentField for integration testing."""
+
+    summary: str = IntentField(default="", description="Intent-annotated summary")
+
+
+class AnnotatedPhase(Phase[_AnnotatedOutput]):
+    """Phase that returns an IntentField-annotated Pydantic model."""
+
+    def __init__(self, output: _AnnotatedOutput) -> None:
+        self._output = output
+        self._received_ctx: PhaseContext | None = None
+
+    def build_prompt(self, ctx: PhaseContext) -> str:
+        return "stub"
+
+    def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
+        return []
+
+    def parse_output(self, ctx: PhaseContext, raw: Any) -> _AnnotatedOutput:
+        return raw
+
+    def execute(self, ctx: PhaseContext) -> PhaseResult[_AnnotatedOutput]:
+        self._received_ctx = ctx
+        return PhaseResult(
+            status=PhaseStatus.SUCCESS,
+            data=self._output,
+            metadata={"cost_usd": 0.01},
+        )
+
+
+class MockOntologyPort(OntologyPort):
+    """Concrete mock that tracks calls for assertion."""
+
+    def __init__(self) -> None:
+        self.store_fact_calls: list[tuple[str, str, str]] = []
+        self.forget_by_context_calls: list[str] = []
+        self.recall_facts_calls: list[dict[str, Any]] = []
+
+    def query_ideas(self, **kwargs: Any) -> dict[str, Any]:
+        return {"ideas": []}
+
+    def get_idea(self, idea_id: str) -> dict[str, Any]:
+        return {}
+
+    def store_fact(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        context: str | None = None,
+        confidence: float = 1.0,
+    ) -> dict[str, Any]:
+        self.store_fact_calls.append((subject, predicate, object))
+        return {"stored": True}
+
+    def forget_fact(self, fact_id: str) -> dict[str, Any]:
+        return {}
+
+    def recall_facts(
+        self,
+        *,
+        subject: str | None = None,
+        predicate: str | None = None,
+        context: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        self.recall_facts_calls.append(
+            {"subject": subject, "predicate": predicate, "context": context},
+        )
+        return {"facts": []}
+
+    def sparql_query(
+        self, query: str, *, validate: bool = True,
+    ) -> dict[str, Any]:
+        return {}
+
+    def update_idea(self, idea_id: str, **kwargs: Any) -> dict[str, Any]:
+        return {}
+
+    def forget_by_context(self, context: str) -> int:
+        self.forget_by_context_calls.append(context)
+        return 0
+
+    def set_lifecycle(
+        self, idea_id: str, new_state: str, *, reason: str = "",
+    ) -> dict[str, Any]:
+        return {}
+
+    def validate_instance(
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        return {"conforms": True, "violations": []}
+
+
+class TestPipelinePhaseHooks:
+    """Integration tests for pre-phase and post-phase hooks."""
+
+    def test_store_fact_called_after_execute(self, tmp_path: Path) -> None:
+        """store_fact is called after phase.execute for annotated output."""
+        ontology = MockOntologyPort()
+        output = _AnnotatedOutput(summary="test summary")
+        phase = AnnotatedPhase(output=output)
+
+        pipeline = Pipeline(
+            phases=[("annotated", phase)],
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-42",
+            config={"ontology_port": ontology},
+            total_budget_usd=1.00,
+        )
+
+        result = pipeline.run()
+
+        assert result.final_status == PhaseStatus.SUCCESS
+        # store_fact must have been called (at least for the intent field)
+        predicates = [p for _, p, _ in ontology.store_fact_calls]
+        assert "phase:preserves-summary" in predicates
+
+    def test_checkpoint_saved_after_persistence(self, tmp_path: Path) -> None:
+        """Checkpoint file exists after persistence completes."""
+        ontology = MockOntologyPort()
+        output = _AnnotatedOutput(summary="persisted")
+        phase = AnnotatedPhase(output=output)
+
+        pipeline = Pipeline(
+            phases=[("cp-phase", phase)],
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-43",
+            config={"ontology_port": ontology},
+            total_budget_usd=1.00,
+        )
+
+        pipeline.run()
+
+        store = CheckpointStore(tmp_path)
+        assert store.exists("cp-phase")
+        saved = store.load("cp-phase")
+        assert saved is not None
+        assert saved["status"] == "SUCCESS"
+
+    def test_upstream_facts_in_phase_context(self, tmp_path: Path) -> None:
+        """upstream_facts key is present in the phase context config."""
+        ontology = MockOntologyPort()
+        output = _AnnotatedOutput(summary="hello")
+        phase = AnnotatedPhase(output=output)
+
+        pipeline = Pipeline(
+            phases=[("uf-phase", phase)],
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-44",
+            config={"ontology_port": ontology},
+            total_budget_usd=1.00,
+        )
+
+        pipeline.run()
+
+        # The phase captured the context it received.
+        assert phase._received_ctx is not None
+        assert "upstream_facts" in phase._received_ctx.config
+        # First phase has no upstream facts.
+        assert phase._received_ctx.config["upstream_facts"] == []
+
+    def test_rollback_stops_pipeline(self, tmp_path: Path) -> None:
+        """When persist rolls back, phase status becomes FAILURE and pipeline stops."""
+        ontology = MockOntologyPort()
+        # Make validate_instance return non-conforming to trigger rollback.
+        ontology.validate_instance = lambda *a, **kw: {  # type: ignore[assignment]
+            "conforms": False,
+            "violations": ["missing required field"],
+        }
+
+        output = _AnnotatedOutput(summary="will-fail-validation")
+        phase_a = AnnotatedPhase(output=output)
+        phase_b = AnnotatedPhase(output=_AnnotatedOutput(summary="unreachable"))
+
+        pipeline = Pipeline(
+            phases=[("val-phase", phase_a), ("next", phase_b)],
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-45",
+            config={
+                "ontology_port": ontology,
+                "shape_registry": {"val-phase": "shape:TestShape"},
+            },
+            total_budget_usd=1.00,
+        )
+
+        result = pipeline.run()
+
+        assert result.final_status == PhaseStatus.FAILURE
+        assert len(result.phase_results) == 1
+        assert result.phase_results[0][0] == "val-phase"
+
+    def test_predecessor_tracking_across_phases(self, tmp_path: Path) -> None:
+        """Predecessor phase_id is passed to the second phase's persist call."""
+        ontology = MockOntologyPort()
+        output_a = _AnnotatedOutput(summary="from-a")
+        output_b = _AnnotatedOutput(summary="from-b")
+        phase_a = AnnotatedPhase(output=output_a)
+        phase_b = AnnotatedPhase(output=output_b)
+
+        pipeline = Pipeline(
+            phases=[("pa", phase_a), ("pb", phase_b)],
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-46",
+            config={"ontology_port": ontology},
+            total_budget_usd=1.00,
+        )
+
+        result = pipeline.run()
+
+        assert result.final_status == PhaseStatus.SUCCESS
+        # Phase B should have a trace:tracesTo pointing to Phase A's subject
+        trace_calls = [
+            (s, p, o)
+            for s, p, o in ontology.store_fact_calls
+            if p == "trace:tracesTo"
+        ]
+        # Phase A has no predecessor, Phase B traces to Phase A
+        assert len(trace_calls) == 1
+        subject_b = f"phase:idea-46-pb"
+        predecessor_a = f"phase:idea-46-pa"
+        assert trace_calls[0] == (subject_b, "trace:tracesTo", predecessor_a)
+
+    def test_no_persister_without_ontology_port(self, tmp_path: Path) -> None:
+        """Pipeline works normally without ontology_port in config."""
+        phase = AnnotatedPhase(output=_AnnotatedOutput(summary="plain"))
+
+        pipeline = Pipeline(
+            phases=[("simple", phase)],
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-47",
+            total_budget_usd=1.00,
+        )
+
+        result = pipeline.run()
+
+        assert result.final_status == PhaseStatus.SUCCESS
+        assert pipeline._persister is None
+        # upstream_facts still in context as empty list
+        assert phase._received_ctx is not None
+        assert phase._received_ctx.config["upstream_facts"] == []

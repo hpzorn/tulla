@@ -323,6 +323,61 @@ class TestEndpointMapping:
         sent = json.loads(req.data.decode("utf-8"))
         assert sent == {"new_state": "archived"}
 
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_validate_instance_endpoint_and_payload(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"conforms": True})
+        adapter.validate_instance(
+            "http://example.org/inst/1",
+            "http://example.org/shapes/MyShape",
+            ontology="http://example.org/onto",
+        )
+
+        req = mock_urlopen.call_args[0][0]
+        assert req.full_url == "http://localhost:3000/validate"
+        sent = json.loads(req.data.decode("utf-8"))
+        assert sent == {
+            "instance_uri": "http://example.org/inst/1",
+            "shape_uri": "http://example.org/shapes/MyShape",
+            "ontology": "http://example.org/onto",
+        }
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_validate_instance_omits_none_ontology(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        mock_urlopen.return_value = _mock_urlopen({"conforms": False})
+        adapter.validate_instance(
+            "http://example.org/inst/1",
+            "http://example.org/shapes/MyShape",
+        )
+
+        req = mock_urlopen.call_args[0][0]
+        sent = json.loads(req.data.decode("utf-8"))
+        assert sent == {
+            "instance_uri": "http://example.org/inst/1",
+            "shape_uri": "http://example.org/shapes/MyShape",
+        }
+        assert "ontology" not in sent
+
+    @patch("tulla.adapters.ontology_mcp.urlopen")
+    def test_validate_instance_returns_response(
+        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
+    ) -> None:
+        expected = {
+            "conforms": True,
+            "violation_count": 0,
+            "violations": [],
+            "report": "",
+        }
+        mock_urlopen.return_value = _mock_urlopen(expected)
+        result = adapter.validate_instance(
+            "http://example.org/inst/1",
+            "http://example.org/shapes/MyShape",
+        )
+        assert result == expected
+
 
 # ===================================================================
 # forget_by_context() tests

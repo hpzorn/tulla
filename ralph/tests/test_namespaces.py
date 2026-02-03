@@ -46,8 +46,8 @@ class TestPrefixes:
     def test_xsd_mapping(self) -> None:
         assert PREFIXES["http://www.w3.org/2001/XMLSchema#"] == "xsd:"
 
-    def test_six_prefixes(self) -> None:
-        assert len(PREFIXES) == 6
+    def test_seven_prefixes(self) -> None:
+        assert len(PREFIXES) == 7
 
 
 class TestReversePrefixes:
