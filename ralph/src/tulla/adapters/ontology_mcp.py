@@ -214,3 +214,22 @@ class OntologyMCPAdapter(OntologyPort):
         validate: bool = True,
     ) -> dict[str, Any]:
         return self._post("/sparql", {"query": query, "validate": validate})
+
+    # ------------------------------------------------------------------
+    # OntologyPort interface — SHACL Validation
+    # ------------------------------------------------------------------
+
+    def validate_instance(
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "instance_uri": instance_uri,
+            "shape_uri": shape_uri,
+        }
+        if ontology is not None:
+            payload["ontology"] = ontology
+        return self._post("/validate", payload)
