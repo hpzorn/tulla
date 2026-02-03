@@ -8,6 +8,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from tulla.core.intent import IntentField
+
 class PlanningInput(BaseModel):
     """Input parameters for a planning phase run."""
 
@@ -61,8 +63,8 @@ class P3Output(BaseModel):
     """Output of P3 – Dependency Analysis."""
 
     dependency_graph_file: Path
-    total_dependencies: int
-    circular_dependencies: int
+    total_dependencies: int = IntentField(description="Total number of requirement dependencies")
+    circular_dependencies: int = IntentField(description="Number of circular dependencies detected")
 
 
 class P4Input(BaseModel):
