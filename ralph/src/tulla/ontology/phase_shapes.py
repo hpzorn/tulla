@@ -31,10 +31,13 @@ Ontology-server registration (prd:req-67-4-3):
 
 from __future__ import annotations
 
+from tulla.namespaces import PHASE_NS
+
 PHASE_SHAPES: dict[str, str] = {
-    "d5": "phase:D5OutputShape",
-    "r5": "phase:R5OutputShape",
-    "p3": "phase:P3OutputShape",
+    "d5": f"{PHASE_NS}D5OutputShape",
+    "r5": f"{PHASE_NS}R5OutputShape",
+    "p3": f"{PHASE_NS}P3OutputShape",
+    "lw-trace": f"{PHASE_NS}LWTraceOutputShape",
 }
 
 
