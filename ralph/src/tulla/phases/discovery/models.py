@@ -1,17 +1,10 @@
 """Pydantic data models for the Discovery phase (D1–D5).
 
-# @pattern:Plugin -- Each DxOutput is a self-describing plugin; adding IntentField
-#   annotations registers new facts without modifying core persistence code
-# @principle:OpenClosedPrinciple -- New intent fields extend phase outputs via
-#   annotation only; extract_intent_fields picks them up without code changes
-# @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations,
-#   IntentField-annotated fields carry decision-relevant metrics; each concern
-#   is handled by a distinct Pydantic field type
-# @principle:SingleResponsibility -- Each DxOutput class models exactly one
-#   phase's output contract; no class spans multiple discovery steps
-# @principle:DependencyInversion -- Phase models depend on the IntentField
-#   abstraction, not on concrete persistence (PhaseFactPersister); the marker
-#   is resolved at runtime by extract_intent_fields
+# @pattern:PipesAndFilters -- D1-D5 outputs form a typed pipeline; each phase consumes the previous output and produces a new DxOutput that feeds downstream phases
+# @pattern:Plugin -- Each DxOutput is a self-describing plugin; adding IntentField annotations registers new facts without modifying core persistence code
+# @pattern:Blackboard -- IntentField-annotated fields on each DxOutput constitute a shared fact blackboard; PhaseFactPersister and extract_intent_fields read/write these slots independently
+# @principle:OpenClosedPrinciple -- New intent fields extend phase outputs via annotation only; extract_intent_fields picks them up without code changes
+# @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations, IntentField-annotated fields carry decision-relevant metrics; each concern is handled by a distinct Pydantic field type
 """
 
 from __future__ import annotations
