@@ -519,6 +519,60 @@ class DashboardService:
         return ("generic_detail", {"uri": uri})
 
     # ------------------------------------------------------------------
+    # Iteration Facts (Inspector)
+    # ------------------------------------------------------------------
+
+    def get_iteration_facts(self, idea_id: str) -> list[dict[str, Any]]:
+        """Return intent fields from implementation iterations for *idea_id*.
+
+        Queries all ``phase:PhaseOutput`` instances whose
+        ``phase:producedBy`` starts with ``impl-`` for the given idea.
+        For each iteration, extracts the intent fields ``requirement_id``,
+        ``quality_focus``, ``passed``, ``feedback``, and ``commit_hash``
+        from their ``phase:preserves-*`` predicates.
+
+        Returns a list of dicts ordered by iteration subject URI.
+        On exception, logs and returns an empty list.
+        """
+        sparql = f"""
+        SELECT ?s ?p ?o WHERE {{
+            ?s <{PHASE_NS}forRequirement> "{idea_id}" .
+            ?s <{PHASE_NS}producedBy> ?phase .
+            FILTER(STRSTARTS(?phase, "impl-"))
+            ?s ?p ?o .
+        }}
+        ORDER BY ?s
+        """
+        intent_fields = (
+            "requirement_id",
+            "quality_focus",
+            "passed",
+            "feedback",
+            "commit_hash",
+        )
+        preserves_prefix = f"{PHASE_NS}preserves-"
+        try:
+            result = self._kg_store.query(sparql)
+            # Group bindings by subject
+            grouped: dict[str, dict[str, Any]] = {}
+            for b in result.bindings:
+                subj = b["s"]
+                pred = b.get("p", "")
+                obj = b.get("o", "")
+                if pred.startswith(preserves_prefix):
+                    field_name = pred[len(preserves_prefix):]
+                    if field_name in intent_fields:
+                        if subj not in grouped:
+                            grouped[subj] = {}
+                        grouped[subj][field_name] = obj
+            return [grouped[s] for s in sorted(grouped)]
+        except Exception:
+            logger.exception(
+                "Failed to query iteration facts for idea %s", idea_id,
+            )
+            return []
+
+    # ------------------------------------------------------------------
     # Aggregated dashboard summary
     # ------------------------------------------------------------------
 
