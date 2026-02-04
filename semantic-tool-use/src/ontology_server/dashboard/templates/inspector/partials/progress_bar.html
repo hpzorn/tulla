@@ -1,0 +1,9 @@
+{# @pattern:SeparationOfConcerns -- Standalone partial decouples progress rendering from page layout for HTMX swap #}
+{# @pattern:SingleResponsibility -- Renders only the progress bar; data fetched by service, routed by handler #}
+<div class="progress-bar"
+     hx-get="/dashboard/partials/progress-bar?idea_id={{ idea_id }}"
+     hx-trigger="every 30s"
+     hx-swap="outerHTML">
+    <div class="progress-segment" style="width: {{ progress.percent }}%"></div>
+    <span class="progress-label">{{ progress.completed|length }}/{{ progress.total }} phases</span>
+</div>
