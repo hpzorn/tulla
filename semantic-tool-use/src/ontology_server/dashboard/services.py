@@ -460,6 +460,65 @@ class DashboardService:
         return props
 
     # ------------------------------------------------------------------
+    # URI Resolution (Inspector)
+    # ------------------------------------------------------------------
+
+    # Prefix used by the resolver's own route — guarded to prevent loops.
+    _RESOLVER_PREFIX = "/resolve/"
+
+    def resolve_uri(self, uri: str) -> tuple[str, dict[str, Any]]:
+        """Resolve *uri* to a ``(route_name, route_params)`` tuple.
+
+        Queries ``rdf:type`` of *uri* from the A-Box store and dispatches:
+
+        - ``phase:PhaseOutput`` → ``("phase_detail", {"uri": uri})``
+        - ``skos:Concept``      → ``("idea_detail", {"idea_id": …})``
+        - any ``prd:`` type     → ``("requirement_detail", {"context": …, "subject": …})``
+        - unknown / no type     → ``("generic_detail", {"uri": uri})``
+
+        A guard rejects URIs that start with the resolver's own prefix to
+        prevent redirect loops.
+        """
+        # Guard: reject self-referential URIs
+        if uri.startswith(self._RESOLVER_PREFIX):
+            return ("generic_detail", {"uri": uri})
+
+        sparql = f"""
+        SELECT ?type WHERE {{
+            <{uri}> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type .
+        }}
+        """
+        try:
+            result = self._kg_store.query(sparql)
+            types = [b["type"] for b in result.bindings if "type" in b]
+        except Exception:
+            logger.exception("Failed to resolve URI %s", uri)
+            return ("generic_detail", {"uri": uri})
+
+        for rdf_type in types:
+            if rdf_type == f"{PHASE_NS}PhaseOutput":
+                return ("phase_detail", {"uri": uri})
+
+            if rdf_type == "http://www.w3.org/2004/02/skos/core#Concept":
+                # Extract idea_id from the URI — last path segment
+                idea_id = uri.rsplit("/", 1)[-1] if "/" in uri else uri
+                return ("idea_detail", {"idea_id": idea_id})
+
+            if rdf_type.startswith("http://impl-ralph.io/prd#") or rdf_type.startswith("prd:"):
+                # Extract context and subject from the URI.
+                # URI pattern: <prefix>/<context>/<subject>
+                parts = uri.rsplit("/", 2)
+                if len(parts) >= 3:
+                    context = parts[-2]
+                    subject = parts[-1]
+                else:
+                    context = ""
+                    subject = uri
+                return ("requirement_detail", {"context": context, "subject": subject})
+
+        return ("generic_detail", {"uri": uri})
+
+    # ------------------------------------------------------------------
     # Aggregated dashboard summary
     # ------------------------------------------------------------------
 
