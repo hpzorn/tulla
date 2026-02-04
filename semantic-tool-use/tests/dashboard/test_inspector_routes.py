@@ -12,7 +12,7 @@ the service level:
 """
 # @pattern:PortsAndAdapters -- Routes tested through HTTP boundary; stores mocked behind service layer
 # @pattern:DependencyInversion -- TestClient injects mock stores via create_dashboard_app factory
-# @pattern:LayeredArchitecture -- Tests target route layer only; service and store layers replaced by mocks
+# @pattern:LooseCoupling -- Tests couple only to HTTP status codes and response text, not to service internals
 
 from __future__ import annotations
 
@@ -136,7 +136,8 @@ class TestIdeaInspectorList:
 class TestInspectorIdea:
     """Tests for the inspector_idea route — 200 with progress data."""
 
-    # @pattern:SeparationOfConcerns -- Tests verify HTTP layer independently from service logic
+    # @pattern:InformationHiding -- Tests observe only public HTTP responses; SPARQL query internals hidden behind DashboardService
+    # @pattern:LayeredArchitecture -- Tests target route layer only; service and store layers replaced by mocks
 
     def test_idea_with_no_phases_returns_200(self) -> None:
         """An idea with no phase data returns 200 with empty state."""
@@ -325,7 +326,8 @@ class TestResolveUri:
 class TestResolveUriRedirectGuard:
     """Verify the self-referential redirect guard prevents infinite loops."""
 
-    # @pattern:MVC -- Guard logic in service (Model); route (Controller) delegates dispatch
+    # @pattern:SeparationOfConcerns -- Guard logic lives in service (Model); route (Controller) only delegates redirect-vs-render dispatch
+    # @pattern:MVC -- Redirect guard tested from Controller perspective; Model (service) dispatch verified by asserting 200 not 302
 
     def test_resolve_prefix_uri_returns_200_generic(self) -> None:
         """A URI starting with /resolve/ is caught by the guard and rendered inline."""
