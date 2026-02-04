@@ -6,14 +6,17 @@ communicate what happened during a persist-validate-rollback cycle — and
 validation, and optional rollback of intent-annotated phase output fields.
 
 Also provides :func:`collect_upstream_facts` for SPARQL-based collection of
-prior-phase facts, and :func:`traverse_chain` for SPARQL property-path
+prior-phase facts, :func:`group_upstream_facts` for transforming flat SPO
+triples into grouped ``{phase_id: {field: typed_value}}`` dicts
+(arch:adr-73-1), and :func:`traverse_chain` for SPARQL property-path
 traversal of ``trace:tracesTo`` chains (arch:adr-67-4).
 
-Architecture decisions: arch:adr-67-1, arch:adr-67-2, arch:adr-67-4
+Architecture decisions: arch:adr-67-1, arch:adr-67-2, arch:adr-67-4, arch:adr-73-1, arch:adr-73-5
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -256,6 +259,106 @@ def collect_upstream_facts(
                 })
 
     return all_facts
+
+
+# ---------------------------------------------------------------------------
+# Upstream fact grouping (arch:adr-73-1, arch:adr-73-5)
+# ---------------------------------------------------------------------------
+
+_PRESERVES_PREFIX = f"{PHASE_NS}preserves-"
+
+
+def _try_coerce(value: str) -> Any:
+    """Attempt to coerce a string value to a richer Python type.
+
+    Tries conversions in order: int, float, bool, JSON (via json.loads),
+    then falls back to the original string.  This handles all current
+    scalar IntentField types persisted as RDF literals.
+    """
+    # int
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        pass
+
+    # float
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        pass
+
+    # bool (RDF/SPARQL canonical forms)
+    if value.lower() in ("true", "false"):
+        return value.lower() == "true"
+
+    # JSON compound value (list, dict, etc.)
+    try:
+        parsed = json.loads(value)
+        # Only accept compound types — scalars are handled above
+        if isinstance(parsed, (list, dict)):
+            return parsed
+    except (json.JSONDecodeError, ValueError, TypeError):
+        pass
+
+    # Fallback: plain string
+    return value
+
+
+def group_upstream_facts(
+    raw_facts: list[dict[str, str]],
+) -> dict[str, dict[str, Any]]:
+    """Group flat SPO triples into a nested dict keyed by phase then field.
+
+    Transforms the flat list returned by :func:`collect_upstream_facts` into::
+
+        {
+            "d1": {"tools_found": 5, "mcp_servers_found": 3},
+            "d2": {"persona_count": 3},
+        }
+
+    Only ``phase:preserves-*`` predicates are included; metadata predicates
+    (``producedBy``, ``forRequirement``, ``rdf:type``, ``trace:tracesTo``)
+    are silently skipped.  Values are auto-coerced via :func:`_try_coerce`.
+
+    Parameters:
+        raw_facts: Flat list of ``{"subject": ..., "predicate": ..., "object": ...}``
+            dicts as returned by :func:`collect_upstream_facts`.
+
+    Returns:
+        Nested dict ``{phase_id: {field_name: typed_value}}``.
+        Empty dict for empty input.
+    """
+    if not raw_facts:
+        return {}
+
+    grouped: dict[str, dict[str, Any]] = {}
+
+    for fact in raw_facts:
+        predicate: str = fact.get("predicate", "")
+
+        # Skip non-preserves predicates (metadata, rdf:type, trace, etc.)
+        if not predicate.startswith(_PRESERVES_PREFIX):
+            continue
+
+        field_name = predicate[len(_PRESERVES_PREFIX):]
+
+        # Extract phase_id from subject URI: {PHASE_NS}{idea_id}-{phase_id}
+        subject: str = fact.get("subject", "")
+        # Find the last '-' after the PHASE_NS prefix to split idea_id-phase_id
+        after_ns = subject[len(PHASE_NS):] if subject.startswith(PHASE_NS) else ""
+        dash_idx = after_ns.find("-")
+        if dash_idx == -1:
+            continue
+        phase_id = after_ns[dash_idx + 1:]
+
+        raw_value: str = fact.get("object", "")
+        typed_value = _try_coerce(raw_value)
+
+        if phase_id not in grouped:
+            grouped[phase_id] = {}
+        grouped[phase_id][field_name] = typed_value
+
+    return grouped
 
 
 _TRAVERSE_MAX_DEPTH = 20
