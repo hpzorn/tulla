@@ -6,11 +6,13 @@ strategic fit, and ROI potential for a given idea.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
 
 from .models import D3Output
 
@@ -38,9 +40,20 @@ class D3Phase(Phase[D3Output]):
         d2_file = ctx.work_dir / "d2-personas.md"
         discovery_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
             f"You are conducting Phase D3: Value Mapping for idea {ctx.idea_id}.\n"
             "\n"
+            f"{upstream_section}"
             "## Goal\n"
             "Assess business value, strategic fit, and ROI potential.\n"
             "\n"
