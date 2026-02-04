@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "inspector/_macros.html" import render_uri, short_uri %}
+
+{% block title %}Iterations — Idea {{ idea_id }} — Inspector{% endblock %}
+
+{% block content %}
+{# ── Breadcrumb ─────────────────────────────────────────────── #}
+<nav class="breadcrumb">
+    <a href="/dashboard/inspector/ideas">Inspector</a>
+    &rsaquo; <a href="/dashboard/inspector/ideas/{{ idea_id }}">Idea {{ idea_id }}</a>
+    &rsaquo; Iterations
+</nav>
+
+<h1>Iterations — Idea {{ idea_id }}</h1>
+
+{% if iterations %}
+<table>
+    <thead>
+        <tr>
+            <th>Requirement</th>
+            <th>Quality Focus</th>
+            <th>Result</th>
+            <th>Feedback</th>
+            <th>Commit</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for iter in iterations %}
+        <tr>
+            <td>
+                {% if iter.get("requirement_id") %}
+                    {{ render_uri(iter.requirement_id, request) }}
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+            <td>{{ iter.get("quality_focus", "—") }}</td>
+            <td>
+                {% if iter.get("passed") == "true" or iter.get("passed") == true %}
+                    <span class="badge badge-pass" title="Passed">&#x2705;</span>
+                {% elif iter.get("passed") == "false" or iter.get("passed") == false %}
+                    <span class="badge badge-fail" title="Failed">&#x274C;</span>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% set fb = iter.get("feedback", "") %}
+                {% if fb %}
+                    <span title="{{ fb }}">{{ fb[:100] }}{{ "…" if fb|length > 100 }}</span>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+            <td>
+                {% set hash = iter.get("commit_hash", "") %}
+                {% if hash %}
+                    <code title="{{ hash }}">{{ hash[:7] }}</code>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>No iterations recorded yet.</p>
+{% endif %}
+{% endblock %}
