@@ -3,6 +3,8 @@
 Provides an HTMX-powered web dashboard for browsing ontologies,
 ideas, and agent memory.
 """
+# @pattern:SeparationOfConcerns -- Filter handles display abbreviation; macros handle link generation with request context
+# @principle:OpenClosedPrinciple -- New prefixes added to _NS_PREFIXES without modifying filter logic
 
 from __future__ import annotations
 
@@ -21,6 +23,27 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _PACKAGE_DIR = Path(__file__).resolve().parent
+
+# Namespace prefix mapping — same as _PREFIXES in templates/inspector/_macros.html
+# @quality:Maintainability -- Single authoritative prefix table reused by both filter and macro
+_NS_PREFIXES: list[tuple[str, str]] = [
+    ("http://impl-ralph.io/phase#", "phase:"),
+    ("http://impl-ralph.io/prd#", "prd:"),
+    ("http://impl-ralph.io/trace#", "trace:"),
+    ("http://www.w3.org/2004/02/skos/core#", "skos:"),
+]
+
+
+def short_uri(uri: str) -> str:
+    """Abbreviate a URI using known namespace prefixes.
+
+    Returns the shortened form (e.g. ``"phase:D1Output"``) or the
+    original URI if no prefix matches.
+    """
+    for ns, prefix in _NS_PREFIXES:
+        if uri.startswith(ns):
+            return prefix + uri[len(ns):]
+    return uri
 
 
 def create_dashboard_app(
@@ -63,6 +86,9 @@ def create_dashboard_app(
         return str(url)
 
     templates.env.globals["dashboard_url"] = dashboard_url
+
+    # Register short_uri as a Jinja2 filter so templates can use {{ uri | short_uri }}
+    templates.env.filters["short_uri"] = short_uri
 
     app.state.templates = templates
 
