@@ -3,8 +3,8 @@
 # @pattern:PipesAndFilters -- D1-D5 outputs form a typed pipeline; each phase consumes the previous output and produces a new DxOutput that feeds downstream phases
 # @pattern:Plugin -- Each DxOutput is a self-describing plugin; adding IntentField annotations registers new facts without modifying core persistence code
 # @pattern:Blackboard -- IntentField-annotated fields on each DxOutput constitute a shared fact blackboard; PhaseFactPersister and extract_intent_fields read/write these slots independently
-# @principle:OpenClosedPrinciple -- New intent fields extend phase outputs via annotation only; extract_intent_fields picks them up without code changes
-# @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations, IntentField-annotated fields carry decision-relevant metrics; each concern is handled by a distinct Pydantic field type
+# @principle:SingleResponsibility -- Each DxOutput class owns exactly one phase's output schema; intent vs artefact concerns are split across IntentField and plain Field types
+# @principle:DependencyInversion -- DxOutput models depend on the abstract IntentField marker, not on concrete persistence; PhaseFactPersister discovers fields via extract_intent_fields at runtime
 """
 
 from __future__ import annotations
@@ -44,8 +44,8 @@ class D3Output(BaseModel):
     """Output of D3 – Value Mapping."""
 
     value_mapping_file: Path
-    total_value_score: int
-    quadrant: str
+    total_value_score: int = IntentField(description="Total value score (0-60)")
+    quadrant: str = IntentField(description="Value-effort quadrant classification")
 
 
 class D4Output(BaseModel):
