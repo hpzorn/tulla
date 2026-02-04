@@ -39,7 +39,7 @@ class D2Output(BaseModel):
     """Output of D2 – Persona Generation."""
 
     personas_file: Path
-    persona_count: int
+    persona_count: int = IntentField(description="Number of personas generated")
 
 
 class D3Output(BaseModel):
