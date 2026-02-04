@@ -17,7 +17,7 @@ import logging
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
-from tulla.core.phase_facts import group_upstream_facts
+from tulla.core.phase_facts import group_upstream_facts, traverse_chain
 
 if TYPE_CHECKING:
     from knowledge_graph.core.memory import AgentMemory
@@ -27,7 +27,26 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+PHASE_NS = "http://impl-ralph.io/phase#"
 KNOWN_PHASES = ["d0", "d1", "d2", "d3", "d4", "d5"]
+
+
+class _KgStoreOntologyAdapter:
+    """Minimal adapter exposing ``sparql_query`` for :func:`traverse_chain`.
+
+    ``traverse_chain`` expects an :class:`OntologyPort`-like object with a
+    ``sparql_query(query)`` method that returns
+    ``{"results": [{"var": value, ...}, ...]}``.  The ``KnowledgeGraphStore``
+    has ``query(sparql)`` returning a namespace with ``.bindings``.  This
+    adapter bridges the two calling conventions.
+    """
+
+    def __init__(self, kg_store: "KnowledgeGraphStore") -> None:
+        self._kg = kg_store
+
+    def sparql_query(self, query: str, **_kwargs: Any) -> dict[str, Any]:
+        result = self._kg.query(query)
+        return {"results": list(result.bindings)}
 
 
 class DashboardService:
@@ -229,6 +248,71 @@ class DashboardService:
         except Exception:
             logger.exception("Failed to query phase facts for idea %s", idea_id)
             return {}
+
+    def get_phase_detail(
+        self,
+        idea_id: str,
+        phase_id: str,
+    ) -> dict[str, Any] | None:
+        """Return detailed information for a single phase output.
+
+        Queries all triples for subject ``phase:{idea_id}-{phase_id}`` from
+        the A-Box store.  Predicates starting with ``phase:preserves-`` are
+        classified as intent fields; all others are metadata.  Ancestor URIs
+        are obtained via :func:`traverse_chain`.
+
+        Returns ``None`` if no triples exist for the subject.
+        """
+        subject = f"{PHASE_NS}{idea_id}-{phase_id}"
+        sparql = f"""
+        SELECT ?p ?o WHERE {{
+            <{subject}> ?p ?o .
+        }}
+        """
+        try:
+            result = self._kg_store.query(sparql)
+            bindings = result.bindings
+        except Exception:
+            logger.exception(
+                "Failed to query phase detail for %s-%s", idea_id, phase_id,
+            )
+            return None
+
+        if not bindings:
+            return None
+
+        intent_fields: dict[str, Any] = {}
+        metadata: dict[str, Any] = {}
+        preserves_prefix = f"{PHASE_NS}preserves-"
+
+        for b in bindings:
+            predicate = b.get("p", "")
+            obj = b.get("o", "")
+            if predicate.startswith(preserves_prefix):
+                field_name = predicate[len(preserves_prefix):]
+                intent_fields[field_name] = obj
+            else:
+                metadata[predicate] = obj
+
+        # Obtain ancestor URIs via traverse_chain
+        adapter = _KgStoreOntologyAdapter(self._kg_store)
+        try:
+            chain = traverse_chain(adapter, idea_id, phase_id)
+            # chain[0] is the starting subject itself; ancestors are the rest
+            trace_ancestors = [entry["subject"] for entry in chain[1:]]
+        except Exception:
+            logger.exception(
+                "Failed to traverse chain for %s-%s", idea_id, phase_id,
+            )
+            trace_ancestors = []
+
+        return {
+            "phase_id": phase_id,
+            "idea_id": idea_id,
+            "intent_fields": intent_fields,
+            "metadata": metadata,
+            "trace_ancestors": trace_ancestors,
+        }
 
     # ------------------------------------------------------------------
     # Agent Memory (A-Box) — uses AgentMemory (synchronous)
