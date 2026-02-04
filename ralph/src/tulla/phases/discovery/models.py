@@ -7,6 +7,11 @@
 # @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations,
 #   IntentField-annotated fields carry decision-relevant metrics; each concern
 #   is handled by a distinct Pydantic field type
+# @principle:SingleResponsibility -- Each DxOutput class models exactly one
+#   phase's output contract; no class spans multiple discovery steps
+# @principle:DependencyInversion -- Phase models depend on the IntentField
+#   abstraction, not on concrete persistence (PhaseFactPersister); the marker
+#   is resolved at runtime by extract_intent_fields
 """
 
 from __future__ import annotations
