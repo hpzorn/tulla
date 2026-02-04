@@ -5,7 +5,7 @@ Uses _MockOntologyPort for persist() tests and direct function calls for
 group_upstream_facts / _try_coerce.
 
 # @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort ABC to test persistence without a live ontology server
-# @pattern:LayeredArchitecture -- Test file mirrors the source layer structure: core/ tests exercise core/ modules without crossing into phases/ or ports/ adapters
+# @principle:InformationHiding -- _MockOntologyPort hides ontology-server internals (SPARQL, HTTP, graph DB) behind the OntologyPort interface so tests never observe implementation details
 """
 
 from __future__ import annotations
@@ -201,7 +201,7 @@ class TestPersistResult:
 # ===================================================================
 # PhaseFactPersister — None-value intent fields skipped (req-73-1-1)
 # ===================================================================
-# @pattern:MVC -- Persist tests treat PhaseFactPersister as a controller: model data flows in, triples (view) flow out to the mock port
+# @principle:LooseCoupling -- Persist tests couple only to PhaseFactPersister + OntologyPort; swapping _MockOntologyPort for a real adapter requires zero test changes
 
 
 class TestPersistSkipsNoneIntentFields:
