@@ -17,6 +17,8 @@ import logging
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
+from tulla.core.phase_facts import group_upstream_facts
+
 if TYPE_CHECKING:
     from knowledge_graph.core.memory import AgentMemory
     from knowledge_graph.core.ideas import IdeasStore
@@ -196,6 +198,37 @@ class DashboardService:
             "percent": percent,
             "current": current,
         }
+
+    def get_phase_facts(self, idea_id: str) -> dict[str, dict]:
+        """Return phase facts for *idea_id* grouped by phase and field.
+
+        Queries all triples where ``phase:forRequirement`` matches *idea_id*
+        from the A-Box store, then passes them through
+        :func:`~tulla.core.phase_facts.group_upstream_facts` to produce a
+        nested ``{phase: {field: value}}`` dict.
+
+        Returns an empty dict on any exception.
+        """
+        sparql = f"""
+        SELECT ?s ?p ?o WHERE {{
+            ?s <http://impl-ralph.io/phase#forRequirement> "{idea_id}" .
+            ?s ?p ?o .
+        }}
+        """
+        try:
+            result = self._kg_store.query(sparql)
+            raw_facts = [
+                {
+                    "subject": b["s"],
+                    "predicate": b["p"],
+                    "object": b["o"],
+                }
+                for b in result.bindings
+            ]
+            return group_upstream_facts(raw_facts)
+        except Exception:
+            logger.exception("Failed to query phase facts for idea %s", idea_id)
+            return {}
 
     # ------------------------------------------------------------------
     # Agent Memory (A-Box) — uses AgentMemory (synchronous)
