@@ -295,6 +295,33 @@ async def requirement_detail(
 
 
 # ---------------------------------------------------------------------------
+# URI resolver (Inspector — arch:adr-74-2, arch:adr-74-3)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/resolve/{uri:path}", response_class=HTMLResponse)
+async def resolve_uri(request: Request, uri: str) -> HTMLResponse:
+    """Resolve a URI: redirect to a domain route or render a generic detail."""
+    service = _get_service(request)
+    route_name, route_params = service.resolve_uri(uri)
+
+    if route_name != "generic_detail":
+        dashboard_url = request.app.state.templates.env.globals["dashboard_url"]
+        try:
+            target = dashboard_url(request, route_name, **route_params)
+            return RedirectResponse(url=target, status_code=302)
+        except Exception:
+            logger.debug("Route %r not registered, falling back to generic detail", route_name)
+
+    triples = service.get_triples_for_uri(uri)
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "inspector/generic_detail.html",
+        {"request": request, "uri": uri, "triples": triples},
+    )
+
+
+# ---------------------------------------------------------------------------
 # HTMX partial endpoints (HTML fragments, no base layout)
 # ---------------------------------------------------------------------------
 
