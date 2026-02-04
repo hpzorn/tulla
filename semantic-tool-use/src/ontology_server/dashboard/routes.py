@@ -17,6 +17,10 @@ Routes
 - ``GET /prds``                          — PRD context list
 - ``GET /prds/{context}``                — PRD requirement graph
 - ``GET /prds/{context}/{subject:path}`` — single requirement detail
+- ``GET /inspector/ideas``               — inspector idea list
+- ``GET /inspector/ideas/{idea_id}``     — idea inspector (progress + phases)
+- ``GET /inspector/phases/{uri:path}``   — phase detail view
+- ``GET /partials/progress-bar``         — HTMX partial: progress bar
 - ``GET /partials/instance-rows``        — HTMX partial: instance rows
 - ``GET /partials/instance-properties``  — HTMX partial: instance props
 """
@@ -26,9 +30,9 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
-from .services import DashboardService
+from .services import DashboardService, KNOWN_PHASES
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +299,97 @@ async def requirement_detail(
 
 
 # ---------------------------------------------------------------------------
+# Inspector views (arch:adr-74-3 — routes under /inspector/ prefix)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/inspector/ideas", response_class=HTMLResponse)
+async def idea_inspector_list(request: Request) -> HTMLResponse:
+    """Render a list of all ideas linking to their inspector pages."""
+    service = _get_service(request)
+    ideas = service.list_ideas()
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "inspector/idea_list.html",
+        {"request": request, "ideas": ideas},
+    )
+
+
+@router.get("/inspector/ideas/{idea_id}", response_class=HTMLResponse)
+async def inspector_idea(request: Request, idea_id: str) -> HTMLResponse:
+    """Render the idea inspector view with progress bar, phase cards, and iteration link."""
+    service = _get_service(request)
+    phase_facts = service.get_phase_facts(idea_id)
+    progress = service.get_idea_progress(idea_id)
+    iterations = service.get_iteration_facts(idea_id)
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "inspector/idea_inspector.html",
+        {
+            "request": request,
+            "idea_id": idea_id,
+            "phase_facts": phase_facts,
+            "progress": progress,
+            "known_phases": KNOWN_PHASES,
+            "iterations": iterations,
+        },
+    )
+
+
+@router.get("/inspector/phases/{uri:path}", response_class=HTMLResponse)
+async def phase_detail_view(request: Request, uri: str) -> HTMLResponse:
+    """Render the detail view for a single phase output, identified by URI.
+
+    The URI encodes ``{idea_id}-{phase_id}`` (e.g. ``idea-50-d1``).
+    Parses out the idea_id and phase_id, calls ``service.get_phase_detail()``,
+    and renders ``inspector/phase_detail.html``.  Returns 404 if the phase
+    output does not exist.
+    """
+    # URI is of the form "{idea_id}-{phase_id}" where phase_id is a known
+    # phase like d0..d5.  Split on the last hyphen-separated known phase.
+    idea_id = None
+    phase_id = None
+    for p in reversed(KNOWN_PHASES):
+        suffix = f"-{p}"
+        if uri.endswith(suffix):
+            idea_id = uri[: -len(suffix)]
+            phase_id = p
+            break
+
+    if idea_id is None or phase_id is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": f"Cannot parse phase URI: {uri}"},
+        )
+
+    service = _get_service(request)
+    detail = service.get_phase_detail(idea_id, phase_id)
+    templates = request.app.state.templates
+
+    if detail is None:
+        return templates.TemplateResponse(
+            "inspector/phase_detail.html",
+            {
+                "request": request,
+                "idea_id": idea_id,
+                "phase_id": phase_id,
+                "detail": None,
+            },
+            status_code=404,
+        )
+
+    return templates.TemplateResponse(
+        "inspector/phase_detail.html",
+        {
+            "request": request,
+            "idea_id": idea_id,
+            "phase_id": phase_id,
+            "detail": detail,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
 # URI resolver (Inspector — arch:adr-74-2, arch:adr-74-3)
 # ---------------------------------------------------------------------------
 
@@ -324,6 +419,22 @@ async def resolve_uri(request: Request, uri: str) -> HTMLResponse:
 # ---------------------------------------------------------------------------
 # HTMX partial endpoints (HTML fragments, no base layout)
 # ---------------------------------------------------------------------------
+
+
+# @pattern:CQRS -- Read-only partial returns pre-rendered HTML; service queries KG without side effects
+@router.get("/partials/progress-bar", response_class=HTMLResponse)
+async def partial_progress_bar(
+    request: Request,
+    idea_id: str,
+) -> HTMLResponse:
+    """Return progress bar HTML fragment for HTMX swap."""
+    service = _get_service(request)
+    progress = service.get_idea_progress(idea_id)
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "inspector/partials/progress_bar.html",
+        {"request": request, "idea_id": idea_id, "progress": progress},
+    )
 
 
 @router.get("/partials/instance-rows", response_class=HTMLResponse)
