@@ -5,8 +5,7 @@ Uses _MockOntologyPort for persist() tests and direct function calls for
 group_upstream_facts / _try_coerce.
 
 # @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort ABC to test persistence without a live ontology server
-# @pattern:SeparationOfConcerns -- Tests are organized into isolated classes per feature boundary: None-skip, grouping, coercion
-# @principle:DependencyInversion -- Tests depend on OntologyPort abstraction, not on any concrete adapter
+# @pattern:LayeredArchitecture -- Test file mirrors the source layer structure: core/ tests exercise core/ modules without crossing into phases/ or ports/ adapters
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ from tulla.ports.ontology import OntologyPort
 # ---------------------------------------------------------------------------
 # _MockOntologyPort — in-process triple store for isolation
 # ---------------------------------------------------------------------------
-# @pattern:PortsAndAdapters -- Concrete test double for OntologyPort; records triples in a list for assertion without MCP or SPARQL
+# @principle:DependencyInversion -- Tests depend on the OntologyPort abstraction; _MockOntologyPort is injected without referencing any concrete adapter
 
 
 class _MockOntologyPort(OntologyPort):
@@ -202,7 +201,7 @@ class TestPersistResult:
 # ===================================================================
 # PhaseFactPersister — None-value intent fields skipped (req-73-1-1)
 # ===================================================================
-# @principle:InformationHiding -- Tests verify the observable effect (no None triples) without inspecting persist() internals
+# @pattern:MVC -- Persist tests treat PhaseFactPersister as a controller: model data flows in, triples (view) flow out to the mock port
 
 
 class TestPersistSkipsNoneIntentFields:
@@ -683,7 +682,7 @@ class TestPersistShaclValidation:
 # ===================================================================
 # _try_coerce — type coercion helper (req-73-1-2)
 # ===================================================================
-# @principle:LooseCoupling -- _try_coerce is tested in isolation from group_upstream_facts, verifying each coercion path independently
+# @principle:SeparationOfConcerns -- _try_coerce is tested in isolation from group_upstream_facts, verifying each coercion path independently
 
 
 class TestTryCoerce:
@@ -743,7 +742,6 @@ class TestTryCoerce:
 # ===================================================================
 # group_upstream_facts — grouping + coercion (req-73-1-2)
 # ===================================================================
-# @principle:SeparationOfConcerns -- group_upstream_facts is a pure function; tests use PHASE_NS constants for realistic predicate URIs without needing a port
 
 
 class TestGroupUpstreamFacts:
