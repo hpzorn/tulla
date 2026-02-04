@@ -101,6 +101,7 @@ class PhaseFactPersister:
         subject = f"{PHASE_NS}{idea_id}-{phase_id}"
 
         # (3) Idempotent cleanup — wipe all prior triples for this subject
+        # @pattern:EventSourcing -- Idempotent cleanup via remove_triples_by_subject ensures pipeline resume/rerun never duplicates A-Box triples
         cleared = self._ontology.remove_triples_by_subject(subject)
         if cleared:
             logger.info(
