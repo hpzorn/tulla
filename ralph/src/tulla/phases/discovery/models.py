@@ -1,4 +1,13 @@
-"""Pydantic data models for the Discovery phase (D1–D5)."""
+"""Pydantic data models for the Discovery phase (D1–D5).
+
+# @pattern:Plugin -- Each DxOutput is a self-describing plugin; adding IntentField
+#   annotations registers new facts without modifying core persistence code
+# @principle:OpenClosedPrinciple -- New intent fields extend phase outputs via
+#   annotation only; extract_intent_fields picks them up without code changes
+# @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations,
+#   IntentField-annotated fields carry decision-relevant metrics; each concern
+#   is handled by a distinct Pydantic field type
+"""
 
 from __future__ import annotations
 
@@ -22,8 +31,8 @@ class D1Output(BaseModel):
     """Output of D1 – Tool & MCP Inventory."""
 
     inventory_file: Path
-    tools_found: int
-    mcp_servers_found: int
+    tools_found: int = IntentField(description="Number of tools discovered")
+    mcp_servers_found: int = IntentField(description="Number of MCP servers discovered")
 
 
 class D2Output(BaseModel):
