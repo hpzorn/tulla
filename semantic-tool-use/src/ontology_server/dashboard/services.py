@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+KNOWN_PHASES = ["d0", "d1", "d2", "d3", "d4", "d5"]
+
 
 class DashboardService:
     """Facade that wraps the four backing stores for the dashboard UI.
@@ -154,6 +156,46 @@ class DashboardService:
             state = idea.get("lifecycle", "seed")
             summary[state] = summary.get(state, 0) + 1
         return summary
+
+    def get_idea_progress(self, idea_id: str) -> dict[str, Any]:
+        """Return phase-completion progress for *idea_id*.
+
+        Queries ``phase:producedBy`` values for all ``phase:PhaseOutput``
+        instances whose ``phase:forRequirement`` matches *idea_id*.
+
+        Returns a dict with keys ``completed``, ``total``, ``percent``,
+        and ``current``.
+        """
+        sparql = f"""
+        SELECT DISTINCT ?phase WHERE {{
+            ?output <http://impl-ralph.io/phase#forRequirement> "{idea_id}" .
+            ?output <http://impl-ralph.io/phase#producedBy> ?phase .
+        }}
+        """
+        try:
+            result = self._kg_store.query(sparql)
+            completed = sorted(
+                phase
+                for b in result.bindings
+                if (phase := b.get("phase")) in KNOWN_PHASES
+            )
+        except Exception:
+            logger.exception("Failed to query phase progress for idea %s", idea_id)
+            return {"completed": [], "total": len(KNOWN_PHASES), "percent": 0, "current": None}
+
+        total = len(KNOWN_PHASES)
+        percent = int(len(completed) / total * 100) if total else 0
+        completed_set = set(completed)
+        current = next(
+            (p for p in KNOWN_PHASES if p not in completed_set),
+            None,
+        )
+        return {
+            "completed": completed,
+            "total": total,
+            "percent": percent,
+            "current": current,
+        }
 
     # ------------------------------------------------------------------
     # Agent Memory (A-Box) — uses AgentMemory (synchronous)
