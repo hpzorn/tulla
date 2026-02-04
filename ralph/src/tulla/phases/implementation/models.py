@@ -3,6 +3,12 @@
 Unlike the linear pipeline phases (Discovery, Planning, Research), the
 Implementation phase uses a Find-Implement-Commit-Verify-Status loop.
 These models represent the inputs and outputs of each loop step.
+
+# @pattern:PipesAndFilters -- Find→Implement→Commit→Verify→Status outputs chain through the loop; each step model feeds the next via IterationResult
+# @pattern:Blackboard -- IterationFactRecord fields form a shared fact blackboard persisted after Status; downstream phases read these slots via extract_intent_fields
+# @principle:SingleResponsibility -- Each step model (FindOutput, CommitOutput, etc.) owns exactly one step's schema; IterationFactRecord owns only the persisted fact subset
+# @principle:OpenClosedPrinciple -- New iteration facts extend IterationFactRecord via IntentField annotation; extract_intent_fields discovers them without core code changes
+# @principle:SeparationOfConcerns -- Step-level models carry operational fields (cost_usd, duration_s) while IterationFactRecord carries only intent-preserving decision fields
 """
 
 from __future__ import annotations
@@ -11,6 +17,8 @@ import enum
 from pathlib import Path
 
 from pydantic import BaseModel, Field
+
+from tulla.core.intent import IntentField
 
 
 # ---------------------------------------------------------------------------
@@ -142,3 +150,33 @@ class LoopResult(BaseModel):
     requirements_completed: int = 0
     requirements_blocked: int = 0
     all_complete: bool = False
+
+
+# ---------------------------------------------------------------------------
+# Iteration fact record (persisted after Status step)
+# ---------------------------------------------------------------------------
+
+
+class IterationFactRecord(BaseModel):
+    """Intent-carrying output of a single implementation iteration.
+
+    Persisted after the Status step of each loop iteration.  All five
+    fields carry the IntentField marker so that PhaseFactPersister and
+    extract_intent_fields can discover and persist them as A-Box triples.
+    """
+
+    requirement_id: str = IntentField(
+        description="The prd:req-* identifier implemented in this iteration",
+    )
+    quality_focus: str = IntentField(
+        description="iSAQB quality attribute targeted by this requirement",
+    )
+    passed: bool = IntentField(
+        description="Whether the verification step passed",
+    )
+    feedback: str = IntentField(
+        description="Verification feedback or failure reason",
+    )
+    commit_hash: str = IntentField(
+        description="Git commit hash produced by the commit step",
+    )
