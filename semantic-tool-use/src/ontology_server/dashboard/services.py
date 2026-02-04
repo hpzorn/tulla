@@ -573,6 +573,151 @@ class DashboardService:
             return []
 
     # ------------------------------------------------------------------
+    # Requirement Phase History (Inspector)
+    # ------------------------------------------------------------------
+
+    def get_requirement_phase_history(
+        self,
+        context: str,
+        subject: str,
+    ) -> list[dict[str, Any]]:
+        """Return all phase outputs linked to a requirement.
+
+        Identifies the requirement via *context* and *subject* from
+        AgentMemory, queries the A-Box for ``phase:PhaseOutput`` instances
+        whose ``phase:forRequirement`` matches, then follows
+        ``trace:tracesTo`` chains to collect the full history.
+
+        Returns an ordered list of dicts (by subject URI), each containing
+        ``phase_id``, ``produced_by``, ``intent_fields`` (dict), and
+        ``timestamp`` (str or None).
+        """
+        sparql = f"""
+        SELECT ?s ?p ?o WHERE {{
+            ?s <{PHASE_NS}forRequirement> "{subject}" .
+            ?s ?p ?o .
+        }}
+        ORDER BY ?s
+        """
+        preserves_prefix = f"{PHASE_NS}preserves-"
+        produced_by_pred = f"{PHASE_NS}producedBy"
+        timestamp_pred = f"{PHASE_NS}preserves-timestamp"
+        trace_pred = f"http://impl-ralph.io/trace#tracesTo"
+
+        try:
+            result = self._kg_store.query(sparql)
+            bindings = result.bindings
+        except Exception:
+            logger.exception(
+                "Failed to query phase history for requirement %s/%s",
+                context,
+                subject,
+            )
+            return []
+
+        if not bindings:
+            return []
+
+        # Group bindings by subject
+        grouped: dict[str, dict[str, Any]] = {}
+        for b in bindings:
+            subj = b["s"]
+            pred = b.get("p", "")
+            obj = b.get("o", "")
+
+            if subj not in grouped:
+                grouped[subj] = {
+                    "phase_id": None,
+                    "produced_by": None,
+                    "intent_fields": {},
+                    "timestamp": None,
+                    "_traces_to": None,
+                }
+
+            entry = grouped[subj]
+            if pred == produced_by_pred:
+                entry["produced_by"] = obj
+                entry["phase_id"] = obj
+            elif pred == timestamp_pred:
+                entry["timestamp"] = obj
+            elif pred == trace_pred:
+                entry["_traces_to"] = obj
+            elif pred.startswith(preserves_prefix):
+                field_name = pred[len(preserves_prefix):]
+                if field_name != "timestamp":
+                    entry["intent_fields"][field_name] = obj
+
+        # Follow trace:tracesTo chains to include ancestor phase outputs
+        # that are not directly linked via forRequirement
+        visited = set(grouped.keys())
+        frontier = [
+            entry["_traces_to"]
+            for entry in grouped.values()
+            if entry["_traces_to"] and entry["_traces_to"] not in visited
+        ]
+
+        while frontier:
+            next_subj = frontier.pop(0)
+            if next_subj in visited:
+                continue
+            visited.add(next_subj)
+
+            ancestor_sparql = f"""
+            SELECT ?p ?o WHERE {{
+                <{next_subj}> ?p ?o .
+            }}
+            """
+            try:
+                ancestor_result = self._kg_store.query(ancestor_sparql)
+                ancestor_bindings = ancestor_result.bindings
+            except Exception:
+                logger.exception(
+                    "Failed to query ancestor %s for requirement %s/%s",
+                    next_subj,
+                    context,
+                    subject,
+                )
+                continue
+
+            entry: dict[str, Any] = {
+                "phase_id": None,
+                "produced_by": None,
+                "intent_fields": {},
+                "timestamp": None,
+                "_traces_to": None,
+            }
+            for b in ancestor_bindings:
+                pred = b.get("p", "")
+                obj = b.get("o", "")
+                if pred == produced_by_pred:
+                    entry["produced_by"] = obj
+                    entry["phase_id"] = obj
+                elif pred == timestamp_pred:
+                    entry["timestamp"] = obj
+                elif pred == trace_pred:
+                    entry["_traces_to"] = obj
+                elif pred.startswith(preserves_prefix):
+                    field_name = pred[len(preserves_prefix):]
+                    if field_name != "timestamp":
+                        entry["intent_fields"][field_name] = obj
+
+            grouped[next_subj] = entry
+            if entry["_traces_to"] and entry["_traces_to"] not in visited:
+                frontier.append(entry["_traces_to"])
+
+        # Build ordered result, strip internal _traces_to key
+        ordered = []
+        for subj in sorted(grouped):
+            entry = grouped[subj]
+            ordered.append({
+                "phase_id": entry["phase_id"],
+                "produced_by": entry["produced_by"],
+                "intent_fields": entry["intent_fields"],
+                "timestamp": entry["timestamp"],
+            })
+        return ordered
+
+    # ------------------------------------------------------------------
     # Aggregated dashboard summary
     # ------------------------------------------------------------------
 
