@@ -821,14 +821,14 @@ isaqb:ProductQuality a isaqb:QualityCategory ;
 
 isaqb:FunctionalSuitability a isaqb:QualityAttribute ;
     rdfs:label "Functional Suitability" ;
-    rdfs:comment "Degree to which a product or system provides functions that meet stated and implied needs when used under specified conditions. Comprises functional completeness, correctness, and appropriateness. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree to which a product or system provides functions that meet stated and implied needs when used under specified conditions (ISO/IEC 25010:2023)." ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:FunctionalCompleteness, isaqb:FunctionalCorrectness, isaqb:FunctionalAppropriateness ;
     isaqb:learningGoal "LG 02-03" .
 
 isaqb:PerformanceEfficiency a isaqb:QualityAttribute ;
     rdfs:label "Performance Efficiency" ;
-    rdfs:comment "Degree of performance relative to the amount of resources used under stated conditions. Comprises time behaviour, resource utilization, and capacity. A key tradeoff driver in most architectural decisions. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree of performance relative to the amount of resources used under stated conditions (ISO/IEC 25010:2023)." ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:TimeBehaviour, isaqb:ResourceUtilization, isaqb:Capacity ;
     isaqb:learningGoal "LG 02-03" ;
@@ -836,7 +836,7 @@ isaqb:PerformanceEfficiency a isaqb:QualityAttribute ;
 
 isaqb:Compatibility a isaqb:QualityAttribute ;
     rdfs:label "Compatibility" ;
-    rdfs:comment "Degree to which a product, system or component can exchange information with other products, systems or components, and/or perform its required functions while sharing the same hardware or software environment. Comprises co-existence and interoperability. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree to which a product, system or component can exchange information with other products, systems or components, and/or perform its required functions while sharing the same hardware or software environment (ISO/IEC 25010:2023)." ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:CoExistence, isaqb:Interoperability ;
     isaqb:learningGoal "LG 02-03" ;
@@ -845,7 +845,7 @@ isaqb:Compatibility a isaqb:QualityAttribute ;
 
 isaqb:InteractionCapability a isaqb:QualityAttribute ;
     rdfs:label "Interaction Capability" ;
-    rdfs:comment "Degree to which a product or system can be used by specified users to achieve specified goals with effectiveness, efficiency, and satisfaction in a specified context of use. Replaces 'Usability' from ISO 25010:2011. Comprises learnability, operability, user error protection, accessibility, and user interface aesthetics. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree to which a product or system can be used by specified users to achieve specified goals with effectiveness, efficiency, and satisfaction in a specified context of use. Replaces 'Usability' from ISO 25010:2011 (ISO/IEC 25010:2023)." ;
     isaqb:alias "Usability" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Learnability, isaqb:Operability, isaqb:UserErrorProtection, isaqb:Accessibility, isaqb:UserInterfaceAesthetics ;
@@ -853,7 +853,7 @@ isaqb:InteractionCapability a isaqb:QualityAttribute ;
 
 isaqb:Reliability a isaqb:QualityAttribute ;
     rdfs:label "Reliability" ;
-    rdfs:comment "Degree to which a system, product or component performs specified functions under specified conditions for a specified period of time. Comprises availability, fault tolerance, recoverability, and maturity. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree to which a system, product or component performs specified functions under specified conditions for a specified period of time (ISO/IEC 25010:2023)." ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Availability, isaqb:FaultTolerance, isaqb:Recoverability, isaqb:Maturity ;
     isaqb:learningGoal "LG 02-03" ;
@@ -862,7 +862,7 @@ isaqb:Reliability a isaqb:QualityAttribute ;
 
 isaqb:Security a isaqb:QualityAttribute ;
     rdfs:label "Security" ;
-    rdfs:comment "Degree to which a product or system protects information and data so that persons or other products or systems have the degree of data access appropriate to their types and levels of authorization. Comprises confidentiality, integrity, non-repudiation, accountability, and authenticity. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree to which a product or system protects information and data so that persons or other products or systems have the degree of data access appropriate to their types and levels of authorization (ISO/IEC 25010:2023)." ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Confidentiality, isaqb:Integrity, isaqb:NonRepudiation, isaqb:Accountability, isaqb:Authenticity ;
     isaqb:learningGoal "LG 02-03" ;
@@ -870,7 +870,7 @@ isaqb:Security a isaqb:QualityAttribute ;
 
 isaqb:Maintainability a isaqb:QualityAttribute ;
     rdfs:label "Maintainability" ;
-    rdfs:comment "Degree of effectiveness and efficiency with which a product or system can be modified by the intended maintainers. Modifications include corrections, improvements, or adaptation to changes in environment and requirements. Comprises modularity, reusability, analysability, modifiability, and testability. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree of effectiveness and efficiency with which a product or system can be modified by the intended maintainers. Modifications include corrections, improvements, or adaptation to changes in environment and requirements (ISO/IEC 25010:2023)." ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Modularity, isaqb:Reusability, isaqb:Analysability, isaqb:Modifiability, isaqb:Testability ;
     isaqb:learningGoal "LG 02-03" ;
@@ -879,7 +879,7 @@ isaqb:Maintainability a isaqb:QualityAttribute ;
 
 isaqb:Flexibility a isaqb:QualityAttribute ;
     rdfs:label "Flexibility" ;
-    rdfs:comment "Degree to which a product can be transferred from one hardware, software or other operational or usage environment to another, or adapted for different or evolving requirements. Replaces 'Portability' from ISO 25010:2011. Comprises adaptability, installability, and replaceability. (ISO/IEC 25010:2023)" ;
+    rdfs:comment "Degree to which a product can be transferred from one hardware, software or other operational or usage environment to another, or adapted for different or evolving requirements. Replaces 'Portability' from ISO 25010:2011 (ISO/IEC 25010:2023)." ;
     isaqb:alias "Portability" ;
     isaqb:category isaqb:ProductQuality ;
     isaqb:hasSubAttribute isaqb:Adaptability, isaqb:Installability, isaqb:Replaceability ;
