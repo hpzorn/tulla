@@ -6,11 +6,13 @@ their jobs-to-be-done, pain points, and desired outcomes for a given idea.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
 
 from .models import D2Output
 
@@ -36,9 +38,20 @@ class D2Phase(Phase[D2Output]):
         d1_file = ctx.work_dir / "d1-inventory.md"
         discovery_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
             f"You are conducting Phase D2: Persona Discovery for idea {ctx.idea_id}.\n"
             "\n"
+            f"{upstream_section}"
             "## Goal\n"
             "Identify who would use this, their jobs-to-be-done, and their pain points.\n"
             "\n"
