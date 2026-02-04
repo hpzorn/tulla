@@ -118,7 +118,10 @@ class PhaseFactPersister:
         stored += 1
 
         # (5) Intent fields as direct literal edges
+        # @pattern:EventSourcing -- Skip None values to avoid persisting "None" literals, aligning with SHACL minCount=0 for optional fields (arch:adr-73-4)
         for field_name, value in intent_fields.items():
+            if value is None:
+                continue
             self._ontology.add_triple(
                 subject,
                 f"{PHASE_NS}preserves-{field_name}",
