@@ -126,8 +126,8 @@ class TullaConfig(BaseSettings):
     )
     lightweight: AgentConfig = Field(
         default_factory=lambda: AgentConfig(
-            budget_usd=1.0,
-            phase_timeout_minutes=3,
+            budget_usd=3.0,
+            phase_timeout_minutes=5,
             permission_mode="acceptEdits",
         ),
     )

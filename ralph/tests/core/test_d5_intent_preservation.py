@@ -1,9 +1,9 @@
 """Manual intent preservation verification for D5Output (prd:req-67-7-2).
 
 Runs a discovery pipeline with a D5 phase using real D5Output annotations,
-then uses recall_facts(context="phase-idea-{id}-d5") to verify that the
-mode and recommendation values are stored as A-Box facts with exact,
-verbatim values — no summarization or lossy transformation.
+then verifies that the mode and recommendation values are stored as direct
+graph triples with exact, verbatim values — no summarization or lossy
+transformation.
 
 Quality focus: isaqb:FunctionalCorrectness
 Architecture decision: arch:adr-67-5
@@ -20,28 +20,73 @@ from pydantic import BaseModel
 from tulla.core.intent import IntentField, extract_intent_fields
 from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
 from tulla.core.pipeline import Pipeline
+from tulla.namespaces import PHASE_NS, RDF_TYPE
 from tulla.phases.discovery.models import D5Output
 from tulla.ports.ontology import OntologyPort
 
 
 # ---------------------------------------------------------------------------
-# Mock ontology port that records stores and replays them on recall
+# Mock ontology port that records add_triple calls for verification
 # ---------------------------------------------------------------------------
 
 
 class _RecordingOntologyPort(OntologyPort):
-    """Ontology port that records store_fact calls and returns them on recall.
+    """Ontology port that records add_triple calls and supports verification.
 
-    Unlike a simple mock, this port faithfully stores facts in memory and
-    returns them when recall_facts is called with a matching context,
-    simulating the real ontology-server round-trip.
+    Unlike a simple mock, this port faithfully stores triples in memory
+    and supports querying them back, simulating the real ontology-server
+    round-trip via direct graph edges.
     """
 
     def __init__(self) -> None:
-        self._facts: list[dict[str, Any]] = []
-        self._next_id = 0
-        self.store_fact_calls: list[dict[str, Any]] = []
-        self.forget_by_context_calls: list[str] = []
+        self._triples: list[dict[str, Any]] = []
+        self.add_triple_calls: list[dict[str, Any]] = []
+        self.remove_triples_by_subject_calls: list[str] = []
+
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        triple = {
+            "subject": subject,
+            "predicate": predicate,
+            "object": object,
+            "is_literal": is_literal,
+        }
+        self._triples.append(triple)
+        self.add_triple_calls.append(triple)
+        return {"status": "added"}
+
+    def remove_triples_by_subject(
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        self.remove_triples_by_subject_calls.append(subject)
+        before = len(self._triples)
+        self._triples = [t for t in self._triples if t["subject"] != subject]
+        return before - len(self._triples)
+
+    def get_triples(
+        self,
+        *,
+        subject: str | None = None,
+        predicate: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Query stored triples (test helper, not part of OntologyPort)."""
+        return [
+            t for t in self._triples
+            if (subject is None or t["subject"] == subject)
+            and (predicate is None or t["predicate"] == predicate)
+        ]
+
+    # --- Old interface methods (still abstract, implement as stubs) ---
 
     def store_fact(
         self,
@@ -52,18 +97,7 @@ class _RecordingOntologyPort(OntologyPort):
         context: str | None = None,
         confidence: float = 1.0,
     ) -> dict[str, Any]:
-        fact = {
-            "fact_id": str(self._next_id),
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "context": context,
-            "confidence": confidence,
-        }
-        self._next_id += 1
-        self._facts.append(fact)
-        self.store_fact_calls.append(fact)
-        return {"stored": True, "fact_id": fact["fact_id"]}
+        return {"stored": True}
 
     def recall_facts(
         self,
@@ -73,24 +107,13 @@ class _RecordingOntologyPort(OntologyPort):
         context: str | None = None,
         limit: int = 100,
     ) -> dict[str, Any]:
-        matched = [
-            f
-            for f in self._facts
-            if (subject is None or f["subject"] == subject)
-            and (predicate is None or f["predicate"] == predicate)
-            and (context is None or f["context"] == context)
-        ]
-        return {"facts": matched[:limit]}
+        return {"facts": []}
 
     def forget_fact(self, fact_id: str) -> dict[str, Any]:
-        self._facts = [f for f in self._facts if f["fact_id"] != fact_id]
         return {"deleted": True}
 
     def forget_by_context(self, context: str) -> int:
-        self.forget_by_context_calls.append(context)
-        before = len(self._facts)
-        self._facts = [f for f in self._facts if f.get("context") != context]
-        return before - len(self._facts)
+        return 0
 
     def validate_instance(
         self,
@@ -112,7 +135,7 @@ class _RecordingOntologyPort(OntologyPort):
     def sparql_query(
         self, query: str, *, validate: bool = True,
     ) -> dict[str, Any]:
-        return {}
+        return {"results": []}
 
     def update_idea(self, idea_id: str, **kwargs: Any) -> dict[str, Any]:
         return {}
@@ -162,8 +185,8 @@ class _D5StubPhase(Phase[D5Output]):
 
 
 class TestD5IntentPreservation:
-    """Verify that D5Output intent fields are persisted as verbatim A-Box
-    facts and can be recalled with exact values."""
+    """Verify that D5Output intent fields are persisted as verbatim direct
+    graph triples and can be queried with exact values."""
 
     # Canonical D5 field values used across all tests in this class.
     D5_MODE = "upstream"
@@ -202,48 +225,42 @@ class TestD5IntentPreservation:
 
         return ontology, d5_output
 
-    def test_recall_facts_returns_d5_mode_verbatim(
+    def test_triples_contain_d5_mode_verbatim(
         self, _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
     ) -> None:
-        """recall_facts for D5 context returns mode with exact original value."""
+        """Stored triples contain mode with exact original value."""
         ontology, d5_output = _pipeline_result
-        context = f"phase-idea-{self.IDEA_ID}-d5"
+        subject = f"{PHASE_NS}{self.IDEA_ID}-d5"
 
-        recalled = ontology.recall_facts(context=context)
-        facts = recalled["facts"]
-
-        mode_facts = [
-            f for f in facts if f["predicate"] == "phase:preserves-mode"
-        ]
-        assert len(mode_facts) == 1, (
-            f"Expected exactly 1 mode fact, got {len(mode_facts)}"
+        mode_triples = ontology.get_triples(
+            subject=subject,
+            predicate=f"{PHASE_NS}preserves-mode",
         )
-        assert mode_facts[0]["object"] == self.D5_MODE, (
-            f"Mode value mismatch: stored={mode_facts[0]['object']!r}, "
+        assert len(mode_triples) == 1, (
+            f"Expected exactly 1 mode triple, got {len(mode_triples)}"
+        )
+        assert mode_triples[0]["object"] == self.D5_MODE, (
+            f"Mode value mismatch: stored={mode_triples[0]['object']!r}, "
             f"expected={self.D5_MODE!r}"
         )
 
-    def test_recall_facts_returns_d5_recommendation_verbatim(
+    def test_triples_contain_d5_recommendation_verbatim(
         self, _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
     ) -> None:
-        """recall_facts for D5 context returns recommendation with exact value."""
+        """Stored triples contain recommendation with exact value."""
         ontology, d5_output = _pipeline_result
-        context = f"phase-idea-{self.IDEA_ID}-d5"
+        subject = f"{PHASE_NS}{self.IDEA_ID}-d5"
 
-        recalled = ontology.recall_facts(context=context)
-        facts = recalled["facts"]
-
-        rec_facts = [
-            f
-            for f in facts
-            if f["predicate"] == "phase:preserves-recommendation"
-        ]
-        assert len(rec_facts) == 1, (
-            f"Expected exactly 1 recommendation fact, got {len(rec_facts)}"
+        rec_triples = ontology.get_triples(
+            subject=subject,
+            predicate=f"{PHASE_NS}preserves-recommendation",
         )
-        assert rec_facts[0]["object"] == self.D5_RECOMMENDATION, (
+        assert len(rec_triples) == 1, (
+            f"Expected exactly 1 recommendation triple, got {len(rec_triples)}"
+        )
+        assert rec_triples[0]["object"] == self.D5_RECOMMENDATION, (
             f"Recommendation value mismatch: "
-            f"stored={rec_facts[0]['object']!r}, "
+            f"stored={rec_triples[0]['object']!r}, "
             f"expected={self.D5_RECOMMENDATION!r}"
         )
 
@@ -251,7 +268,7 @@ class TestD5IntentPreservation:
         self, tmp_path: Path,
     ) -> None:
         """A multi-line recommendation with special characters survives
-        the persist-recall round trip with zero transformation."""
+        the persist round trip with zero transformation."""
         raw_recommendation = (
             "Phase 1: Research existing MCP tools\n"
             "Phase 2: Build prototype with <tool_use> patterns\n"
@@ -279,26 +296,23 @@ class TestD5IntentPreservation:
         result = pipeline.run()
         assert result.final_status == PhaseStatus.SUCCESS
 
-        # Recall via the documented context pattern
-        context = "phase-idea-idea-773-d5"
-        recalled = ontology.recall_facts(context=context)
-        facts = recalled["facts"]
+        subject = f"{PHASE_NS}idea-773-d5"
 
-        rec_facts = [
-            f
-            for f in facts
-            if f["predicate"] == "phase:preserves-recommendation"
-        ]
-        assert len(rec_facts) == 1
-        assert rec_facts[0]["object"] == raw_recommendation, (
-            "Multi-line recommendation was transformed during persist/recall"
+        rec_triples = ontology.get_triples(
+            subject=subject,
+            predicate=f"{PHASE_NS}preserves-recommendation",
+        )
+        assert len(rec_triples) == 1
+        assert rec_triples[0]["object"] == raw_recommendation, (
+            "Multi-line recommendation was transformed during persist"
         )
 
-        mode_facts = [
-            f for f in facts if f["predicate"] == "phase:preserves-mode"
-        ]
-        assert len(mode_facts) == 1
-        assert mode_facts[0]["object"] == "downstream"
+        mode_triples = ontology.get_triples(
+            subject=subject,
+            predicate=f"{PHASE_NS}preserves-mode",
+        )
+        assert len(mode_triples) == 1
+        assert mode_triples[0]["object"] == "downstream"
 
     def test_d5output_intent_fields_are_exactly_mode_and_recommendation(
         self,
@@ -319,30 +333,31 @@ class TestD5IntentPreservation:
         # output_file must NOT leak into intent fields
         assert "output_file" not in intent_fields
 
-    def test_recalled_facts_include_metadata_alongside_intent(
+    def test_triples_include_metadata_alongside_intent(
         self, _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
     ) -> None:
-        """Recalled facts include both intent fields and metadata
-        (producedBy, forRequirement) — the full A-Box record."""
+        """Stored triples include both intent fields and metadata
+        (producedBy, forRequirement, rdf:type) — the full graph record."""
         ontology, _ = _pipeline_result
-        context = f"phase-idea-{self.IDEA_ID}-d5"
+        subject = f"{PHASE_NS}{self.IDEA_ID}-d5"
 
-        recalled = ontology.recall_facts(context=context)
-        facts = recalled["facts"]
-        predicates = {f["predicate"] for f in facts}
+        all_triples = ontology.get_triples(subject=subject)
+        predicates = {t["predicate"] for t in all_triples}
 
         # Intent fields
-        assert "phase:preserves-mode" in predicates
-        assert "phase:preserves-recommendation" in predicates
+        assert f"{PHASE_NS}preserves-mode" in predicates
+        assert f"{PHASE_NS}preserves-recommendation" in predicates
         # Metadata
-        assert "phase:producedBy" in predicates
-        assert "phase:forRequirement" in predicates
+        assert f"{PHASE_NS}producedBy" in predicates
+        assert f"{PHASE_NS}forRequirement" in predicates
+        # rdf:type
+        assert RDF_TYPE in predicates
 
     def test_idempotent_rerun_preserves_latest_values(
         self, tmp_path: Path,
     ) -> None:
         """Running the pipeline twice with different D5 values results in
-        only the latest values being recalled — idempotent write pattern."""
+        only the latest values being stored — idempotent write pattern."""
         ontology = _RecordingOntologyPort()
 
         # First run
@@ -379,22 +394,19 @@ class TestD5IntentPreservation:
         (tmp_path / "run2").mkdir()
         pipeline_v2.run()
 
-        # Recall should return only the latest values
-        context = "phase-idea-idea-774-d5"
-        recalled = ontology.recall_facts(context=context)
-        facts = recalled["facts"]
+        # Query should return only the latest values
+        subject = f"{PHASE_NS}idea-774-d5"
+        mode_triples = ontology.get_triples(
+            subject=subject,
+            predicate=f"{PHASE_NS}preserves-mode",
+        )
+        rec_triples = ontology.get_triples(
+            subject=subject,
+            predicate=f"{PHASE_NS}preserves-recommendation",
+        )
 
-        mode_facts = [
-            f for f in facts if f["predicate"] == "phase:preserves-mode"
-        ]
-        rec_facts = [
-            f
-            for f in facts
-            if f["predicate"] == "phase:preserves-recommendation"
-        ]
+        assert len(mode_triples) == 1
+        assert mode_triples[0]["object"] == "downstream"
 
-        assert len(mode_facts) == 1
-        assert mode_facts[0]["object"] == "downstream"
-
-        assert len(rec_facts) == 1
-        assert rec_facts[0]["object"] == "Revised recommendation after new data"
+        assert len(rec_triples) == 1
+        assert rec_triples[0]["object"] == "Revised recommendation after new data"

@@ -3,6 +3,7 @@
 # @pattern:PortsAndAdapters -- Delegates Claude invocation to the injected ClaudePort; reads ContextScanOutput from prev_output
 # @pattern:EventSourcing -- Produces an immutable PlanOutput consumed by downstream Execute/Trace phases
 # @principle:FailSafeRouting -- Provides reasonable defaults for incomplete Claude responses (empty risk_notes, etc.)
+# @principle:InformationHiding -- Prompt construction details and conformance-data formatting are hidden behind the build_prompt() template method
 
 Architecture decisions: arch:adr-53-3
 Quality focus: isaqb:FunctionalCorrectness

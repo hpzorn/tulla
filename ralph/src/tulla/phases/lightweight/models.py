@@ -1,5 +1,9 @@
 """Phase output models for the lightweight pipeline.
 
+# @pattern:MVC -- These BaseModel subclasses are the Model layer, decoupled from phase logic (Controller) and CLI (View)
+# @pattern:PortsAndAdapters -- Models define the data contracts exchanged across phase port boundaries
+# @principle:SeparationOfConcerns -- IntentField annotations isolated to LightweightTraceResult; other four models use plain Field
+
 Defines five Pydantic ``BaseModel`` subclasses representing each phase's output:
 
 - **IntakeOutput** – change classification and scope

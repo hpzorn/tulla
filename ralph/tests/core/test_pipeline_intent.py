@@ -20,6 +20,7 @@ from tulla.core.checkpoint import CheckpointStore
 from tulla.core.intent import IntentField
 from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
 from tulla.core.pipeline import Pipeline, PipelineResult
+from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.ports.ontology import OntologyPort
 
 
@@ -102,15 +103,15 @@ class _MockOntologyPort(OntologyPort):
         *,
         validate_conforms: bool = True,
         validate_violations: list[str] | None = None,
-        recall_facts_response: dict[str, Any] | None = None,
+        sparql_results: list[dict[str, Any]] | None = None,
     ) -> None:
-        self.store_fact_calls: list[dict[str, Any]] = []
-        self.forget_by_context_calls: list[str] = []
-        self.recall_facts_calls: list[dict[str, Any]] = []
+        self.add_triple_calls: list[dict[str, Any]] = []
+        self.remove_triples_by_subject_calls: list[str] = []
         self.validate_instance_calls: list[dict[str, Any]] = []
+        self.sparql_query_calls: list[str] = []
         self._validate_conforms = validate_conforms
         self._validate_violations = validate_violations or []
-        self._recall_facts_response = recall_facts_response
+        self._sparql_results = sparql_results
 
     # -- required abstract methods --
 
@@ -129,14 +130,6 @@ class _MockOntologyPort(OntologyPort):
         context: str | None = None,
         confidence: float = 1.0,
     ) -> dict[str, Any]:
-        self.store_fact_calls.append(
-            {
-                "subject": subject,
-                "predicate": predicate,
-                "object": object,
-                "context": context,
-            },
-        )
         return {"stored": True}
 
     def forget_fact(self, fact_id: str) -> dict[str, Any]:
@@ -150,29 +143,52 @@ class _MockOntologyPort(OntologyPort):
         context: str | None = None,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self.recall_facts_calls.append(
-            {"subject": subject, "predicate": predicate, "context": context},
-        )
-        if self._recall_facts_response is not None:
-            return self._recall_facts_response
         return {"facts": []}
 
     def sparql_query(
         self, query: str, *, validate: bool = True,
     ) -> dict[str, Any]:
-        return {}
+        self.sparql_query_calls.append(query)
+        if self._sparql_results is not None:
+            return {"results": self._sparql_results}
+        return {"results": []}
 
     def update_idea(self, idea_id: str, **kwargs: Any) -> dict[str, Any]:
         return {}
 
     def forget_by_context(self, context: str) -> int:
-        self.forget_by_context_calls.append(context)
         return 0
 
     def set_lifecycle(
         self, idea_id: str, new_state: str, *, reason: str = "",
     ) -> dict[str, Any]:
         return {}
+
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        self.add_triple_calls.append({
+            "subject": subject,
+            "predicate": predicate,
+            "object": object,
+            "is_literal": is_literal,
+        })
+        return {"status": "added"}
+
+    def remove_triples_by_subject(
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        self.remove_triples_by_subject_calls.append(subject)
+        return 0
 
     def validate_instance(
         self,
@@ -191,15 +207,15 @@ class _MockOntologyPort(OntologyPort):
 
 
 # ---------------------------------------------------------------------------
-# Case 1: Annotated phase persists facts after execute, before checkpoint
+# Case 1: Annotated phase persists triples after execute, before checkpoint
 # ---------------------------------------------------------------------------
 
 
-class TestAnnotatedPhasePersistsFacts:
-    """Pipeline with one annotated phase persists facts after execute
+class TestAnnotatedPhasePersistsTriples:
+    """Pipeline with one annotated phase persists triples after execute
     and before checkpoint save."""
 
-    def test_facts_stored_and_checkpoint_exists(self, tmp_path: Path) -> None:
+    def test_triples_stored_and_checkpoint_exists(self, tmp_path: Path) -> None:
         ontology = _MockOntologyPort()
         output = _AnnotatedOutput(summary="integration-test-summary")
         phase = _AnnotatedPhase(output=output)
@@ -219,15 +235,19 @@ class TestAnnotatedPhasePersistsFacts:
         assert result.final_status == PhaseStatus.SUCCESS
 
         # Idempotent cleanup was called before storing
-        assert "phase-idea-idea-100-d5" in ontology.forget_by_context_calls
+        expected_subject = f"{PHASE_NS}idea-100-d5"
+        assert expected_subject in ontology.remove_triples_by_subject_calls
 
-        # Intent field was persisted
-        predicates = [c["predicate"] for c in ontology.store_fact_calls]
-        assert "phase:preserves-summary" in predicates
+        # Intent field was persisted via add_triple
+        predicates = [c["predicate"] for c in ontology.add_triple_calls]
+        assert f"{PHASE_NS}preserves-summary" in predicates
 
-        # Metadata facts stored (producedBy, forRequirement)
-        assert "phase:producedBy" in predicates
-        assert "phase:forRequirement" in predicates
+        # Metadata triples stored (producedBy, forRequirement)
+        assert f"{PHASE_NS}producedBy" in predicates
+        assert f"{PHASE_NS}forRequirement" in predicates
+
+        # rdf:type triple stored
+        assert RDF_TYPE in predicates
 
         # Checkpoint was saved AFTER persistence
         store = CheckpointStore(tmp_path)
@@ -236,10 +256,10 @@ class TestAnnotatedPhasePersistsFacts:
         assert saved is not None
         assert saved["status"] == "SUCCESS"
 
-    def test_store_fact_receives_correct_subject_and_context(
+    def test_add_triple_receives_correct_subject(
         self, tmp_path: Path,
     ) -> None:
-        """Subject and context follow the naming conventions."""
+        """Subject follows the full-URI naming convention."""
         ontology = _MockOntologyPort()
         output = _AnnotatedOutput(summary="check-naming")
         phase = _AnnotatedPhase(output=output)
@@ -254,24 +274,22 @@ class TestAnnotatedPhasePersistsFacts:
         )
         pipeline.run()
 
-        expected_subject = "phase:idea-200-r5"
-        expected_context = "phase-idea-idea-200-r5"
+        expected_subject = f"{PHASE_NS}idea-200-r5"
 
-        for call in ontology.store_fact_calls:
+        for call in ontology.add_triple_calls:
             assert call["subject"] == expected_subject
-            assert call["context"] == expected_context
 
 
 # ---------------------------------------------------------------------------
-# Case 2: Unannotated phase persists no facts, completes normally
+# Case 2: Unannotated phase persists no triples, completes normally
 # ---------------------------------------------------------------------------
 
 
-class TestUnannotatedPhaseNoFacts:
-    """Pipeline with one unannotated phase persists no facts and
+class TestUnannotatedPhaseNoTriples:
+    """Pipeline with one unannotated phase persists no triples and
     completes normally."""
 
-    def test_no_store_fact_calls(self, tmp_path: Path) -> None:
+    def test_no_add_triple_calls(self, tmp_path: Path) -> None:
         ontology = _MockOntologyPort()
         output = _UnannotatedOutput(plain_value="no-intent")
         phase = _UnannotatedPhase(output=output)
@@ -289,8 +307,8 @@ class TestUnannotatedPhaseNoFacts:
 
         assert result.final_status == PhaseStatus.SUCCESS
         assert len(result.phase_results) == 1
-        # No intent fields → no store_fact calls
-        assert ontology.store_fact_calls == []
+        # No intent fields → no add_triple calls
+        assert ontology.add_triple_calls == []
         # Checkpoint still saved
         store = CheckpointStore(tmp_path)
         assert store.exists("plain")
@@ -323,7 +341,7 @@ class TestShaclValidationFailureStopsPipeline:
             idea_id="idea-400",
             config={
                 "ontology_port": ontology,
-                "shape_registry": {"d5": "phase:D5OutputShape"},
+                "shape_registry": {"d5": f"{PHASE_NS}D5OutputShape"},
             },
             total_budget_usd=1.00,
         )
@@ -338,12 +356,12 @@ class TestShaclValidationFailureStopsPipeline:
 
         # validate_instance was called
         assert len(ontology.validate_instance_calls) == 1
-        assert ontology.validate_instance_calls[0]["shape_uri"] == "phase:D5OutputShape"
+        assert ontology.validate_instance_calls[0]["shape_uri"] == f"{PHASE_NS}D5OutputShape"
 
-        # Facts were rolled back (forget_by_context called twice:
+        # Triples were rolled back (remove_triples_by_subject called twice:
         # once for idempotent cleanup, once for rollback)
-        ctx_key = "phase-idea-idea-400-d5"
-        rollback_count = ontology.forget_by_context_calls.count(ctx_key)
+        expected_subject = f"{PHASE_NS}idea-400-d5"
+        rollback_count = ontology.remove_triples_by_subject_calls.count(expected_subject)
         assert rollback_count == 2  # cleanup + rollback
 
     def test_second_phase_never_executes(self, tmp_path: Path) -> None:
@@ -389,34 +407,13 @@ class TestUpstreamFactsInjected:
     def test_second_phase_receives_upstream_facts(
         self, tmp_path: Path,
     ) -> None:
-        # Configure mock to return facts when collecting upstream.
-        # The recall_facts call during upstream collection uses context=
-        # "phase-idea-<idea>-<prior_phase>".
         upstream_fact = {
-            "subject": "phase:idea-500-pa",
-            "predicate": "phase:preserves-summary",
-            "object": "from-phase-a",
+            "s": f"{PHASE_NS}idea-500-pa",
+            "p": f"{PHASE_NS}preserves-summary",
+            "o": "from-phase-a",
         }
 
-        class _UpstreamAwareOntology(_MockOntologyPort):
-            """Returns facts for phase-a context during upstream collection."""
-
-            def recall_facts(
-                self,
-                *,
-                subject: str | None = None,
-                predicate: str | None = None,
-                context: str | None = None,
-                limit: int = 100,
-            ) -> dict[str, Any]:
-                self.recall_facts_calls.append(
-                    {"subject": subject, "predicate": predicate, "context": context},
-                )
-                if context == "phase-idea-idea-500-pa":
-                    return {"facts": [upstream_fact]}
-                return {"facts": []}
-
-        ontology = _UpstreamAwareOntology()
+        ontology = _MockOntologyPort(sparql_results=[upstream_fact])
         output_a = _AnnotatedOutput(summary="from-phase-a")
         output_b = _AnnotatedOutput(summary="from-phase-b")
         phase_a = _AnnotatedPhase(output=output_a)
@@ -439,11 +436,11 @@ class TestUpstreamFactsInjected:
         assert phase_a._received_ctx is not None
         assert phase_a._received_ctx.config["upstream_facts"] == []
 
-        # Phase B receives upstream_facts from phase A
+        # Phase B receives upstream_facts from phase A via SPARQL
         assert phase_b._received_ctx is not None
         upstream = phase_b._received_ctx.config["upstream_facts"]
         assert len(upstream) == 1
-        assert upstream[0]["predicate"] == "phase:preserves-summary"
+        assert upstream[0]["predicate"] == f"{PHASE_NS}preserves-summary"
         assert upstream[0]["object"] == "from-phase-a"
 
 
@@ -454,7 +451,7 @@ class TestUpstreamFactsInjected:
 
 class TestResumeCollectsUpstreamFacts:
     """Pipeline resume from checkpoint still collects upstream facts
-    from A-Box."""
+    via SPARQL."""
 
     def test_resume_injects_upstream_from_prior_phase(
         self, tmp_path: Path,
@@ -468,30 +465,12 @@ class TestResumeCollectsUpstreamFacts:
         })
 
         prior_fact = {
-            "subject": "phase:idea-600-pa",
-            "predicate": "phase:preserves-summary",
-            "object": "persisted-earlier",
+            "s": f"{PHASE_NS}idea-600-pa",
+            "p": f"{PHASE_NS}preserves-summary",
+            "o": "persisted-earlier",
         }
 
-        class _ResumeOntology(_MockOntologyPort):
-            """Returns facts for the skipped phase during upstream collect."""
-
-            def recall_facts(
-                self,
-                *,
-                subject: str | None = None,
-                predicate: str | None = None,
-                context: str | None = None,
-                limit: int = 100,
-            ) -> dict[str, Any]:
-                self.recall_facts_calls.append(
-                    {"subject": subject, "predicate": predicate, "context": context},
-                )
-                if context == "phase-idea-idea-600-pa":
-                    return {"facts": [prior_fact]}
-                return {"facts": []}
-
-        ontology = _ResumeOntology()
+        ontology = _MockOntologyPort(sparql_results=[prior_fact])
         output_b = _AnnotatedOutput(summary="resumed-phase-b")
         phase_a = _AnnotatedPhase(output=_AnnotatedOutput(summary="skipped"))
         phase_b = _AnnotatedPhase(output=output_b)
@@ -512,8 +491,7 @@ class TestResumeCollectsUpstreamFacts:
         assert len(result.phase_results) == 1
         assert result.phase_results[0][0] == "pb"
 
-        # Phase B received upstream facts from A-Box (phase A was skipped
-        # but its facts are still in the ontology)
+        # Phase B received upstream facts from SPARQL query
         assert phase_b._received_ctx is not None
         upstream = phase_b._received_ctx.config["upstream_facts"]
         assert len(upstream) == 1

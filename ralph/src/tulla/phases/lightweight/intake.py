@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from tulla.core.phase import Phase, PhaseContext
@@ -129,6 +130,12 @@ def _classify_change(description: str) -> str:
 def _get_affected_files() -> list[str]:
     """Extract affected files via ``git diff --name-only HEAD``.
 
+    Paths returned by git are relative to the repository root, which may
+    differ from the current working directory (e.g. when CWD is a
+    subdirectory of the repo).  This function strips the repo-root prefix
+    so that the returned paths are relative to CWD and can be opened
+    directly by downstream phases.
+
     Falls back to an empty list if git is unavailable or the command fails.
     """
     try:
@@ -140,8 +147,32 @@ def _get_affected_files() -> list[str]:
         )
         if result.returncode != 0:
             return []
+        # Determine the CWD-relative prefix to strip from repo-root paths
+        top_result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        prefix = ""
+        if top_result.returncode == 0:
+            repo_root = Path(top_result.stdout.strip())
+            cwd = Path.cwd()
+            try:
+                prefix = str(cwd.relative_to(repo_root))
+            except ValueError:
+                prefix = ""
+
         lines = result.stdout.strip().splitlines()
-        return [line.strip() for line in lines if line.strip()]
+        files: list[str] = []
+        for line in lines:
+            name = line.strip()
+            if not name:
+                continue
+            if prefix and name.startswith(prefix + "/"):
+                name = name[len(prefix) + 1:]
+            files.append(name)
+        return files
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return []
 

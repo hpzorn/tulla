@@ -3,6 +3,7 @@
 # @pattern:PortsAndAdapters -- Delegates Claude invocation to the injected ClaudePort; reads PlanOutput from prev_output
 # @pattern:EventSourcing -- Produces an immutable ExecuteOutput consumed by downstream Trace phase
 # @principle:FailSafeRouting -- Provides reasonable defaults for incomplete Claude responses (empty commit_ref for dry-run)
+# @pattern:LayeredArchitecture -- ExecutePhase sits in the execution layer, consuming PlanOutput from the planning layer above
 
 Architecture decisions: arch:adr-53-3
 Quality focus: isaqb:FunctionalCorrectness

@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from tulla.core.checkpoint import CheckpointStore
 from tulla.core.intent import IntentField
+from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.core.phase import (
     Phase,
     PhaseContext,
@@ -379,9 +380,9 @@ class MockOntologyPort(OntologyPort):
     """Concrete mock that tracks calls for assertion."""
 
     def __init__(self) -> None:
-        self.store_fact_calls: list[tuple[str, str, str]] = []
-        self.forget_by_context_calls: list[str] = []
-        self.recall_facts_calls: list[dict[str, Any]] = []
+        self.add_triple_calls: list[tuple[str, str, str]] = []
+        self.remove_triples_by_subject_calls: list[str] = []
+        self.sparql_query_calls: list[str] = []
 
     def query_ideas(self, **kwargs: Any) -> dict[str, Any]:
         return {"ideas": []}
@@ -398,7 +399,6 @@ class MockOntologyPort(OntologyPort):
         context: str | None = None,
         confidence: float = 1.0,
     ) -> dict[str, Any]:
-        self.store_fact_calls.append((subject, predicate, object))
         return {"stored": True}
 
     def forget_fact(self, fact_id: str) -> dict[str, Any]:
@@ -412,21 +412,18 @@ class MockOntologyPort(OntologyPort):
         context: str | None = None,
         limit: int = 100,
     ) -> dict[str, Any]:
-        self.recall_facts_calls.append(
-            {"subject": subject, "predicate": predicate, "context": context},
-        )
         return {"facts": []}
 
     def sparql_query(
         self, query: str, *, validate: bool = True,
     ) -> dict[str, Any]:
-        return {}
+        self.sparql_query_calls.append(query)
+        return {"results": []}
 
     def update_idea(self, idea_id: str, **kwargs: Any) -> dict[str, Any]:
         return {}
 
     def forget_by_context(self, context: str) -> int:
-        self.forget_by_context_calls.append(context)
         return 0
 
     def set_lifecycle(
@@ -443,12 +440,28 @@ class MockOntologyPort(OntologyPort):
     ) -> dict[str, Any]:
         return {"conforms": True, "violations": []}
 
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        self.add_triple_calls.append((subject, predicate, object))
+        return {"status": "added"}
+
+    def remove_triples_by_subject(self, subject: str, *, ontology: str | None = None) -> int:
+        self.remove_triples_by_subject_calls.append(subject)
+        return 0
+
 
 class TestPipelinePhaseHooks:
     """Integration tests for pre-phase and post-phase hooks."""
 
-    def test_store_fact_called_after_execute(self, tmp_path: Path) -> None:
-        """store_fact is called after phase.execute for annotated output."""
+    def test_add_triple_called_after_execute(self, tmp_path: Path) -> None:
+        """add_triple is called after phase.execute for annotated output."""
         ontology = MockOntologyPort()
         output = _AnnotatedOutput(summary="test summary")
         phase = AnnotatedPhase(output=output)
@@ -465,9 +478,9 @@ class TestPipelinePhaseHooks:
         result = pipeline.run()
 
         assert result.final_status == PhaseStatus.SUCCESS
-        # store_fact must have been called (at least for the intent field)
-        predicates = [p for _, p, _ in ontology.store_fact_calls]
-        assert "phase:preserves-summary" in predicates
+        # add_triple must have been called (at least for the intent field)
+        predicates = [p for _, p, _ in ontology.add_triple_calls]
+        assert f"{PHASE_NS}preserves-summary" in predicates
 
     def test_checkpoint_saved_after_persistence(self, tmp_path: Path) -> None:
         """Checkpoint file exists after persistence completes."""
@@ -569,14 +582,14 @@ class TestPipelinePhaseHooks:
         # Phase B should have a trace:tracesTo pointing to Phase A's subject
         trace_calls = [
             (s, p, o)
-            for s, p, o in ontology.store_fact_calls
-            if p == "trace:tracesTo"
+            for s, p, o in ontology.add_triple_calls
+            if p == f"{TRACE_NS}tracesTo"
         ]
         # Phase A has no predecessor, Phase B traces to Phase A
         assert len(trace_calls) == 1
-        subject_b = f"phase:idea-46-pb"
-        predecessor_a = f"phase:idea-46-pa"
-        assert trace_calls[0] == (subject_b, "trace:tracesTo", predecessor_a)
+        subject_b = f"{PHASE_NS}idea-46-pb"
+        predecessor_a = f"{PHASE_NS}idea-46-pa"
+        assert trace_calls[0] == (subject_b, f"{TRACE_NS}tracesTo", predecessor_a)
 
     def test_no_persister_without_ontology_port(self, tmp_path: Path) -> None:
         """Pipeline works normally without ontology_port in config."""

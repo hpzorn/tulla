@@ -107,6 +107,12 @@ class StubOntology(OntologyPort):
     ) -> dict[str, Any]:
         return {}
 
+    def add_triple(self, subject: str, predicate: str, object: str, *, is_literal: bool = False, ontology: str | None = None) -> dict[str, Any]:
+        return {"status": "added"}
+
+    def remove_triples_by_subject(self, subject: str, *, ontology: str | None = None) -> int:
+        return 0
+
 
 def _make_requirement(**overrides: Any) -> FindOutput:
     defaults = dict(

@@ -12,6 +12,10 @@ TRACE_NS = "http://impl-ralph.io/trace#"
 ISAQB_NS = "http://impl-ralph.io/isaqb#"
 PHASE_NS = "http://impl-ralph.io/phase#"
 
+# Well-known URIs
+RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+PHASE_ONTOLOGY_URI = "ontology://phase-ontology"
+
 # Full URI -> compact prefix (used by p6 hydration)
 PREFIXES: dict[str, str] = {
     PRD_NS: "prd:",

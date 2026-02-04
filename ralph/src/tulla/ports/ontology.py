@@ -104,6 +104,27 @@ class OntologyPort(ABC):
         """Update an idea's lifecycle state with transition validation."""
 
     @abstractmethod
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
+        """Add a direct SPO triple to an ontology graph."""
+
+    @abstractmethod
+    def remove_triples_by_subject(
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
+    ) -> int:
+        """Remove all triples with the given subject. Returns count removed."""
+
+    @abstractmethod
     def validate_instance(
         self,
         instance_uri: str,

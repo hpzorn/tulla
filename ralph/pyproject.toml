@@ -36,5 +36,11 @@ warn_unused_configs = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[tool.pytest.ini_options]
+addopts = "-m 'not manual'"
+markers = [
+    "manual: tests requiring a running ontology-server (deselected by default)",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/tulla"]

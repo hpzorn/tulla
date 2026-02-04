@@ -5,9 +5,9 @@ communicate what happened during a persist-validate-rollback cycle — and
 :class:`PhaseFactPersister` which orchestrates the extraction, storage,
 validation, and optional rollback of intent-annotated phase output fields.
 
-Also provides :func:`collect_upstream_facts` for iterative traversal of
-prior-phase facts, and :func:`traverse_chain` for link-following traversal
-of ``trace:tracesTo`` chains (arch:adr-67-4).
+Also provides :func:`collect_upstream_facts` for SPARQL-based collection of
+prior-phase facts, and :func:`traverse_chain` for SPARQL property-path
+traversal of ``trace:tracesTo`` chains (arch:adr-67-4).
 
 Architecture decisions: arch:adr-67-1, arch:adr-67-2, arch:adr-67-4
 """
@@ -20,6 +20,7 @@ from typing import Any
 
 from tulla.core.intent import extract_intent_fields
 from tulla.core.phase import PhaseResult
+from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.ports.ontology import OntologyPort
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,12 @@ class PersistResult:
     """Outcome of persisting phase facts to the ontology store.
 
     Attributes:
-        stored_count: Number of facts successfully stored.
+        stored_count: Number of triples successfully stored.
         validation_passed: None if no SHACL shape exists for the phase,
             True if validation succeeded, False if it failed.
         validation_errors: SHACL violation messages; empty when
             validation passed or no shape exists.
-        rolled_back: True if stored facts were rolled back because
+        rolled_back: True if stored triples were rolled back because
             validation failed.
     """
 
@@ -46,14 +47,17 @@ class PersistResult:
 
 
 class PhaseFactPersister:
-    """Persists intent-annotated phase output fields as ontology facts.
+    """Persists intent-annotated phase output fields as direct graph triples.
 
-    Follows the idempotent-write pattern established by P6 hydration:
-    ``forget_by_context`` clears stale facts before storing fresh ones,
-    making the operation safe for pipeline resume/rerun.
+    Uses ``add_triple`` to write real SPO edges into the phase-ontology
+    graph, enabling SPARQL property-path traversal and SHACL validation.
+
+    Follows the idempotent-write pattern: ``remove_triples_by_subject``
+    clears stale triples before storing fresh ones, making the operation
+    safe for pipeline resume/rerun.
 
     Parameters:
-        ontology: The :class:`OntologyPort` used for all store/forget/validate
+        ontology: The :class:`OntologyPort` used for all triple/validate
             operations.
     """
 
@@ -68,16 +72,16 @@ class PhaseFactPersister:
         predecessor_phase_id: str | None,
         shacl_shape_id: str | None,
     ) -> PersistResult:
-        """Persist intent fields from a phase result into the ontology.
+        """Persist intent fields from a phase result as direct graph triples.
 
         Steps:
             1. Extract intent fields — return no-op if empty.
-            2. Compute context and subject URI.
-            3. Idempotent cleanup via ``forget_by_context``.
-            4. Store each intent field as a ``phase:preserves-{name}`` fact.
-            5. Store ``phase:producedBy`` linking subject to the phase.
-            6. Store ``phase:forRequirement`` linking subject to the idea.
-            7. If predecessor given, store ``trace:tracesTo``.
+            2. Compute full-URI subject.
+            3. Idempotent cleanup via ``remove_triples_by_subject``.
+            4. Store ``rdf:type phase:PhaseOutput`` for SHACL targeting.
+            5. Store each intent field as ``phase:preserves-{name}`` literal.
+            6. Store ``phase:producedBy`` and ``phase:forRequirement`` metadata.
+            7. If predecessor given, store ``trace:tracesTo`` graph edge.
             8. If SHACL shape given, validate and roll back on failure.
 
         Returns:
@@ -93,87 +97,59 @@ class PhaseFactPersister:
             )
             return PersistResult(stored_count=0)
 
-        # (2) Compute context and subject URI
-        context = f"phase-idea-{idea_id}-{phase_id}"
-        subject = f"phase:{idea_id}-{phase_id}"
+        # (2) Compute full-URI subject
+        subject = f"{PHASE_NS}{idea_id}-{phase_id}"
 
-        # (3) Idempotent cleanup
-        cleared = self._ontology.forget_by_context(context)
+        # (3) Idempotent cleanup — wipe all prior triples for this subject
+        cleared = self._ontology.remove_triples_by_subject(subject)
         if cleared:
             logger.info(
-                "Cleared %d existing facts from context %s",
+                "Cleared %d existing triples for subject %s",
                 cleared,
-                context,
+                subject,
             )
 
         stored = 0
-        errors = 0
 
-        # (4) Store each intent field
+        # (4) rdf:type for SHACL sh:targetClass matching
+        self._ontology.add_triple(
+            subject, RDF_TYPE, f"{PHASE_NS}PhaseOutput",
+        )
+        stored += 1
+
+        # (5) Intent fields as direct literal edges
         for field_name, value in intent_fields.items():
-            predicate = f"phase:preserves-{field_name}"
-            try:
-                self._ontology.store_fact(
-                    subject, predicate, str(value), context=context,
-                )
-                stored += 1
-            except Exception as exc:
-                errors += 1
-                logger.debug(
-                    "store_fact failed for (%s, %s): %s",
-                    subject,
-                    predicate,
-                    exc,
-                )
-
-        # (5) Store phase:producedBy
-        try:
-            self._ontology.store_fact(
-                subject, "phase:producedBy", phase_id, context=context,
+            self._ontology.add_triple(
+                subject,
+                f"{PHASE_NS}preserves-{field_name}",
+                str(value),
+                is_literal=True,
             )
             stored += 1
-        except Exception as exc:
-            errors += 1
-            logger.debug("store_fact failed for producedBy: %s", exc)
 
-        # (6) Store phase:forRequirement
-        try:
-            self._ontology.store_fact(
-                subject, "phase:forRequirement", idea_id, context=context,
-            )
-            stored += 1
-        except Exception as exc:
-            errors += 1
-            logger.debug("store_fact failed for forRequirement: %s", exc)
+        # (6) Metadata
+        self._ontology.add_triple(
+            subject, f"{PHASE_NS}producedBy", phase_id, is_literal=True,
+        )
+        self._ontology.add_triple(
+            subject, f"{PHASE_NS}forRequirement", idea_id, is_literal=True,
+        )
+        stored += 2
 
-        # (7) Optional trace:tracesTo predecessor
+        # (7) Optional trace:tracesTo predecessor — real graph edge
         if predecessor_phase_id is not None:
-            predecessor_subject = f"phase:{idea_id}-{predecessor_phase_id}"
-            try:
-                self._ontology.store_fact(
-                    subject,
-                    "trace:tracesTo",
-                    predecessor_subject,
-                    context=context,
-                )
-                stored += 1
-            except Exception as exc:
-                errors += 1
-                logger.debug("store_fact failed for tracesTo: %s", exc)
-
-        if errors:
-            logger.warning(
-                "Phase fact persistence: %d/%d store_fact calls failed "
-                "for context %s",
-                errors,
-                stored + errors,
-                context,
+            pred_uri = f"{PHASE_NS}{idea_id}-{predecessor_phase_id}"
+            self._ontology.add_triple(
+                subject, f"{TRACE_NS}tracesTo", pred_uri,
             )
+            stored += 1
 
         # (8) Optional SHACL validation + rollback
         if shacl_shape_id is not None:
             try:
-                result = self._ontology.validate_instance(subject, shacl_shape_id)
+                result = self._ontology.validate_instance(
+                    subject, shacl_shape_id,
+                )
             except Exception as exc:
                 logger.error(
                     "validate_instance raised for %s shape %s: %s",
@@ -181,8 +157,7 @@ class PhaseFactPersister:
                     shacl_shape_id,
                     exc,
                 )
-                # Treat exception as validation failure — roll back
-                self._ontology.forget_by_context(context)
+                self._ontology.remove_triples_by_subject(subject)
                 return PersistResult(
                     stored_count=stored,
                     validation_passed=False,
@@ -195,11 +170,11 @@ class PhaseFactPersister:
 
             if not conforms:
                 logger.warning(
-                    "SHACL validation failed for %s — rolling back %d facts",
+                    "SHACL validation failed for %s — rolling back %d triples",
                     subject,
                     stored,
                 )
-                self._ontology.forget_by_context(context)
+                self._ontology.remove_triples_by_subject(subject)
                 return PersistResult(
                     stored_count=stored,
                     validation_passed=False,
@@ -221,19 +196,14 @@ def collect_upstream_facts(
     phase_sequence: list[str],
     current_phase_id: str,
 ) -> list[dict[str, Any]]:
-    """Collect facts from all phases preceding *current_phase_id*.
+    """Collect facts from all phases preceding *current_phase_id* via SPARQL.
 
-    Iterates over *phase_sequence* up to (but not including)
-    *current_phase_id*, calling ``recall_facts`` for each prior phase
-    using the context ``phase-idea-{idea_id}-{pid}``.
+    Executes a single SPARQL query to fetch all triples for the given
+    *idea_id*, then filters to upstream phases only based on phase_sequence.
 
-    Returns a flat list of recalled fact dicts ordered by phase sequence.
+    Returns a flat list of fact dicts ordered by phase sequence.
     If *current_phase_id* is the first phase or is not found in the
     sequence, an empty list is returned.
-
-    Exceptions raised by ``recall_facts`` for any individual phase are
-    logged as warnings and skipped so that one failing phase does not
-    block downstream collection (arch:adr-67-4).
     """
     try:
         current_idx = phase_sequence.index(current_phase_id)
@@ -248,18 +218,38 @@ def collect_upstream_facts(
     if current_idx == 0:
         return []
 
+    upstream_ids = set(phase_sequence[:current_idx])
+
+    query = (
+        f'PREFIX phase: <{PHASE_NS}>\n'
+        f'SELECT ?s ?p ?o WHERE {{\n'
+        f'  ?s phase:forRequirement "{idea_id}" .\n'
+        f'  ?s ?p ?o .\n'
+        f'}}'
+    )
+
+    try:
+        result = ontology_port.sparql_query(query)
+    except Exception as exc:
+        logger.warning("SPARQL query for upstream facts failed: %s", exc)
+        return []
+
+    # Group results by subject, filter to upstream phases only
+    bindings = result.get("results", [])
     all_facts: list[dict[str, Any]] = []
-    for pid in phase_sequence[:current_idx]:
-        context = f"phase-idea-{idea_id}-{pid}"
-        try:
-            result = ontology_port.recall_facts(context=context)
-        except Exception as exc:
-            logger.warning(
-                "recall_facts failed for context %s: %s", context, exc,
-            )
-            continue
-        facts = result.get("facts", [])
-        all_facts.extend(facts)
+
+    for binding in bindings:
+        subj = binding.get("s", "")
+        # Extract phase_id from subject URI: {PHASE_NS}{idea_id}-{phase_id}
+        prefix = f"{PHASE_NS}{idea_id}-"
+        if subj.startswith(prefix):
+            pid = subj[len(prefix):]
+            if pid in upstream_ids:
+                all_facts.append({
+                    "subject": subj,
+                    "predicate": binding.get("p", ""),
+                    "object": binding.get("o", ""),
+                })
 
     return all_facts
 
@@ -274,20 +264,16 @@ def traverse_chain(
     *,
     max_depth: int = _TRAVERSE_MAX_DEPTH,
 ) -> list[dict[str, Any]]:
-    """Walk the ``trace:tracesTo`` chain from a phase back to the origin.
+    """Walk the ``trace:tracesTo`` chain using SPARQL property paths.
 
-    Starting from the subject ``phase:{idea_id}-{phase_id}``, iteratively
-    follows ``trace:tracesTo`` links by recalling facts with that predicate
-    for each subject.  Each hop produces a dict with::
-
-        {"subject": <phase URI>, "facts": [<recalled facts for that subject>]}
+    Executes a SPARQL query with ``trace:tracesTo+`` to find all ancestors
+    of the starting subject in one query, then fetches their triples.
 
     The returned list is ordered from *most recent* phase (the starting
     subject) toward the *origin* (the phase with no ``tracesTo`` link),
     i.e. reverse chronological order.
 
-    A ``max_depth`` guard (default 20) prevents infinite loops in case of
-    data corruption (cycles in ``tracesTo`` links).
+    A ``max_depth`` guard (default 20) limits the property path depth.
 
     Parameters:
         ontology_port: The ontology port to query.
@@ -299,63 +285,61 @@ def traverse_chain(
         Ordered list of dicts, each containing ``"subject"`` (the phase URI)
         and ``"facts"`` (list of fact dicts for that subject).
     """
+    subject = f"{PHASE_NS}{idea_id}-{phase_id}"
+
+    # Step 1: Find all ancestors via property path
+    path_expr = f"trace:tracesTo{{1,{max_depth}}}" if max_depth != _TRAVERSE_MAX_DEPTH else "trace:tracesTo+"
+    ancestor_query = (
+        f"PREFIX trace: <{TRACE_NS}>\n"
+        f"PREFIX phase: <{PHASE_NS}>\n"
+        f"SELECT ?ancestor WHERE {{\n"
+        f"  <{subject}> {path_expr} ?ancestor .\n"
+        f"}}"
+    )
+
+    try:
+        ancestor_result = ontology_port.sparql_query(ancestor_query)
+    except Exception as exc:
+        logger.warning(
+            "SPARQL ancestor query failed for %s: %s", subject, exc,
+        )
+        return []
+
+    # Build ordered ancestor list
+    ancestor_uris: list[str] = []
+    for binding in ancestor_result.get("results", []):
+        uri = binding.get("ancestor", "")
+        if uri and uri not in ancestor_uris:
+            ancestor_uris.append(uri)
+
+    # Full chain: starting subject + ancestors in order
+    all_subjects = [subject] + ancestor_uris
+
+    # Step 2: Fetch facts for each subject
     chain: list[dict[str, Any]] = []
-    current_subject = f"phase:{idea_id}-{phase_id}"
-    visited: set[str] = set()
-
-    for _ in range(max_depth):
-        if current_subject in visited:
-            logger.warning(
-                "Cycle detected in tracesTo chain at %s — stopping",
-                current_subject,
-            )
-            break
-        visited.add(current_subject)
-
-        # Recall all facts for this subject
+    for subj in all_subjects:
+        facts_query = (
+            f"SELECT ?p ?o WHERE {{\n"
+            f"  <{subj}> ?p ?o .\n"
+            f"}}"
+        )
         try:
-            all_facts_result = ontology_port.recall_facts(
-                subject=current_subject,
-            )
+            facts_result = ontology_port.sparql_query(facts_query)
         except Exception as exc:
             logger.warning(
-                "recall_facts failed for subject %s: %s",
-                current_subject,
-                exc,
+                "SPARQL facts query failed for %s: %s", subj, exc,
             )
-            break
+            chain.append({"subject": subj, "facts": []})
+            continue
 
-        facts = all_facts_result.get("facts", [])
-        chain.append({"subject": current_subject, "facts": facts})
-
-        # Find the tracesTo link for this subject
-        try:
-            trace_result = ontology_port.recall_facts(
-                subject=current_subject,
-                predicate="trace:tracesTo",
-            )
-        except Exception as exc:
-            logger.warning(
-                "recall_facts for tracesTo failed at %s: %s",
-                current_subject,
-                exc,
-            )
-            break
-
-        trace_facts = trace_result.get("facts", [])
-        if not trace_facts:
-            # Origin reached — no more upstream links
-            break
-
-        # Follow the first tracesTo link
-        next_subject = trace_facts[0].get("object")
-        if not next_subject:
-            logger.warning(
-                "tracesTo fact at %s has no object — stopping",
-                current_subject,
-            )
-            break
-
-        current_subject = next_subject
+        facts = [
+            {
+                "subject": subj,
+                "predicate": b.get("p", ""),
+                "object": b.get("o", ""),
+            }
+            for b in facts_result.get("results", [])
+        ]
+        chain.append({"subject": subj, "facts": facts})
 
     return chain
