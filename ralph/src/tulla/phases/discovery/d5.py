@@ -10,11 +10,13 @@ The mode is determined by ``ctx.config["mode"]`` (default: ``"upstream"``).
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
 
 from .models import D5Output
 
@@ -59,6 +61,16 @@ class D5Phase(Phase[D5Output]):
         d3_file = ctx.work_dir / "d3-value-mapping.md"
         d4_file = ctx.work_dir / "d4-gap-analysis.md"
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         context_block = (
             "## Context\n"
             "Read all discovery phases:\n"
@@ -70,10 +82,12 @@ class D5Phase(Phase[D5Output]):
 
         if mode == "downstream":
             return self._build_downstream_prompt(
-                ctx, output_file, discovery_date, context_block
+                ctx, output_file, discovery_date, context_block,
+                upstream_section,
             )
         return self._build_upstream_prompt(
-            ctx, output_file, discovery_date, context_block
+            ctx, output_file, discovery_date, context_block,
+            upstream_section,
         )
 
     def _build_upstream_prompt(
@@ -82,11 +96,13 @@ class D5Phase(Phase[D5Output]):
         output_file: Any,
         discovery_date: str,
         context_block: str,
+        upstream_section: str,
     ) -> str:
         """Build the upstream (pre-research) prompt."""
         return (
             f"You are conducting Phase D5: Integration (UPSTREAM) for idea {ctx.idea_id}.\n"
             "\n"
+            f"{upstream_section}"
             "## Goal\n"
             "Create a research brief for research-tulla, informed by product discovery.\n"
             "\n"
@@ -152,11 +168,13 @@ class D5Phase(Phase[D5Output]):
         output_file: Any,
         discovery_date: str,
         context_block: str,
+        upstream_section: str,
     ) -> str:
         """Build the downstream (post-research) prompt."""
         return (
             f"You are conducting Phase D5: Integration (DOWNSTREAM) for idea {ctx.idea_id}.\n"
             "\n"
+            f"{upstream_section}"
             "## Goal\n"
             "Integrate research findings with product discovery to create an "
             "actionable product spec.\n"
