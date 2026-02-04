@@ -20,7 +20,9 @@ Routes
 - ``GET /inspector/ideas``               — inspector idea list
 - ``GET /inspector/ideas/{idea_id}``     — idea inspector (progress + phases)
 - ``GET /inspector/phases/{uri:path}``   — phase detail view
+- ``GET /inspector/iterations/{idea_id}``— iteration list for an idea
 - ``GET /partials/progress-bar``         — HTMX partial: progress bar
+- ``GET /partials/phase-facts``          — HTMX partial: phase facts
 - ``GET /partials/instance-rows``        — HTMX partial: instance rows
 - ``GET /partials/instance-properties``  — HTMX partial: instance props
 """
@@ -389,6 +391,18 @@ async def phase_detail_view(request: Request, uri: str) -> HTMLResponse:
     )
 
 
+@router.get("/inspector/iterations/{idea_id}", response_class=HTMLResponse)
+async def iteration_list(request: Request, idea_id: str) -> HTMLResponse:
+    """Render the iteration list for an idea's implementation cycles."""
+    service = _get_service(request)
+    iterations = service.get_iteration_facts(idea_id)
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "inspector/iteration_list.html",
+        {"request": request, "idea_id": idea_id, "iterations": iterations},
+    )
+
+
 # ---------------------------------------------------------------------------
 # URI resolver (Inspector — arch:adr-74-2, arch:adr-74-3)
 # ---------------------------------------------------------------------------
@@ -434,6 +448,27 @@ async def partial_progress_bar(
     return templates.TemplateResponse(
         "inspector/partials/progress_bar.html",
         {"request": request, "idea_id": idea_id, "progress": progress},
+    )
+
+
+@router.get("/partials/phase-facts", response_class=HTMLResponse)
+async def partial_phase_facts(
+    request: Request,
+    idea_id: str,
+    phase: str | None = None,
+) -> HTMLResponse:
+    """Return phase facts HTML fragment for HTMX swap.
+
+    Optionally filters to a single phase via the ``phase`` query param.
+    """
+    service = _get_service(request)
+    phase_facts = service.get_phase_facts(idea_id)
+    if phase is not None:
+        phase_facts = {k: v for k, v in phase_facts.items() if k == phase}
+    templates = request.app.state.templates
+    return templates.TemplateResponse(
+        "inspector/partials/phase_facts.html",
+        {"request": request, "idea_id": idea_id, "phase_facts": phase_facts},
     )
 
 
