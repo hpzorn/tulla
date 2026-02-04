@@ -4,6 +4,8 @@
 # @pattern:Plugin -- Each DxOutput is a self-describing plugin; adding IntentField annotations registers new facts without modifying core persistence code
 # @pattern:Blackboard -- IntentField-annotated fields on each DxOutput constitute a shared fact blackboard; PhaseFactPersister and extract_intent_fields read/write these slots independently
 # @principle:SingleResponsibility -- Each DxOutput class owns exactly one phase's output schema; intent vs artefact concerns are split across IntentField and plain Field types
+# @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations while IntentField-annotated fields carry decision metrics; persistence reads only the intent subset
+# @principle:OpenClosedPrinciple -- New intent fields extend phase outputs via IntentField annotation only; extract_intent_fields discovers them without core code changes
 # @principle:DependencyInversion -- DxOutput models depend on the abstract IntentField marker, not on concrete persistence; PhaseFactPersister discovers fields via extract_intent_fields at runtime
 """
 
