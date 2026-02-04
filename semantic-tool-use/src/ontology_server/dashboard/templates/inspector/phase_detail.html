@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "inspector/_macros.html" import render_uri, short_uri %}
+
+{% block title %}Phase {{ phase_id }} — Idea {{ idea_id }} — Inspector{% endblock %}
+
+{% block content %}
+{# ── Breadcrumb ─────────────────────────────────────────────── #}
+<nav class="breadcrumb">
+    <a href="/dashboard/inspector/ideas">Inspector</a>
+    &rsaquo; <a href="/dashboard/inspector/ideas/{{ idea_id }}">Idea {{ idea_id }}</a>
+    &rsaquo; Phase {{ phase_id }}
+</nav>
+
+<h1>Phase {{ phase_id }}</h1>
+
+{% if not detail %}
+{# ── Not-found state ────────────────────────────────────────── #}
+<p>Phase not found.</p>
+
+{% else %}
+
+{# ── Intent Fields ──────────────────────────────────────────── #}
+<section>
+    <h2>Intent Fields</h2>
+    {% if detail.intent_fields %}
+    <table>
+        <thead>
+            <tr><th>Field</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+            {% for field_name, field_value in detail.intent_fields.items() %}
+            <tr class="intent-field">
+                <td>{{ field_name }}</td>
+                <td>{{ render_uri(field_value, request) if field_value.startswith("http://") or field_value.startswith("https://") else field_value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No intent fields recorded.</p>
+    {% endif %}
+</section>
+
+{# ── Metadata ───────────────────────────────────────────────── #}
+<section>
+    <h2>Metadata</h2>
+    {% if detail.metadata %}
+    <table>
+        <thead>
+            <tr><th>Predicate</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+            {% for predicate, value in detail.metadata.items() %}
+            <tr>
+                <td>{{ render_uri(predicate, request) }}</td>
+                <td>{{ render_uri(value, request) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No metadata recorded.</p>
+    {% endif %}
+</section>
+
+{# ── Trace Chain ────────────────────────────────────────────── #}
+<section>
+    <h2>Trace Chain</h2>
+    {% if detail.trace_ancestors %}
+    <ol class="trace-timeline">
+        {% for ancestor_uri in detail.trace_ancestors %}
+        <li class="trace-ancestor">{{ render_uri(ancestor_uri, request) }}</li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p>No trace ancestors found.</p>
+    {% endif %}
+</section>
+
+{% endif %}
+{% endblock %}
