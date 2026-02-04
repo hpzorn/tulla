@@ -12,7 +12,7 @@ the service level:
 """
 # @pattern:PortsAndAdapters -- Routes tested through HTTP boundary; stores mocked behind service layer
 # @pattern:DependencyInversion -- TestClient injects mock stores via create_dashboard_app factory
-# @quality:Testability -- Each route tested in isolation with deterministic SPARQL responses
+# @pattern:LayeredArchitecture -- Tests target route layer only; service and store layers replaced by mocks
 
 from __future__ import annotations
 
@@ -31,8 +31,6 @@ SKOS_CONCEPT = "http://www.w3.org/2004/02/skos/core#Concept"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-# @pattern:InformationHiding -- Hides SPARQL result shape behind typed factory functions
 
 
 def _empty() -> SimpleNamespace:
@@ -61,8 +59,6 @@ def _phase_result(phases: list[str]) -> SimpleNamespace:
     """SPARQL result for ``SELECT ?phase`` queries (get_idea_progress)."""
     return SimpleNamespace(bindings=[{"phase": p} for p in phases])
 
-
-# @pattern:LooseCoupling -- Client factory decouples test setup from app wiring details
 
 def _make_client(
     kg_query_side_effects: list | None = None,
