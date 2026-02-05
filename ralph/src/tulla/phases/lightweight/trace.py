@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from tulla.core.checkpoint import CheckpointStore
 from tulla.core.phase import Phase, PhaseContext
 from tulla.phases.lightweight.models import LightweightTraceResult
 
@@ -71,17 +72,30 @@ class TracePhase(Phase[LightweightTraceResult]):
             prev_output, "files_modified", []
         )
 
-        # Walk upstream outputs from ctx.config
-        intake_output = ctx.config.get("intake_output")
-        context_scan_output = ctx.config.get("context_scan_output")
+        # Load upstream phase outputs.  Pipeline only passes prev_output, so we
+        # need to retrieve earlier phases from checkpoints.  Fall back to
+        # ctx.config for backward compatibility (tests may pass mocks there).
+        checkpoint = CheckpointStore(ctx.work_dir)
 
-        # Extract change_type from IntakeOutput
-        change_type = _get_attr_or_key(intake_output, "change_type", "")
+        # IntakeOutput: try checkpoint, then config
+        intake_checkpoint = checkpoint.load("lw-intake")
+        if intake_checkpoint:
+            intake_data = intake_checkpoint.get("data", {})
+            change_type = intake_data.get("change_type", "")
+        else:
+            intake_output = ctx.config.get("intake_output")
+            change_type = _get_attr_or_key(intake_output, "change_type", "")
 
-        # Extract conformance_assertion from ContextScanOutput
-        conformance_assertion = _get_attr_or_key(
-            context_scan_output, "conformance_status", ""
-        )
+        # ContextScanOutput: try checkpoint, then config
+        context_checkpoint = checkpoint.load("lw-context")
+        if context_checkpoint:
+            context_data = context_checkpoint.get("data", {})
+            conformance_assertion = context_data.get("conformance_status", "")
+        else:
+            context_scan_output = ctx.config.get("context_scan_output")
+            conformance_assertion = _get_attr_or_key(
+                context_scan_output, "conformance_status", ""
+            )
 
         # Build affected_files as comma-separated string
         affected_files = ",".join(files_modified)
