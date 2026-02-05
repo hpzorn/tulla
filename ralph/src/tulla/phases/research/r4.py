@@ -7,11 +7,14 @@ sources into actionable technical guidance.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
 from .models import R4Output
 
@@ -38,9 +41,24 @@ class R4Phase(Phase[R4Output]):
         r3_file = ctx.work_dir / "r3-research-questions.md"
         research_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase R4: Literature Review for idea {ctx.idea_id}.\n"
+            RESEARCH_IDENTITY
+            + f"## Phase R4: Literature Review\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Conduct a structured literature review per research question,\n"
             "synthesising findings into actionable technical guidance.\n"
@@ -104,9 +122,15 @@ class R4Phase(Phase[R4Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R4Output:
         """Parse R4 output by reading ``r4-literature-review.md`` from *work_dir*.
 
-        Extracts the count of papers reviewed and RQs addressed.
+        Extracts the count of papers reviewed, RQs addressed, and key findings.
         Raises :class:`ParseError` if the output file is missing.
         """
+        from tulla.core.markdown_extract import (
+            extract_bullet_items,
+            extract_rq_sections,
+            extract_section,
+        )
+
         output_file = ctx.work_dir / "r4-literature-review.md"
 
         if not output_file.exists():
@@ -118,8 +142,9 @@ class R4Phase(Phase[R4Output]):
 
         content = output_file.read_text(encoding="utf-8")
 
-        # Count RQs addressed (### RQ headings).
-        rqs_addressed = len(re.findall(r"###\s+RQ\d+:", content))
+        # Extract per-RQ sections.
+        rq_sections = extract_rq_sections(content)
+        rqs_addressed = len(rq_sections)
 
         # Count sources reviewed from "Sources Reviewed" lines.
         papers_reviewed = 0
@@ -129,10 +154,23 @@ class R4Phase(Phase[R4Output]):
         if papers_reviewed == 0:
             papers_reviewed = _count_table_rows(content)
 
+        # Extract key findings per RQ.
+        findings = []
+        for rq in rq_sections:
+            rec_section = extract_section(rq["body"], "Recommendation", level=4)
+            kf_section = extract_section(rq["body"], "Key Findings", level=4)
+            bullets = extract_bullet_items(kf_section) if kf_section else []
+            findings.append({
+                "rq": rq["id"],
+                "recommendation": rec_section.strip() if rec_section else "",
+                "finding_summary": bullets[0] if bullets else "",
+            })
+
         return R4Output(
             output_file=output_file,
             papers_reviewed=papers_reviewed,
             rqs_addressed=rqs_addressed,
+            key_findings=json.dumps(findings),
         )
 
     def get_timeout_seconds(self) -> float:

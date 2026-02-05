@@ -15,6 +15,12 @@ import re
 from datetime import date
 from typing import Any
 
+from tulla.core.markdown_extract import (
+    extract_bullet_items,
+    extract_checklist_items,
+    extract_section,
+    trim_text,
+)
 from tulla.core.phase import ParseError, Phase, PhaseContext
 from tulla.core.phase_facts import group_upstream_facts
 
@@ -272,10 +278,56 @@ class D5Phase(Phase[D5Output]):
 
         recommendation = _extract_recommendation(content, mode)
 
+        # Extract semantic fields (mode-dependent)
+        if mode == "upstream":
+            northstar_section = extract_section(content, "What We Learned", level=3)
+            if not northstar_section:
+                northstar_section = extract_section(content, "Discovery Summary")
+            features_section = extract_section(
+                content, "High Priority", level=3,
+            )
+            features = (
+                extract_bullet_items(features_section)
+                if features_section
+                else []
+            )
+            constraints_section = extract_section(
+                content, "Constraints for Research",
+            )
+            constraints = (
+                extract_bullet_items(constraints_section)
+                if constraints_section
+                else []
+            )
+        else:
+            northstar_section = extract_section(content, "Executive Summary")
+            p0_section = extract_section(content, "Must Have (P0)", level=3)
+            features = (
+                extract_checklist_items(p0_section)
+                if p0_section
+                else extract_bullet_items(p0_section) if p0_section else []
+            )
+            constraints_section = extract_section(
+                content, "Integration Points",
+            )
+            constraints = (
+                extract_bullet_items(constraints_section)
+                if constraints_section
+                else []
+            )
+
+        # Northstar is critical for drift prevention — use higher limit (2000 chars)
+        northstar = trim_text(northstar_section, max_chars=2000) if northstar_section else ""
+        mandatory_features = json.dumps(features)
+        key_constraints = json.dumps(constraints)
+
         return D5Output(
             output_file=output_file,
             mode=mode,
             recommendation=recommendation,
+            northstar=northstar,
+            mandatory_features=mandatory_features,
+            key_constraints=key_constraints,
         )
 
     def get_timeout_seconds(self) -> float:

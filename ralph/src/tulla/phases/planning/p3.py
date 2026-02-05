@@ -7,11 +7,18 @@ ontology-server tools for architecture queries (iSAQB schema).
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
+from tulla.core.markdown_extract import (
+    extract_section,
+    extract_table_rows,
+)
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
 from .models import P3Output
 
@@ -43,6 +50,17 @@ class P3Phase(Phase[P3Output]):
         p2_file = ctx.work_dir / "p2-codebase-analysis.md"
         planning_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         schema_context = ctx.config.get("schema_context", "")
         schema_block = ""
         if schema_context:
@@ -56,8 +74,12 @@ class P3Phase(Phase[P3Output]):
             )
 
         return (
-            f"You are conducting Phase P3: Architecture Design for idea {ctx.idea_id}.\n"
+            PLANNING_IDENTITY
+            + f"## Phase P3: Architecture Design\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Design how existing components will be connected to achieve the goal.\n"
             "Minimize new code; maximize reuse of existing capabilities.\n"
@@ -71,11 +93,15 @@ class P3Phase(Phase[P3Output]):
             "\n"
             "## Instructions\n"
             "\n"
+            "**CRITICAL**: Read the Feature Scope table in P1. Your architecture MUST cover ALL features listed there.\n"
+            "Do not drop features. Do not add features not in the scope. Trace every building block to a feature.\n"
+            "\n"
             "Design an architecture that:\n"
-            "1. Reuses existing tools/skills wherever possible\n"
-            "2. Creates minimal new code (glue/orchestration)\n"
-            "3. Is concrete enough to implement directly\n"
-            "4. Addresses all gaps identified in discovery\n"
+            "1. Covers EVERY feature in P1's Feature Scope table (no exceptions)\n"
+            "2. Reuses existing tools/skills wherever possible\n"
+            "3. Creates minimal new code (glue/orchestration)\n"
+            "4. Is concrete enough to implement directly\n"
+            "5. Addresses all gaps identified in discovery\n"
             "\n"
             f"Write to: {output_file}\n"
             "\n"
@@ -102,6 +128,18 @@ class P3Phase(Phase[P3Output]):
             "| Pattern | Addresses Quality | Embodies Principle | Relevance |\n"
             "|---------|------------------|--------------------|----------|\n"
             "| ... | ... | ... | ... |\n"
+            "\n"
+            "## Feature Coverage Matrix (REQUIRED)\n"
+            "\n"
+            "Map EVERY feature from P1's Feature Scope to architectural components:\n"
+            "\n"
+            "| Feature (from P1) | Building Blocks | Routes/APIs | Data Flow | Notes |\n"
+            "|-------------------|-----------------|-------------|-----------|-------|\n"
+            "| [Feature 1] | [Components involved] | [Endpoints] | [Data path] | ... |\n"
+            "| [Feature 2] | ... | ... | ... | ... |\n"
+            "\n"
+            "**Coverage check**: All [N] features from P1 are mapped above.\n"
+            "If any feature is missing, this architecture is INCOMPLETE.\n"
             "\n"
             "## System Architecture\n"
             "### High-Level Flow\n"
@@ -177,18 +215,39 @@ class P3Phase(Phase[P3Output]):
         content = dependency_graph_file.read_text(encoding="utf-8")
 
         # Count dependencies from "Unknowns Requiring Research" table rows.
-        unknowns_section = _extract_section(content, "Unknowns Requiring Research")
-        total_dependencies = _count_table_rows(unknowns_section)
+        unknowns_section = extract_section(content, "Unknowns Requiring Research")
+        unknowns_rows = extract_table_rows(unknowns_section)
+        total_dependencies = len(unknowns_rows)
 
         # Count circular/blocking dependencies (rows with "Yes" in Blocking column).
         circular_dependencies = len(
             re.findall(r"\|\s*Yes\s*\|", unknowns_section, re.IGNORECASE)
         )
 
+        # Extract semantic fields: ADRs
+        adrs = _extract_adrs(content)
+        architecture_decisions = json.dumps(adrs)
+
+        # Extract semantic fields: quality goals
+        qg_section = extract_section(content, "Quality Goals (isaqb:QualityGoal)")
+        if not qg_section:
+            qg_section = extract_section(content, "Quality Goals")
+        qg_rows = extract_table_rows(qg_section) if qg_section else []
+        quality_goals_list = [
+            {
+                "attribute": row.get("Quality Attribute", ""),
+                "priority": row.get("Priority", ""),
+            }
+            for row in qg_rows
+        ]
+        quality_goals = json.dumps(quality_goals_list)
+
         return P3Output(
             dependency_graph_file=dependency_graph_file,
             total_dependencies=total_dependencies,
             circular_dependencies=circular_dependencies,
+            architecture_decisions=architecture_decisions,
+            quality_goals=quality_goals,
         )
 
     def get_timeout_seconds(self) -> float:
@@ -201,25 +260,29 @@ class P3Phase(Phase[P3Output]):
 # ------------------------------------------------------------------
 
 
-def _extract_section(content: str, heading: str) -> str:
-    """Extract content under a markdown ``## heading`` until the next heading."""
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
+def _extract_adrs(content: str) -> list[dict[str, str]]:
+    """Extract Architecture Decision Records from ### ADR headings.
 
-
-def _count_table_rows(section: str) -> int:
-    """Count markdown table data rows (excludes header and separator rows)."""
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        # Skip header separator rows like |---|---|---|
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        # Count lines that look like table rows: | content | ... |
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    # Subtract 1 for the header row if we counted any rows
-    return max(0, rows - 1) if rows > 0 else 0
+    Looks for ``### ADR-N: Title`` headings and captures the title plus
+    the first ``**Decision**:`` line found in that section.
+    """
+    adrs: list[dict[str, str]] = []
+    # Match ### headings that look like ADR entries
+    pattern = r"###\s+(ADR[- ]\d+[^#\n]*)\n(.*?)(?=\n###\s|\n##\s|\Z)"
+    for match in re.finditer(pattern, content, re.DOTALL):
+        title = match.group(1).strip().rstrip(":")
+        body = match.group(2)
+        decision = ""
+        rationale = ""
+        for line in body.splitlines():
+            stripped = line.strip()
+            if stripped.lower().startswith("**decision**"):
+                decision = re.sub(r"^\*\*[Dd]ecision\*\*:\s*", "", stripped)
+            elif stripped.lower().startswith("**rationale**"):
+                rationale = re.sub(r"^\*\*[Rr]ationale\*\*:\s*", "", stripped)
+        adrs.append({
+            "title": title,
+            "decision": decision,
+            "rationale": rationale,
+        })
+    return adrs

@@ -227,11 +227,15 @@ def collect_upstream_facts(
 
     upstream_ids = set(phase_sequence[:current_idx])
 
+    # Phase facts are stored in the phases named graph, not the default graph.
+    phases_graph = "http://semantic-tool-use.org/graphs/phases"
     query = (
         f'PREFIX phase: <{PHASE_NS}>\n'
         f'SELECT ?s ?p ?o WHERE {{\n'
-        f'  ?s phase:forRequirement "{idea_id}" .\n'
-        f'  ?s ?p ?o .\n'
+        f'  GRAPH <{phases_graph}> {{\n'
+        f'    ?s phase:forRequirement "{idea_id}" .\n'
+        f'    ?s ?p ?o .\n'
+        f'  }}\n'
         f'}}'
     )
 

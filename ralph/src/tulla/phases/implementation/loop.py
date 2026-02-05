@@ -21,6 +21,8 @@ from typing import Any
 import click
 
 from tulla.config import TullaConfig
+from tulla.core.phase import PhaseResult, PhaseStatus
+from tulla.core.phase_facts import PhaseFactPersister
 from tulla.ports.claude import ClaudePort
 from tulla.ports.ontology import OntologyPort
 
@@ -28,6 +30,7 @@ from .commit import CommitPhase
 from .find import FindPhase
 from .implement import ImplementPhase
 from .models import (
+    IterationFactRecord,
     IterationResult,
     LoopOutcome,
     LoopResult,
@@ -37,6 +40,15 @@ from .status import StatusPhase
 from .verify import VerifyPhase
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_verdict(feedback: str) -> str:
+    """Extract the VERIFY_FAIL verdict line from verifier feedback."""
+    for line in reversed(feedback.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith("VERIFY_FAIL"):
+            return stripped
+    return feedback.splitlines()[-1].strip() if feedback.strip() else ""
 
 
 class ImplementationLoop:
@@ -54,6 +66,10 @@ class ImplementationLoop:
         config: Tulla configuration.
         max_retries: Max verification retries per requirement.
         total_budget_usd: Total dollar budget for the loop.
+        persister: Optional :class:`PhaseFactPersister` for writing
+            iteration facts to the A-Box after each Status step.
+        bootstrap_predecessor: Phase id used as the predecessor for
+            the first iteration (default ``"p6"``).
     """
 
     # Step instances (shared across iterations)
@@ -72,6 +88,8 @@ class ImplementationLoop:
         config: TullaConfig,
         max_retries: int = 2,
         total_budget_usd: float = 10.0,
+        persister: PhaseFactPersister | None = None,
+        bootstrap_predecessor: str = "p6",
     ) -> None:
         self._claude = claude_port
         self._ontology = ontology_port
@@ -80,6 +98,8 @@ class ImplementationLoop:
         self._config = config
         self._max_retries = max_retries
         self._total_budget_usd = total_budget_usd
+        self._persister = persister
+        self._bootstrap_predecessor = bootstrap_predecessor
 
         # Instantiate loop steps with config-driven thresholds
         impl_cfg = config.implementation
@@ -302,6 +322,7 @@ class ImplementationLoop:
                 find=find_output,
             )
             feedback = ""
+            last_failure_feedback = ""  # Track failure feedback for lessons
 
             for attempt in range(1 + self._max_retries):
                 self._log(
@@ -352,16 +373,19 @@ class ImplementationLoop:
 
                 # Verification failed — retry with feedback
                 feedback = verify_output.feedback
+                last_failure_feedback = feedback  # Preserve for lesson
+                verdict = _extract_verdict(feedback)
                 self._log(
                     f"VERIFY_FAIL: {req_id} (attempt {attempt + 1}"
                     f"/{1 + self._max_retries})"
                 )
+                self._log(f"Verdict: {verdict}")
                 logger.warning(
                     "Verification failed for %s (attempt %d/%d): %s",
                     req_id,
                     attempt + 1,
                     1 + self._max_retries,
-                    feedback[:200],
+                    verdict,
                 )
                 iteration.retries_used = attempt + 1
 
@@ -381,7 +405,9 @@ class ImplementationLoop:
             # --- Store lesson after verify ---
             if iteration.verify is not None:
                 lesson = VerifyPhase.extract_lesson(
-                    iteration.verify, iteration.retries_used,
+                    iteration.verify,
+                    iteration.retries_used,
+                    failure_feedback=last_failure_feedback,
                 )
                 if lesson:
                     self._store_lesson(lesson)
@@ -402,6 +428,11 @@ class ImplementationLoop:
                 prd_context=self._prd_context,
             )
             iteration.status = status_output
+
+            # --- PERSIST iteration facts ---
+            if self._persister is not None:
+                self._persist_iteration_facts(iteration, req_counter)
+
             loop_result.iterations.append(iteration)
 
             spent = self._total_budget_usd - budget_remaining
@@ -424,6 +455,62 @@ class ImplementationLoop:
 
         return loop_result
 
+    def _persist_iteration_facts(
+        self, iteration: IterationResult, iteration_number: int,
+    ) -> None:
+        """Persist an IterationFactRecord after the Status step."""
+        phase_id = f"p6-iter-{iteration_number}"
+        if iteration_number == 1:
+            predecessor = self._bootstrap_predecessor
+        else:
+            predecessor = f"p6-iter-{iteration_number - 1}"
+
+        record = IterationFactRecord(
+            requirement_id=iteration.requirement_id or "",
+            quality_focus=(
+                iteration.find.quality_focus
+                if iteration.find is not None
+                else ""
+            ),
+            passed=(
+                iteration.verify.passed
+                if iteration.verify is not None
+                else False
+            ),
+            feedback=(
+                iteration.verify.feedback
+                if iteration.verify is not None
+                else ""
+            ),
+            commit_hash=(
+                iteration.commit.commit_hash
+                if iteration.commit is not None
+                else ""
+            ),
+        )
+
+        idea_id = self._prd_context.removeprefix("prd-idea-")
+        phase_result: PhaseResult[IterationFactRecord] = PhaseResult(
+            status=PhaseStatus.SUCCESS,
+            data=record,
+        )
+
+        try:
+            self._persister.persist(  # type: ignore[union-attr]
+                idea_id=idea_id,
+                phase_id=phase_id,
+                phase_result=phase_result,
+                predecessor_phase_id=predecessor,
+                shacl_shape_id=None,
+            )
+            logger.info("Persisted iteration facts for %s", phase_id)
+        except Exception:
+            logger.warning(
+                "Failed to persist iteration facts for %s",
+                phase_id,
+                exc_info=True,
+            )
+
     def _store_lesson(self, lesson: str) -> None:
         """Store a lesson fact in the ontology and append to the local cache."""
         idea_id = self._prd_context.removeprefix("prd-idea-")
@@ -436,9 +523,9 @@ class ImplementationLoop:
                 context=lesson_context,
             )
             self._lessons.append(lesson)
-            logger.info("Stored lesson: %s", lesson[:120])
+            logger.info("Stored lesson: %s", lesson)
         except Exception:
-            logger.warning("Failed to store lesson: %s", lesson[:120], exc_info=True)
+            logger.warning("Failed to store lesson: %s", lesson, exc_info=True)
 
     # ------------------------------------------------------------------
     # Dry-run display

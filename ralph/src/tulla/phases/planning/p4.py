@@ -6,6 +6,7 @@ executable implementation plan with file-level and task-level specificity.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -15,6 +16,8 @@ from typing import Any
 import click
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
 from .models import P4Output
 
@@ -43,9 +46,24 @@ class P4Phase(Phase[P4Output]):
         p3_file = ctx.work_dir / "p3-architecture-design.md"
         planning_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase P4: Implementation Plan for idea {ctx.idea_id}.\n"
+            PLANNING_IDENTITY
+            + f"## Phase P4: Implementation Plan\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Create a detailed, executable implementation plan with file-level and "
             "task-level specificity.\n"
@@ -59,6 +77,10 @@ class P4Phase(Phase[P4Output]):
             "Read all three files before planning.\n"
             "\n"
             "## Instructions\n"
+            "\n"
+            "**CRITICAL**: Your implementation plan MUST have tasks for ALL features from P1's Feature Scope.\n"
+            "Cross-reference with P3's Feature Coverage Matrix. Every feature gets implementation tasks.\n"
+            "Do not drop features. Do not add features not in the scope.\n"
             "\n"
             f"Write to: {output_file}\n"
             "\n"
@@ -106,6 +128,18 @@ class P4Phase(Phase[P4Output]):
             "\n"
             "## Rollback Plan\n"
             "## Success Criteria\n"
+            "\n"
+            "## Feature Coverage Checklist (REQUIRED)\n"
+            "\n"
+            "Verify ALL features from P1 have implementation tasks:\n"
+            "\n"
+            "| Feature (from P1) | Implemented in Phase | Tasks | Status |\n"
+            "|-------------------|---------------------|-------|--------|\n"
+            "| [Feature 1] | Phase N | Task N.1, N.2 | ✓ Covered |\n"
+            "| [Feature 2] | Phase M | Task M.1 | ✓ Covered |\n"
+            "| ... | ... | ... | ... |\n"
+            "\n"
+            "**Coverage**: [X]/[Y] features have tasks. If any feature shows '✗ Missing', add tasks.\n"
             "\n"
             "## Blocked Tasks (Need Research)\n"
             "| Task | Blocked By | Research Question |\n"

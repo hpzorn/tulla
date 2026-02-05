@@ -6,11 +6,14 @@ Implements the second research sub-phase that identifies relevant sources
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
 from .models import R2Output
 
@@ -36,9 +39,24 @@ class R2Phase(Phase[R2Output]):
         r1_file = ctx.work_dir / "r1-question-refinement.md"
         research_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase R2: Source Identification for idea {ctx.idea_id}.\n"
+            RESEARCH_IDENTITY
+            + f"## Phase R2: Source Identification\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Identify relevant sources (documentation, APIs, repositories, papers)\n"
             "for each research question.\n"
@@ -94,9 +112,16 @@ class R2Phase(Phase[R2Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R2Output:
         """Parse R2 output by reading ``r2-source-identification.md`` from *work_dir*.
 
-        Extracts the count of sources identified.
+        Extracts the count and content of identified sources.
         Raises :class:`ParseError` if the output file is missing.
         """
+        from tulla.core.markdown_extract import (
+            extract_rq_sections,
+            extract_section,
+            extract_table_rows,
+            trim_text,
+        )
+
         output_file = ctx.work_dir / "r2-source-identification.md"
 
         if not output_file.exists():
@@ -111,9 +136,26 @@ class R2Phase(Phase[R2Output]):
         # Count source rows across all tables.
         sources_identified = _count_source_rows(content)
 
+        # Extract content-bearing facts.
+        source_list = []
+        for rq in extract_rq_sections(content):
+            rows = extract_table_rows(rq["body"])
+            for row in rows:
+                source_list.append({
+                    "rq": rq["id"],
+                    "source": row.get("Source", ""),
+                    "type": row.get("Type", ""),
+                    "relevance": row.get("Relevance", ""),
+                })
+
+        gaps_section = extract_section(content, "Source Gaps")
+        source_gaps = trim_text(gaps_section) if gaps_section else ""
+
         return R2Output(
             output_file=output_file,
             sources_identified=sources_identified,
+            source_map=json.dumps(source_list),
+            source_gaps=source_gaps,
         )
 
     def get_timeout_seconds(self) -> float:

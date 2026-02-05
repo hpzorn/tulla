@@ -6,11 +6,14 @@ investigation, reading sources and answering each research question.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
 from .models import R3Output
 
@@ -37,9 +40,24 @@ class R3Phase(Phase[R3Output]):
         r2_file = ctx.work_dir / "r2-source-identification.md"
         research_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase R3: Research Questions for idea {ctx.idea_id}.\n"
+            RESEARCH_IDENTITY
+            + f"## Phase R3: Research Questions\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Investigate each research question using identified sources and\n"
             "produce evidence-backed answers.\n"
@@ -100,9 +118,16 @@ class R3Phase(Phase[R3Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R3Output:
         """Parse R3 output by reading ``r3-research-questions.md`` from *work_dir*.
 
-        Extracts the count of research questions investigated.
+        Extracts the count and content of investigated research questions.
         Raises :class:`ParseError` if the output file is missing.
         """
+        from tulla.core.markdown_extract import (
+            extract_field,
+            extract_rq_sections,
+            extract_section,
+            trim_text,
+        )
+
         output_file = ctx.work_dir / "r3-research-questions.md"
 
         if not output_file.exists():
@@ -114,12 +139,27 @@ class R3Phase(Phase[R3Output]):
 
         content = output_file.read_text(encoding="utf-8")
 
-        # Count RQ headings.
-        research_questions = len(re.findall(r"###\s+RQ\d+:", content))
+        # Extract per-RQ answers.
+        rq_sections = extract_rq_sections(content)
+        research_questions = len(rq_sections)
+
+        answers = []
+        for rq in rq_sections:
+            answers.append({
+                "id": rq["id"],
+                "status": extract_field(rq["body"], "Status"),
+                "confidence": extract_field(rq["body"], "Confidence"),
+                "answer": extract_field(rq["body"], "Answer"),
+            })
+
+        unknowns_section = extract_section(content, "Remaining Unknowns")
+        remaining_unknowns = trim_text(unknowns_section) if unknowns_section else ""
 
         return R3Output(
             output_file=output_file,
             research_questions=research_questions,
+            rq_answers=json.dumps(answers),
+            remaining_unknowns=remaining_unknowns,
         )
 
     def get_timeout_seconds(self) -> float:

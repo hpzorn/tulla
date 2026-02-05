@@ -62,6 +62,13 @@ def planning_pipeline(
 
     ontology_port = OntologyMCPAdapter(base_url=config.ontology_server_url)
 
+    # Include discovery (d1-d5) and research (r1-r6) phases as prior phases
+    # for upstream fact collection. This enables cross-agent fact flow.
+    prior_phases = [
+        "d1", "d2", "d3", "d4", "d5",
+        "r1", "r2", "r3", "r4", "r5", "r6",
+    ]
+
     return Pipeline(
         phases=phases,
         claude_port=claude_port,
@@ -81,4 +88,5 @@ def planning_pipeline(
             "ontology_query_limit": config.planning.ontology_query_limit,
         },
         total_budget_usd=config.planning.budget_usd,
+        prior_phases=prior_phases,
     )

@@ -10,11 +10,14 @@ Supports two modes (see idea-58):
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
 from .models import R1Output
 
@@ -48,6 +51,17 @@ class R1Phase(Phase[R1Output]):
         research_date = date.today().isoformat()
         planning_dir = ctx.config.get("planning_dir", "")
         discovery_dir = ctx.config.get("discovery_dir", "")
+
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
 
         # --- Three modes (see idea-58) ---
         # 1. Spike: planning_dir provided → refine P5 research requests
@@ -132,9 +146,13 @@ class R1Phase(Phase[R1Output]):
             origin_field = "   **Origin**: [Which aspect of the idea prompted this question]\n"
 
         return (
-            f"You are conducting Phase R1: Research Question Refinement for idea {ctx.idea_id}.\n"
+            RESEARCH_IDENTITY
+            + f"## Phase R1: Research Question Refinement\n"
+            f"**Idea**: {ctx.idea_id}\n"
             f"**Mode**: {mode_label}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             + goal
             + "\n"
@@ -181,9 +199,11 @@ class R1Phase(Phase[R1Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R1Output:
         """Parse R1 output by reading ``r1-question-refinement.md`` from *work_dir*.
 
-        Extracts the count of refined research questions.
+        Extracts the count and content of refined research questions.
         Raises :class:`ParseError` if the output file is missing.
         """
+        from tulla.core.markdown_extract import extract_field, extract_rq_sections
+
         output_file = ctx.work_dir / "r1-question-refinement.md"
 
         if not output_file.exists():
@@ -196,11 +216,23 @@ class R1Phase(Phase[R1Output]):
         content = output_file.read_text(encoding="utf-8")
 
         # Count refined research questions (### RQ headings).
-        questions_refined = len(re.findall(r"###\s+RQ\d+:", content))
+        rq_sections = extract_rq_sections(content)
+        questions_refined = len(rq_sections)
+
+        # Extract content-bearing facts.
+        rq_list = []
+        for rq in rq_sections:
+            rq_list.append({
+                "id": rq["id"],
+                "question": rq["title"],
+                "methodology": extract_field(rq["body"], "Methodology"),
+                "acceptance_criteria": extract_field(rq["body"], "Acceptance Criteria"),
+            })
 
         return R1Output(
             output_file=output_file,
             questions_refined=questions_refined,
+            research_questions=json.dumps(rq_list),
         )
 
     def get_timeout_seconds(self) -> float:

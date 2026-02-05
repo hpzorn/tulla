@@ -20,6 +20,15 @@ from .models import FindOutput, ImplementOutput, VerifyOutput
 logger = logging.getLogger(__name__)
 
 
+def _extract_verdict(feedback: str) -> str:
+    """Extract the VERIFY_FAIL verdict line from verifier feedback."""
+    for line in reversed(feedback.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith("VERIFY_FAIL"):
+            return stripped
+    return feedback.splitlines()[-1].strip() if feedback.strip() else ""
+
+
 def _strip_prefix(identifier: str) -> str:
     """Strip a namespace prefix like ``isaqb:`` from an identifier.
 
@@ -84,6 +93,12 @@ class VerifyPhase:
             timeout_seconds=self.timeout_s,
             permission_mode="bypassPermissions",
         )
+
+        logger.debug("Claude prompt", extra={
+            "phase_id": self.phase_id,
+            "requirement_id": req_id,
+            "prompt": prompt,
+        })
 
         start = time.monotonic()
         result = claude.run(request)
@@ -265,6 +280,16 @@ class VerifyPhase:
             f"`{ANNOTATION_REGEX.pattern}`"
         )
         lines.append("")
+        lines.append(
+            "**Important**: For pure data-model files (e.g. `models.py`, files "
+            "containing only Pydantic BaseModel subclasses or dataclasses), "
+            "only require annotations for patterns/principles that are "
+            "architecturally applicable to data definitions. Skip behavioral "
+            "and orchestration patterns (e.g. PipesAndFilters, Blackboard, "
+            "CQRS) that apply to pipeline or service code, not data models. "
+            "A data-model file with 0 applicable patterns should pass coverage."
+        )
+        lines.append("")
 
         # --- Density check ---
         lines.append("### Density Check")
@@ -326,30 +351,44 @@ class VerifyPhase:
     def extract_lesson(
         verify_output: "VerifyOutput",
         retries_used: int,
+        failure_feedback: str = "",
     ) -> str | None:
         """Extract a lesson string from a verification outcome.
+
+        Parameters:
+            verify_output: The final verification output.
+            retries_used: How many retries were needed.
+            failure_feedback: Feedback from the failed attempts (preserved
+                separately since verify_output.feedback is from the final
+                successful verification when retries_used > 0).
 
         Returns:
             A lesson string if there is something to learn, or ``None``
             if the requirement passed on the first try.
         """
         req_id = verify_output.requirement_id
-        feedback_first_line = (
-            verify_output.feedback.split("\n", 1)[0].strip()
-            if verify_output.feedback
-            else ""
-        )
 
         if verify_output.passed and retries_used > 0:
+            # Use preserved failure feedback, not the final (success) feedback
+            feedback_verdict = (
+                _extract_verdict(failure_feedback)
+                if failure_feedback
+                else ""
+            )
             return (
                 f"{req_id}: Fixed after {retries_used} "
                 f"{'retry' if retries_used == 1 else 'retries'}. "
-                f"Issue: {feedback_first_line}"
+                f"Issue: {feedback_verdict}"
             )
 
         if not verify_output.passed:
+            feedback_verdict = (
+                _extract_verdict(verify_output.feedback)
+                if verify_output.feedback
+                else ""
+            )
             return (
-                f"{req_id}: Failed. Issue: {feedback_first_line}"
+                f"{req_id}: Failed. Issue: {feedback_verdict}"
             )
 
         # Passed on first try — no lesson to extract

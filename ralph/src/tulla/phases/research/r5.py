@@ -11,11 +11,14 @@ R5 has special characteristics:
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
 from .models import R5Output
 
@@ -55,9 +58,24 @@ class R5Phase(Phase[R5Output]):
         r4_file = ctx.work_dir / "r4-literature-review.md"
         research_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase R5: Experiments & Prototyping for idea {ctx.idea_id}.\n"
+            RESEARCH_IDENTITY
+            + f"## Phase R5: Experiments & Prototyping\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Run experiments and build prototypes to answer research questions\n"
             "that could not be fully resolved by literature review.\n"
@@ -129,9 +147,11 @@ class R5Phase(Phase[R5Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R5Output:
         """Parse R5 output by reading ``r5-research-findings.md`` from *work_dir*.
 
-        Extracts experiment counts and pass/fail results.
+        Extracts experiment counts, results, and implementation implications.
         Raises :class:`ParseError` if the output file is missing.
         """
+        from tulla.core.markdown_extract import extract_field, extract_section, trim_text
+
         output_file = ctx.work_dir / "r5-research-findings.md"
 
         if not output_file.exists():
@@ -143,16 +163,38 @@ class R5Phase(Phase[R5Output]):
 
         content = output_file.read_text(encoding="utf-8")
 
-        # Count experiments (### Experiment headings).
-        experiments_run = len(re.findall(r"###\s+Experiment\s+\d+:", content))
+        # Split on ### Experiment N: headings.
+        exp_parts = re.split(r"(?=###\s+Experiment\s+\d+:)", content)
+        exp_results = []
+        experiments_run = 0
+        experiments_passed = 0
 
-        # Count passed experiments.
-        experiments_passed = len(re.findall(r"\*\*Result\*\*:\s*PASS", content))
+        for part in exp_parts:
+            m = re.match(r"###\s+Experiment\s+\d+:\s*([^\n]+)\n(.*)", part, re.DOTALL)
+            if not m:
+                continue
+            experiments_run += 1
+            title = m.group(1).strip()
+            body = m.group(2).strip()
+            result = extract_field(body, "Result")
+            if result.upper() == "PASS":
+                experiments_passed += 1
+            exp_results.append({
+                "title": title,
+                "rq": extract_field(body, "RQ"),
+                "result": result,
+                "finding": extract_field(body, "Finding"),
+            })
+
+        impl_section = extract_section(content, "Implications for Implementation")
+        impl_implications = trim_text(impl_section) if impl_section else ""
 
         return R5Output(
             output_file=output_file,
             experiments_run=experiments_run,
             experiments_passed=experiments_passed,
+            experiment_results=json.dumps(exp_results),
+            impl_implications=impl_implications,
         )
 
     def get_timeout_seconds(self) -> float:

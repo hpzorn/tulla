@@ -8,11 +8,14 @@ implementation plan (P4) for blocked tasks and the persona walkthrough
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
 from .models import P5Output
 
@@ -39,9 +42,24 @@ class P5Phase(Phase[P5Output]):
         p4b_file = ctx.work_dir / "p4b-persona-walkthrough.md"
         planning_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase P5: Research Requests for idea {ctx.idea_id}.\n"
+            PLANNING_IDENTITY
+            + f"## Phase P5: Research Requests\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Determine if implementation can proceed, or if research is needed first.\n"
             "\n"

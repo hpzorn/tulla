@@ -7,11 +7,14 @@ planning context.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
 from .models import P1Output
 
@@ -38,6 +41,17 @@ class P1Phase(Phase[P1Output]):
         planning_date = date.today().isoformat()
         discovery_dir = ctx.config.get("discovery_dir", "")
         research_dir = ctx.config.get("research_dir", "")
+
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
 
         research_instructions = ""
         research_output_section = ""
@@ -74,8 +88,12 @@ class P1Phase(Phase[P1Output]):
             research_note = " and downstream research findings"
 
         return (
-            f"You are conducting Phase P1: Load Discovery Context for idea {ctx.idea_id}.\n"
+            PLANNING_IDENTITY
+            + f"## Phase P1: Load Discovery Context\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             f"Load and synthesize all discovery documents{research_note} into a unified planning context.\n"
             "\n"
@@ -131,12 +149,30 @@ class P1Phase(Phase[P1Output]):
             "   [List any questions that still need research-tulla, "
             "or 'None — all resolved by downstream research' if research answered them]\n"
             "\n"
+            "   ## Feature Scope (CRITICAL — do not omit any)\n"
+            "\n"
+            "   Extract EVERY distinct feature, view, or capability mentioned in the idea.\n"
+            "   Do NOT summarize or merge features. Do NOT invent features not in the idea.\n"
+            "   This list becomes the contract for P3 (architecture) and P4 (implementation plan).\n"
+            "\n"
+            "   | # | Feature | Source | Priority | Notes |\n"
+            "   |---|---------|--------|----------|-------|\n"
+            "   | 1 | [Feature name from idea] | [Section in idea] | P0/P1/P2 | [Any constraints] |\n"
+            "   | 2 | ... | ... | ... | ... |\n"
+            "\n"
+            "   **Total features**: [count]\n"
+            "\n"
+            "   If the idea mentions \"Key Views\" or similar sections, EVERY view must appear here.\n"
+            "   If the idea mentions optional/future features, mark them P2+ but still list them.\n"
+            "\n"
             "   ## Planning Constraints\n"
             "   - Must use: [existing tools/patterns]\n"
             "   - Should avoid: [anti-patterns identified]\n"
             "   - Success criteria: [from D3]\n"
             "\n"
-            "Be thorough but concise. This context drives all subsequent planning."
+            "**IMPORTANT**: The Feature Scope table is the authoritative list of what this idea delivers.\n"
+            "P3 must address architecture for ALL features. P4 must have tasks for ALL features.\n"
+            "Do not drop features. Do not add features. Trace everything back to the idea."
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:

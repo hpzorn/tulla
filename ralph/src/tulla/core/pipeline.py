@@ -52,6 +52,10 @@ class Pipeline:
         idea_id: Identifier of the idea being processed.
         config: Arbitrary configuration dict forwarded to phases.
         total_budget_usd: Dollar budget for the entire pipeline run.
+        prior_phases: Optional list of phase IDs from prior agents (e.g.,
+            discovery phases for planning) to include in upstream fact
+            collection.  These are prepended to the phase sequence so
+            cross-agent facts can flow through.
     """
 
     def __init__(
@@ -62,6 +66,7 @@ class Pipeline:
         idea_id: str,
         config: dict[str, Any] | None = None,
         total_budget_usd: float = 0.0,
+        prior_phases: list[str] | None = None,
     ) -> None:
         self._phases = phases
         self._claude_port = claude_port
@@ -73,7 +78,9 @@ class Pipeline:
         self._logger = logging.getLogger(__name__)
 
         # Derive ordered phase-id sequence for upstream fact collection.
-        self._phase_sequence: list[str] = [pid for pid, _ in phases]
+        # prior_phases allows cross-agent fact flow (e.g., discovery → planning).
+        current_ids = [pid for pid, _ in phases]
+        self._phase_sequence: list[str] = (prior_phases or []) + current_ids
 
         # Conditionally create persister when an ontology_port is available.
         ontology_port = self._config.get("ontology_port")

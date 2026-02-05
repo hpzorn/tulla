@@ -19,7 +19,7 @@ import pytest
 
 from tulla.phases.implementation.find import FindPhase
 from tulla.phases.implementation.implement import ImplementPhase
-from tulla.phases.implementation.models import FindOutput, ImplementOutput, VerifyOutput
+from tulla.phases.implementation.models import FindOutput, ImplementOutput, RequirementStatus, VerifyOutput
 from tulla.phases.implementation.verify import VerifyPhase
 from tulla.ports.ontology import OntologyPort
 
@@ -382,9 +382,11 @@ class TestExtractLesson:
         vo = VerifyOutput(
             requirement_id="prd:req-42-1-1",
             passed=True,
-            feedback="missing import statement\nextra details",
+            feedback="",  # Final success has no failure feedback
         )
-        lesson = VerifyPhase.extract_lesson(vo, retries_used=1)
+        # failure_feedback is preserved from the failed attempt
+        failure_feedback = "extra details\nVERIFY_FAIL: missing import statement"
+        lesson = VerifyPhase.extract_lesson(vo, retries_used=1, failure_feedback=failure_feedback)
         assert lesson is not None
         assert "Fixed after 1 retry" in lesson
         assert "missing import statement" in lesson
@@ -393,9 +395,10 @@ class TestExtractLesson:
         vo = VerifyOutput(
             requirement_id="prd:req-42-1-1",
             passed=True,
-            feedback="wrong return type",
+            feedback="",  # Final success has no failure feedback
         )
-        lesson = VerifyPhase.extract_lesson(vo, retries_used=2)
+        failure_feedback = "wrong return type"
+        lesson = VerifyPhase.extract_lesson(vo, retries_used=2, failure_feedback=failure_feedback)
         assert lesson is not None
         assert "2 retries" in lesson
 
@@ -403,7 +406,7 @@ class TestExtractLesson:
         vo = VerifyOutput(
             requirement_id="prd:req-42-1-1",
             passed=False,
-            feedback="tests still failing\ndetails here",
+            feedback="details here\nVERIFY_FAIL: tests still failing",
         )
         lesson = VerifyPhase.extract_lesson(vo, retries_used=2)
         assert lesson is not None
@@ -662,3 +665,272 @@ class TestFindPhaseAdvisory:
         assert len(warning_msgs) == 1
         assert "5 files" in warning_msgs[0]
         assert "wpf=" in warning_msgs[0]
+
+
+# ===================================================================
+# Loop: persistence wiring (req-73-6-2)
+# ===================================================================
+
+
+class TestLoopPersistenceWiring:
+    """ImplementationLoop calls PhaseFactPersister.persist() after Status step.
+
+    Runs 2 mock iterations and asserts persist() is called twice with
+    incrementing phase_ids (p6-iter-1, p6-iter-2) and the correct
+    predecessor chain (bootstrap "p6" → "p6-iter-1").
+    """
+
+    def test_persist_called_with_correct_phase_ids_and_predecessors(self) -> None:
+        from tulla.core.phase_facts import PhaseFactPersister
+        from tulla.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.models import (
+            CommitOutput,
+            FindOutput,
+            ImplementOutput,
+            StatusOutput,
+            VerifyOutput,
+        )
+
+        # --- Build ontology stub that makes FindPhase return 2 reqs then ALL_COMPLETE ---
+        call_count = {"find": 0}
+        reqs = [
+            FindOutput(
+                requirement_id="prd:req-42-1-1",
+                title="First req",
+                description="Do thing one",
+                files=["src/a.py"],
+                action="modify",
+                verification="pytest",
+                quality_focus="isaqb:FunctionalCorrectness",
+            ),
+            FindOutput(
+                requirement_id="prd:req-42-1-2",
+                title="Second req",
+                description="Do thing two",
+                files=["src/b.py"],
+                action="modify",
+                verification="pytest",
+                quality_focus="isaqb:Testability",
+            ),
+        ]
+
+        # --- Mock all loop steps ---
+        config = MagicMock()
+        ontology = StubOntology()
+        persister = MagicMock(spec=PhaseFactPersister)
+
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            persister=persister,
+        )
+
+        # Patch _find to return 2 reqs then ALL_COMPLETE
+        def mock_find_execute(**kwargs: Any) -> FindOutput:
+            idx = call_count["find"]
+            call_count["find"] += 1
+            if idx < len(reqs):
+                return reqs[idx]
+            return FindOutput(all_complete=True)
+
+        loop._find = MagicMock()
+        loop._find.execute = MagicMock(side_effect=mock_find_execute)
+        loop._find.load_lessons = MagicMock(return_value=[])
+
+        # Patch _implement to return successful output
+        def mock_impl_execute(**kwargs: Any) -> ImplementOutput:
+            req_id = kwargs.get("requirement", reqs[0]).requirement_id or ""
+            return ImplementOutput(
+                requirement_id=req_id,
+                files_changed=["src/a.py"],
+                cost_usd=0.10,
+            )
+
+        loop._implement = MagicMock()
+        loop._implement.execute = MagicMock(side_effect=mock_impl_execute)
+
+        # Patch _commit
+        commit_counter = {"n": 0}
+
+        def mock_commit_execute(**kwargs: Any) -> CommitOutput:
+            commit_counter["n"] += 1
+            req = kwargs.get("requirement", reqs[0])
+            return CommitOutput(
+                requirement_id=req.requirement_id or "",
+                commit_hash=f"abc{commit_counter['n']}",
+                committed=True,
+            )
+
+        loop._commit = MagicMock()
+        loop._commit.execute = MagicMock(side_effect=mock_commit_execute)
+
+        # Patch _verify to always pass
+        def mock_verify_execute(**kwargs: Any) -> VerifyOutput:
+            req = kwargs.get("requirement", reqs[0])
+            return VerifyOutput(
+                requirement_id=req.requirement_id or "",
+                passed=True,
+                feedback="All good",
+                cost_usd=0.05,
+            )
+
+        loop._verify = MagicMock()
+        loop._verify.execute = MagicMock(side_effect=mock_verify_execute)
+
+        # Patch _status
+        def mock_status_execute(**kwargs: Any) -> StatusOutput:
+            from tulla.phases.implementation.models import RequirementStatus
+            return StatusOutput(
+                requirement_id=kwargs.get("requirement_id", ""),
+                new_status=kwargs.get("new_status", RequirementStatus.COMPLETE),
+                updated=True,
+            )
+
+        loop._status = MagicMock()
+        loop._status.execute = MagicMock(side_effect=mock_status_execute)
+
+        # --- Run the loop ---
+        result = loop.run()
+
+        # --- Assertions ---
+        # 3 iterations total: 2 real + 1 ALL_COMPLETE
+        assert len(result.iterations) == 3
+        assert result.all_complete is True
+
+        # persist() called exactly twice (once per real iteration)
+        assert persister.persist.call_count == 2
+
+        # First call: phase_id="p6-iter-1", predecessor="p6" (bootstrap)
+        first_call = persister.persist.call_args_list[0]
+        assert first_call.kwargs["phase_id"] == "p6-iter-1"
+        assert first_call.kwargs["predecessor_phase_id"] == "p6"
+        assert first_call.kwargs["idea_id"] == "42"
+        assert first_call.kwargs["shacl_shape_id"] is None
+        # Verify the phase_result contains IterationFactRecord data
+        first_record = first_call.kwargs["phase_result"].data
+        assert first_record.requirement_id == "prd:req-42-1-1"
+        assert first_record.quality_focus == "isaqb:FunctionalCorrectness"
+        assert first_record.passed is True
+        assert first_record.commit_hash == "abc1"
+
+        # Second call: phase_id="p6-iter-2", predecessor="p6-iter-1"
+        second_call = persister.persist.call_args_list[1]
+        assert second_call.kwargs["phase_id"] == "p6-iter-2"
+        assert second_call.kwargs["predecessor_phase_id"] == "p6-iter-1"
+        assert second_call.kwargs["idea_id"] == "42"
+        second_record = second_call.kwargs["phase_result"].data
+        assert second_record.requirement_id == "prd:req-42-1-2"
+        assert second_record.quality_focus == "isaqb:Testability"
+        assert second_record.passed is True
+        assert second_record.commit_hash == "abc2"
+
+    def test_no_persist_without_persister(self) -> None:
+        """When no persister is provided, the loop runs without error."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.models import FindOutput
+
+        config = MagicMock()
+        ontology = StubOntology()
+
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            # No persister
+        )
+
+        # Make find return ALL_COMPLETE immediately
+        loop._find = MagicMock()
+        loop._find.execute = MagicMock(
+            return_value=FindOutput(all_complete=True),
+        )
+        loop._find.load_lessons = MagicMock(return_value=[])
+
+        result = loop.run()
+        assert result.all_complete is True
+
+    def test_persist_tolerates_failure(self) -> None:
+        """persist() failure does not crash the loop."""
+        from tulla.core.phase_facts import PhaseFactPersister
+        from tulla.phases.implementation.loop import ImplementationLoop
+        from tulla.phases.implementation.models import (
+            CommitOutput,
+            FindOutput,
+            ImplementOutput,
+            StatusOutput,
+            VerifyOutput,
+        )
+
+        config = MagicMock()
+        ontology = StubOntology()
+        persister = MagicMock(spec=PhaseFactPersister)
+        persister.persist.side_effect = RuntimeError("ontology down")
+
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            persister=persister,
+        )
+
+        find_calls = {"n": 0}
+
+        def mock_find(**kwargs: Any) -> FindOutput:
+            find_calls["n"] += 1
+            if find_calls["n"] == 1:
+                return FindOutput(
+                    requirement_id="prd:req-42-1-1",
+                    title="Req",
+                    description="Do",
+                    files=["src/a.py"],
+                    action="modify",
+                    verification="pytest",
+                )
+            return FindOutput(all_complete=True)
+
+        loop._find = MagicMock()
+        loop._find.execute = MagicMock(side_effect=mock_find)
+        loop._find.load_lessons = MagicMock(return_value=[])
+        loop._implement = MagicMock()
+        loop._implement.execute = MagicMock(
+            return_value=ImplementOutput(
+                requirement_id="prd:req-42-1-1", cost_usd=0.1,
+            ),
+        )
+        loop._commit = MagicMock()
+        loop._commit.execute = MagicMock(
+            return_value=CommitOutput(
+                requirement_id="prd:req-42-1-1",
+                commit_hash="abc",
+                committed=True,
+            ),
+        )
+        loop._verify = MagicMock()
+        loop._verify.execute = MagicMock(
+            return_value=VerifyOutput(
+                requirement_id="prd:req-42-1-1",
+                passed=True,
+                feedback="ok",
+                cost_usd=0.05,
+            ),
+        )
+        loop._status = MagicMock()
+        loop._status.execute = MagicMock(
+            return_value=StatusOutput(
+                requirement_id="prd:req-42-1-1",
+                new_status=RequirementStatus.COMPLETE,
+                updated=True,
+            ),
+        )
+
+        # Should not raise despite persist() failure
+        result = loop.run()
+        assert result.all_complete is True
+        assert persister.persist.call_count == 1

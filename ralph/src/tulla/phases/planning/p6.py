@@ -10,6 +10,7 @@ find work items.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -22,7 +23,9 @@ from typing import Any
 import click
 
 from tulla.core.phase import ParseError, Phase, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase_facts import group_upstream_facts
 from tulla.namespaces import ISAQB_NS, PRD_NS, TRACE_NS, compact_uri
+from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
 from .models import P6Output
 from .p4 import _check_homogeneity
@@ -291,9 +294,24 @@ class P6Phase(Phase[P6Output]):
         planning_date = date.today().isoformat()
         idea_id = ctx.idea_id
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         prompt = (
-            f"You are conducting Phase P6: Export PRD to RDF for idea {idea_id}.\n"
+            PLANNING_IDENTITY
+            + f"## Phase P6: Export PRD to RDF\n"
+            f"**Idea**: {idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Convert the implementation plan into RDF requirements that "
             "Implementation-Tulla can consume.\n"

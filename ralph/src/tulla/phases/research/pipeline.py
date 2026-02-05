@@ -64,6 +64,10 @@ def research_pipeline(
 
     ontology_port = OntologyMCPAdapter(base_url=config.ontology_server_url)
 
+    # Include discovery phases (d1-d5) as prior phases for upstream fact
+    # collection. This enables cross-agent fact flow (northstar, etc.).
+    prior_phases = ["d1", "d2", "d3", "d4", "d5"]
+
     return Pipeline(
         phases=phases,
         claude_port=claude_port,
@@ -77,4 +81,5 @@ def research_pipeline(
             "ontology_port": ontology_port,
         },
         total_budget_usd=config.research.budget_usd,
+        prior_phases=prior_phases,
     )

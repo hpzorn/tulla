@@ -7,11 +7,14 @@ the implementation phase.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date
 from typing import Any
 
 from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase_facts import group_upstream_facts
+from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
 from .models import R6Output
 
@@ -41,9 +44,24 @@ class R6Phase(Phase[R6Output]):
         r5_file = ctx.work_dir / "r5-research-findings.md"
         research_date = date.today().isoformat()
 
+        raw_facts = ctx.config.get("upstream_facts", [])
+        grouped = group_upstream_facts(raw_facts)
+        northstar_section = build_northstar_section(grouped)
+        upstream_section = ""
+        if grouped:
+            upstream_section = (
+                "## Upstream Facts\n"
+                f"{json.dumps(grouped, indent=2)}\n"
+                "\n"
+            )
+
         return (
-            f"You are conducting Phase R6: Research Synthesis for idea {ctx.idea_id}.\n"
+            RESEARCH_IDENTITY
+            + f"## Phase R6: Research Synthesis\n"
+            f"**Idea**: {ctx.idea_id}\n"
             "\n"
+            f"{northstar_section}"
+            f"{upstream_section}"
             "## Goal\n"
             "Synthesise all research findings into a coherent conclusion with\n"
             "actionable recommendations for the implementation phase.\n"
@@ -112,9 +130,16 @@ class R6Phase(Phase[R6Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> R6Output:
         """Parse R6 output by reading ``r6-research-synthesis.md`` from *work_dir*.
 
-        Extracts findings count and the overall recommendation.
+        Extracts findings, synthesised answers, risks, and recommendation.
         Raises :class:`ParseError` if the output file is missing.
         """
+        from tulla.core.markdown_extract import (
+            extract_field,
+            extract_rq_sections,
+            extract_section,
+            extract_table_rows,
+        )
+
         output_file = ctx.work_dir / "r6-research-synthesis.md"
 
         if not output_file.exists():
@@ -126,8 +151,22 @@ class R6Phase(Phase[R6Output]):
 
         content = output_file.read_text(encoding="utf-8")
 
-        # Count findings (### RQ headings in findings section).
-        findings_count = len(re.findall(r"###\s+RQ\d+:", content))
+        # Extract per-RQ synthesised answers.
+        rq_sections = extract_rq_sections(content)
+        findings_count = len(rq_sections)
+
+        synth = []
+        for rq in rq_sections:
+            synth.append({
+                "rq": rq["id"],
+                "answer": extract_field(rq["body"], "Answer"),
+                "confidence": extract_field(rq["body"], "Confidence"),
+                "implication": extract_field(rq["body"], "Implication"),
+            })
+
+        # Extract risks table.
+        risks_section = extract_section(content, "Risks & Mitigations")
+        risk_rows = extract_table_rows(risks_section) if risks_section else []
 
         # Extract recommendation from Conclusion section.
         recommendation = _extract_recommendation(content)
@@ -136,6 +175,8 @@ class R6Phase(Phase[R6Output]):
             output_file=output_file,
             findings_count=findings_count,
             recommendation=recommendation,
+            synthesised_answers=json.dumps(synth),
+            risks=json.dumps(risk_rows),
         )
 
     def get_timeout_seconds(self) -> float:
