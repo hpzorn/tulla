@@ -150,6 +150,25 @@ class P3Phase(Phase[P3Output]):
             "## Integration Plan\n"
             "## Cross-Cutting Concerns\n"
             "## Architecture Decisions (ADRs)\n"
+            "\n"
+            "For each key decision, use the arc42/Nygard ADR format:\n"
+            "\n"
+            "### ADR-{idea}-N: [Decision Title]\n"
+            "**Status**: Proposed | Accepted | Deprecated | Superseded by ADR-X\n"
+            "\n"
+            "**Context**: Describe the situation, including technical, political, social,\n"
+            "and project aspects. These forces might be in tension. Include alternatives\n"
+            "considered if relevant.\n"
+            "\n"
+            "**Decision**: The actual choice made in response to the circumstances.\n"
+            "Be specific about what will be done and why this option was chosen.\n"
+            "\n"
+            "**Consequences**: What will or can happen as a result of this decision.\n"
+            "List ALL consequences — positive, negative, and neutral:\n"
+            "- (+) [Positive outcome or quality attribute addressed]\n"
+            "- (-) [Negative outcome, tradeoff, or risk introduced]\n"
+            "- (~) [Neutral change or side effect]\n"
+            "\n"
             "## Quality Scenarios\n"
             "## File Structure\n"
             "## Risk Assessment\n"
@@ -165,7 +184,7 @@ class P3Phase(Phase[P3Output]):
             "in the ontology A-box so the Implementation phase can use them.\n"
             f'Use context: "arch-idea-{ctx.idea_id}"\n'
             "\n"
-            "Store the following using mcp__ontology-server__store_fact:\n"
+            "### Quality Goals and Principles (use store_fact)\n"
             "\n"
             "1. **Quality Goals** (top 3):\n"
             f'   - subject="arch:idea-{ctx.idea_id}", predicate="arch:qualityGoal",\n'
@@ -175,11 +194,50 @@ class P3Phase(Phase[P3Output]):
             f'   - subject="arch:idea-{ctx.idea_id}", predicate="arch:designPrinciple",\n'
             '     object="[Principle Name]: [how it applies in 1 sentence]"\n'
             "\n"
-            "3. **Architecture Decisions** (each ADR):\n"
-            f'   - subject="arch:adr-{ctx.idea_id}-{{N}}", predicate="arch:decision",\n'
-            '     object="[ADR title]: [decision + rationale in 1-2 sentences]"\n'
+            "### Architecture Decisions (use add_triple for structured ADRs)\n"
             "\n"
-            "Keep total facts under 15. Be concise — no markdown formatting in values.\n"
+            "For each ADR, create a structured `isaqb:ArchitectureDecision` instance\n"
+            "using mcp__ontology-server__add_triple. This enables SHACL validation\n"
+            "and rich queries.\n"
+            "\n"
+            f"For ADR-{ctx.idea_id}-N, store these triples:\n"
+            "\n"
+            "```\n"
+            f'# 1. Type assertion (required for SHACL)\n'
+            f'add_triple(subject="arch:adr-{ctx.idea_id}-N",\n'
+            '           predicate="rdf:type",\n'
+            '           object="isaqb:ArchitectureDecision")\n'
+            "\n"
+            f'# 2. Title (required)\n'
+            f'add_triple(subject="arch:adr-{ctx.idea_id}-N",\n'
+            '           predicate="rdfs:label",\n'
+            f'           object="ADR-{ctx.idea_id}-N: [Title]",\n'
+            '           is_literal=True)\n'
+            "\n"
+            f'# 3. Context (required) — forces, constraints, alternatives\n'
+            f'add_triple(subject="arch:adr-{ctx.idea_id}-N",\n'
+            '           predicate="isaqb:context",\n'
+            '           object="[Context paragraph]",\n'
+            '           is_literal=True)\n'
+            "\n"
+            f'# 4. Status (required)\n'
+            f'add_triple(subject="arch:adr-{ctx.idea_id}-N",\n'
+            '           predicate="isaqb:decisionStatus",\n'
+            '           object="isaqb:StatusProposed")\n'
+            "\n"
+            f'# 5. Consequences (required) — use (+), (-), (~) prefixes\n'
+            f'add_triple(subject="arch:adr-{ctx.idea_id}-N",\n'
+            '           predicate="isaqb:consequences",\n'
+            '           object="(+) [positive]. (-) [negative]. (~) [neutral].",\n'
+            '           is_literal=True)\n'
+            "\n"
+            f'# 6. Quality links (optional but recommended)\n'
+            f'add_triple(subject="arch:adr-{ctx.idea_id}-N",\n'
+            '           predicate="isaqb:addresses",\n'
+            '           object="isaqb:[QualityAttribute]")  # e.g., isaqb:Maintainability\n'
+            "```\n"
+            "\n"
+            "Keep total facts under 20. Be concise — no markdown formatting in values.\n"
             "\n"
             "Be concrete and specific. This design will be translated directly into implementation tasks."
         )

@@ -202,17 +202,17 @@ class ImplementationLoop:
             if f.get("object")
         ]
 
-        # --- ADRs ---
-        adr_facts = self._ontology.recall_facts(
-            predicate="arch:decision",
-            context=arch_context,
-        )
+        # --- ADRs (structured or legacy) ---
+        adr_list = self._ontology.get_adrs(idea_id)
         adrs: dict[str, str] = {}
-        for f in adr_facts.get("result", []):
-            subj = f.get("subject", "")
-            obj = f.get("object", "")
-            if subj and obj:
-                adrs[subj] = obj
+        for adr in adr_list:
+            adr_id = adr.get("id", "")
+            title = adr.get("title", "")
+            consequences = adr.get("consequences", "")
+            # Build summary: "Title: consequences" or just title if no consequences
+            summary = f"{title}: {consequences}" if consequences else title
+            if adr_id and summary:
+                adrs[adr_id] = summary
 
         if quality_goals or design_principles or adrs:
             self._architecture_context = {
