@@ -180,13 +180,42 @@ def _try_sparql_resolution(
         return False
 
 
-def _read_file_source(file_path: str) -> str | None:
-    """Read a file's source code, returning None if not found.
+# Binary/non-text file extensions to skip
+_BINARY_EXTENSIONS = frozenset({
+    ".pyc", ".pyo", ".so", ".dll", ".dylib",
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp",
+    ".zip", ".tar", ".gz", ".bz2", ".xz",
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+    ".woff", ".woff2", ".ttf", ".eot",
+    ".db", ".sqlite", ".sqlite3",
+})
 
-    Handles ``FileNotFoundError`` gracefully so the phase can continue
-    scanning remaining files.
+
+def _read_file_source(file_path: str) -> str | None:
+    """Read a file's source code, returning None if not found or binary.
+
+    Handles gracefully:
+    - ``FileNotFoundError``: file doesn't exist
+    - ``UnicodeDecodeError``: binary file that can't be decoded as UTF-8
+    - ``__pycache__`` directories: skipped entirely
+    - Known binary extensions: skipped without attempting to read
     """
+    path = Path(file_path)
+
+    # Skip __pycache__ directories
+    if "__pycache__" in path.parts:
+        logger.debug("Skipping __pycache__ file: %s", file_path)
+        return None
+
+    # Skip known binary extensions
+    if path.suffix.lower() in _BINARY_EXTENSIONS:
+        logger.debug("Skipping binary file: %s", file_path)
+        return None
+
     try:
-        return Path(file_path).read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8")
     except FileNotFoundError:
+        return None
+    except UnicodeDecodeError:
+        logger.debug("Skipping non-UTF-8 file: %s", file_path)
         return None
