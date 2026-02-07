@@ -20,8 +20,8 @@ def test_get_shape_for_unknown_phase_returns_none():
     assert get_shape_for_phase("p4") is None
 
 
-def test_phase_shapes_dict_has_exactly_four_entries():
-    assert len(PHASE_SHAPES) == 4
+def test_phase_shapes_dict_has_expected_entries():
+    assert len(PHASE_SHAPES) == 13
 
 
 def test_get_shape_for_lw_trace():
