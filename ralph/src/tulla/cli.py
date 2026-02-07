@@ -20,7 +20,6 @@ from typing import Any
 
 import click
 
-from tulla.adapters.claude_cli import ClaudeCLIAdapter
 from tulla.adapters.ontology_mcp import OntologyMCPAdapter
 from tulla.config import TullaConfig
 from tulla.core.phase import PhaseStatus
@@ -40,6 +39,40 @@ EXIT_TIMEOUT = 124
 
 
 # ---------------------------------------------------------------------------
+# Work-dir resolution helpers
+# ---------------------------------------------------------------------------
+
+
+def _find_latest_work_dir(
+    work_base: Path, idea: int, agent: str,
+) -> Path | None:
+    """Find the most recent work directory with checkpoint files.
+
+    Scans *work_base* for directories matching ``idea-{idea}-{agent}-*``
+    and returns the most recent one (by lexicographic sort on the
+    timestamp suffix) that contains at least one ``*-result.json``
+    checkpoint file.
+
+    Returns ``None`` if no suitable directory is found.
+    """
+    prefix = f"idea-{idea}-{agent}-"
+    if not work_base.exists():
+        return None
+
+    candidates = sorted(
+        (d for d in work_base.iterdir() if d.is_dir() and d.name.startswith(prefix)),
+        key=lambda d: d.name,
+        reverse=True,
+    )
+
+    for candidate in candidates:
+        if list(candidate.glob("*-result.json")):
+            return candidate
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Pipeline factory
 # ---------------------------------------------------------------------------
 
@@ -52,6 +85,7 @@ def _build_pipeline(
     mode: str | None,
     discovery_dir: str | None = None,
     research_dir: str | None = None,
+    research_mode: str | None = None,
     description: str = "",
 ) -> Pipeline:
     """Create the appropriate pipeline for *agent*.
@@ -59,7 +93,7 @@ def _build_pipeline(
     Currently only the discovery agent has a full pipeline factory.
     Other agents raise :class:`click.ClickException` until implemented.
     """
-    claude_port = ClaudeCLIAdapter()
+    llm_port = config.create_llm_adapter()
     idea_str = str(idea_id)
 
     if agent == "discovery":
@@ -67,7 +101,7 @@ def _build_pipeline(
 
         effective_mode = mode if mode else "upstream"
         return discovery_pipeline(
-            claude_port=claude_port,
+            claude_port=llm_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config=config,
@@ -80,7 +114,7 @@ def _build_pipeline(
         effective_discovery_dir = discovery_dir if discovery_dir else ""
         effective_research_dir = research_dir if research_dir else ""
         return planning_pipeline(
-            claude_port=claude_port,
+            claude_port=llm_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config=config,
@@ -90,16 +124,35 @@ def _build_pipeline(
 
     if agent == "research":
         from tulla.phases.research.pipeline import research_pipeline
+        from tulla.phases.research.routing import RoutingError, infer_research_mode
 
-        effective_planning_dir = mode if mode else ""
-        effective_discovery_dir = discovery_dir if discovery_dir else ""
+        logger = logging.getLogger(__name__)
+
+        try:
+            routing = infer_research_mode(
+                idea_str,
+                explicit_mode=research_mode,
+                explicit_planning_dir=mode,
+                explicit_discovery_dir=discovery_dir,
+                work_base=config.work_base_dir,
+            )
+        except RoutingError as exc:
+            raise click.ClickException(str(exc)) from exc
+
+        logger.info(
+            "Research auto-routing: mode=%s, planning_dir=%r, discovery_dir=%r",
+            routing.mode.value,
+            routing.planning_dir,
+            routing.discovery_dir,
+        )
+
         return research_pipeline(
-            claude_port=claude_port,
+            claude_port=llm_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config=config,
-            planning_dir=effective_planning_dir,
-            discovery_dir=effective_discovery_dir,
+            planning_dir=routing.planning_dir,
+            discovery_dir=routing.discovery_dir,
         )
 
     if agent == "epistemology":
@@ -129,7 +182,7 @@ def _build_pipeline(
         phase_id, phase = ep_modes[effective_mode]
         return Pipeline(
             phases=[(phase_id, phase)],
-            claude_port=claude_port,
+            claude_port=llm_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config={
@@ -146,7 +199,7 @@ def _build_pipeline(
         from tulla.phases.lightweight.pipeline import lightweight_pipeline
 
         return lightweight_pipeline(
-            claude_port=claude_port,
+            claude_port=llm_port,
             work_dir=work_dir,
             idea_id=idea_str,
             config=config,
@@ -178,13 +231,13 @@ def _run_implementation(
     """
     from tulla.phases.implementation.loop import ImplementationLoop
 
-    claude_port = ClaudeCLIAdapter()
+    llm_port = config.create_llm_adapter()
     ontology_port = OntologyMCPAdapter()
     prd_context = f"prd-idea-{idea_id}"
     project_root = Path.cwd()
 
     loop = ImplementationLoop(
-        claude_port=claude_port,
+        claude_port=llm_port,
         ontology_port=ontology_port,
         project_root=project_root,
         prd_context=prd_context,
@@ -382,6 +435,13 @@ def main(ctx: click.Context, config_path: str | None) -> None:
     help="Research output directory (R1-R6 artifacts).",
 )
 @click.option(
+    "--research-mode",
+    "research_mode",
+    type=click.Choice(["groundwork", "spike", "discovery-fed"], case_sensitive=False),
+    default=None,
+    help="Research pipeline mode (auto-detected if omitted).",
+)
+@click.option(
     "--description",
     type=str,
     default="",
@@ -404,6 +464,7 @@ def run(
     work_dir: str | None,
     discovery_dir: str | None,
     research_dir: str | None,
+    research_mode: str | None,
     description: str,
     verbose: bool,
 ) -> None:
@@ -417,6 +478,16 @@ def run(
     # different cwd than the Python process, so relative paths break.
     if work_dir:
         resolved_work_dir = Path(work_dir).resolve()
+    elif resume_from:
+        # --from specified without --work-dir: reuse the latest matching dir
+        found = _find_latest_work_dir(config.work_base_dir, idea, agent)
+        if found is None:
+            raise click.ClickException(
+                f"--from {resume_from} requires a previous work directory for "
+                f"idea-{idea}-{agent}, but none found in {config.work_base_dir}. "
+                f"Use --work-dir to specify one explicitly."
+            )
+        resolved_work_dir = found.resolve()
     else:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         resolved_work_dir = (
@@ -453,6 +524,7 @@ def run(
         mode=mode,
         discovery_dir=discovery_dir,
         research_dir=research_dir,
+        research_mode=research_mode,
         description=description,
     )
 
@@ -470,6 +542,14 @@ def run(
 
     # Execute the pipeline
     result = pipeline.run(start_from=resume_from)
+
+    # Check for early termination signal from phase metadata
+    for _phase_id, phase_result in result.phase_results:
+        early = phase_result.metadata.get("early_terminate")
+        if early:
+            reason = early if isinstance(early, str) else "phase requested early stop"
+            click.echo(f"\nEarly termination: {reason}")
+            sys.exit(EXIT_SUCCESS)
 
     # Report results and exit with appropriate code
     exit_code = _report_result(result)
