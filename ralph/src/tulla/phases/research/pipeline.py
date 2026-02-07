@@ -13,6 +13,7 @@ from typing import Any
 from tulla.adapters.ontology_mcp import OntologyMCPAdapter
 from tulla.config import TullaConfig
 from tulla.core.pipeline import Pipeline
+from tulla.ontology.phase_shapes import PHASE_SHAPES
 
 from .r1 import R1Phase
 from .r2 import R2Phase
@@ -79,6 +80,7 @@ def research_pipeline(
             "permission_mode": config.research.permission_mode,
             "phase_timeouts": config.research.phase_timeouts,
             "ontology_port": ontology_port,
+            "shape_registry": PHASE_SHAPES,
         },
         total_budget_usd=config.research.budget_usd,
         prior_phases=prior_phases,
