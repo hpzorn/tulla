@@ -45,6 +45,14 @@ def research_pipeline(
     - **Spike** (``planning_dir`` set): Targeted R1-R6 answering P5
       research requests from the planning phase.
 
+    .. note:: **Spike Re-entry Workflow**
+
+       After a spike completes, R6 facts are persisted to the A-box.
+       The user then re-runs ``tulla run planning --idea N --from p5``
+       to resume planning with spike results available as upstream facts.
+       No automatic re-entry is implemented — the user reviews spike
+       results before continuing.
+
     Mode precedence: ``planning_dir`` > ``discovery_dir`` > groundwork.
     When both are supplied, *planning_dir* wins and the pipeline runs
     in Spike mode.
