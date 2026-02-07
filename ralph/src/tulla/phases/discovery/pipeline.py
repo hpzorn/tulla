@@ -63,4 +63,5 @@ def discovery_pipeline(
             "ontology_port": ontology_port,
         },
         total_budget_usd=config.discovery.budget_usd,
+        prior_phases=["r1", "r2", "r3", "r4", "r5", "r6"],
     )
