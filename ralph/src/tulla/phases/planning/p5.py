@@ -119,7 +119,7 @@ class P5Phase(Phase[P5Output]):
             "\n"
             "   ## Handoff to Research-Tulla\n"
             "\n"
-            f"   Run: `./research-tulla.sh --idea {ctx.idea_id}` with focus on:\n"
+            f"   Run: `tulla run research --idea {ctx.idea_id}` with focus on:\n"
             "   - [RR1 question]\n"
             "\n"
             "   After research completes, re-run planning-tulla to update the plan.\n"
