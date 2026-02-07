@@ -52,6 +52,22 @@ class ParseError(Exception):
         self.context = context or {}
 
 
+class EarlyTermination(Exception):
+    """Signals an intentional early pipeline stop.
+
+    The phase succeeded, but further phases would be wasteful.
+    Caught by :meth:`Phase.execute` and converted into a
+    :class:`PhaseResult` with ``status=FAILURE`` and
+    ``early_terminate`` metadata so the existing pipeline
+    break-on-FAILURE logic stops the run.
+    """
+
+    def __init__(self, reason: str, r1_output: Any = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.r1_output = r1_output
+
+
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -187,6 +203,7 @@ class Phase(ABC, Generic[T]):
             budget_usd=ctx.budget_remaining_usd,
             timeout_seconds=timeout,
             permission_mode=permission_mode,
+            cwd=ctx.work_dir,
         )
 
         result = claude_port.run(request)
@@ -263,6 +280,12 @@ class Phase(ABC, Generic[T]):
         # 2 — build prompt
         try:
             prompt = self.build_prompt(ctx)
+            prompt += (
+                "\n\n## IMPORTANT: File Write Constraint\n"
+                "You MUST only create or modify files inside the work "
+                f"directory: {ctx.work_dir}\n"
+                "Do NOT write files anywhere else on the filesystem."
+            )
         except Exception as exc:
             log.error("Phase build_prompt failed: %s", exc)
             return PhaseResult(
@@ -281,6 +304,14 @@ class Phase(ABC, Generic[T]):
                 error=f"Get tools failed: {exc}",
                 duration_s=time.monotonic() - start,
             )
+
+        # 3b — log prompt for post-mortem debugging
+        log.debug("Claude prompt", extra={
+            "phase_id": getattr(self, "phase_id", "unknown"),
+            "idea_id": ctx.idea_id,
+            "prompt": prompt,
+            "tool_names": [t.get("name", "") for t in tools],
+        })
 
         # 4 — run Claude
         cost_usd = 0.0
@@ -312,6 +343,14 @@ class Phase(ABC, Generic[T]):
         # 5 — parse output
         try:
             parsed = self.parse_output(ctx, raw)
+        except EarlyTermination as et:
+            log.info("Early termination: %s", et.reason)
+            return PhaseResult(
+                status=PhaseStatus.FAILURE,
+                data=et.r1_output,
+                duration_s=time.monotonic() - start,
+                metadata={"early_terminate": True, "reason": et.reason},
+            )
         except ParseError as exc:
             log.warning("Phase parse_output failed: %s", exc)
             return PhaseResult(
