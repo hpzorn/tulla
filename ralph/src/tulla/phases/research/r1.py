@@ -15,7 +15,7 @@ import re
 from datetime import date
 from typing import Any
 
-from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import EarlyTermination, ParseError, Phase, PhaseContext
 from tulla.core.phase_facts import group_upstream_facts
 from tulla.phases.research import RESEARCH_IDENTITY, build_northstar_section
 
@@ -286,7 +286,7 @@ class R1Phase(Phase[R1Output]):
         Extracts the count and content of refined research questions.
         Raises :class:`ParseError` if the output file is missing.
         """
-        from tulla.core.markdown_extract import extract_field, extract_rq_sections
+        from tulla.core.markdown_extract import extract_field, extract_rq_sections, extract_section
 
         output_file = ctx.work_dir / "r1-question-refinement.md"
 
@@ -313,10 +313,50 @@ class R1Phase(Phase[R1Output]):
                 "acceptance_criteria": extract_field(rq["body"], "Acceptance Criteria"),
             })
 
-        return R1Output(
+        r1_output = R1Output(
             output_file=output_file,
             questions_refined=questions_refined,
             research_questions=json.dumps(rq_list),
+        )
+
+        # --- Early termination for groundwork mode ---
+        planning_dir = ctx.config.get("planning_dir", "")
+        discovery_dir = ctx.config.get("discovery_dir", "")
+        is_groundwork = not planning_dir and not discovery_dir
+
+        if is_groundwork:
+            novelty_section = extract_section(content, "Novelty Assessment")
+            verdict_match = re.search(
+                r"\*\*Verdict\*\*:\s*(.+)", novelty_section,
+            )
+            if verdict_match:
+                verdict_text = verdict_match.group(1).strip()
+                if "derivative" in verdict_text.lower():
+                    self._write_early_termination_r6(ctx)
+                    raise EarlyTermination(
+                        reason="derivative", r1_output=r1_output,
+                    )
+
+        return r1_output
+
+    def _write_early_termination_r6(self, ctx: PhaseContext) -> None:
+        """Write a minimal R6 synthesis file for early termination."""
+        r6_path = ctx.work_dir / "r6-research-synthesis.md"
+        r6_path.write_text(
+            f"# R6: Research Synthesis\n"
+            f"**Idea**: {ctx.idea_id}\n"
+            f"**Status**: Early Termination\n"
+            f"\n"
+            f"## Executive Summary\n"
+            f"Derivative idea detected during R1 prior-art triage. "
+            f"All constituent capabilities are derivative or commoditized. "
+            f"Early termination applied — remaining research phases skipped.\n"
+            f"\n"
+            f"## Recommendation\n"
+            f"Do not proceed to discovery. "
+            f"The idea can be implemented directly from existing tools and libraries, "
+            f"or should be dropped in favour of a more novel approach.\n",
+            encoding="utf-8",
         )
 
     def get_timeout_seconds(self) -> float:
