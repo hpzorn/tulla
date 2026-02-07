@@ -33,11 +33,21 @@ def research_pipeline(
 ) -> Pipeline:
     """Create a research :class:`Pipeline` with phases R1 through R6.
 
-    Supports two modes (see idea-58):
+    Supports three modes, selected by the combination of *planning_dir*
+    and *discovery_dir* (see idea-58):
 
-    - **Groundwork** (discovery_dir, no planning_dir): Full R1-R6 on a raw
-      idea, using discovery artifacts for grounding.
-    - **Spike** (planning_dir): Targeted research answering P5 questions.
+    - **Groundwork** (neither ``planning_dir`` nor ``discovery_dir`` set):
+      Full R1-R6 on a raw seed with novelty assessment and possible early
+      termination.
+    - **Discovery-Fed** (``discovery_dir`` set, no ``planning_dir``):
+      Full R1-R6 driven by the D5 research brief questions produced
+      during discovery.
+    - **Spike** (``planning_dir`` set): Targeted R1-R6 answering P5
+      research requests from the planning phase.
+
+    Mode precedence: ``planning_dir`` > ``discovery_dir`` > groundwork.
+    When both are supplied, *planning_dir* wins and the pipeline runs
+    in Spike mode.
 
     Parameters:
         claude_port: Claude invocation adapter forwarded to each phase.
@@ -49,7 +59,7 @@ def research_pipeline(
         planning_dir: Path to the planning output directory whose
             research requests (P5) seed the research questions (spike mode).
         discovery_dir: Path to the discovery output directory whose
-            artifacts (D1-D5) ground the research (groundwork mode).
+            artifacts (D1-D5) ground the research (discovery-fed mode).
 
     Returns:
         A fully configured :class:`Pipeline` instance.
