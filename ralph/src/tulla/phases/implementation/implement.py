@@ -76,6 +76,12 @@ class ImplementPhase:
             permission_mode="acceptEdits",
         )
 
+        logger.debug("Claude prompt", extra={
+            "phase_id": self.phase_id,
+            "requirement_id": req_id,
+            "prompt": prompt,
+        })
+
         start = time.monotonic()
         result = claude.run(request)
         elapsed = time.monotonic() - start

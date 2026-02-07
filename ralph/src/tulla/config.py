@@ -73,8 +73,8 @@ class AgentConfig(BaseSettings):
 class TullaConfig(BaseSettings):
     """Root configuration for the Tulla system.
 
-    Environment variables are read with the ``RALPH_`` prefix, e.g.
-    ``RALPH_WORK_BASE_DIR`` maps to ``work_base_dir``.
+    Environment variables are read with the ``TULLA_`` prefix, e.g.
+    ``TULLA_WORK_BASE_DIR`` maps to ``work_base_dir``.
     """
 
     model_config = SettingsConfigDict(
@@ -93,6 +93,20 @@ class TullaConfig(BaseSettings):
     ontology_server_url: str = Field(
         default="http://localhost:8100",
         description="URL of the ontology-server HTTP endpoint.",
+    )
+
+    # LLM backend configuration
+    llm_backend: str = Field(
+        default="claude",
+        description="LLM backend to use: 'claude', 'codex', or 'opencode'.",
+    )
+    llm_model: str = Field(
+        default="",
+        description="Model override for the LLM backend (empty = use default).",
+    )
+    llm_bin: str = Field(
+        default="",
+        description="Path to LLM CLI binary (empty = use default name).",
     )
 
     @model_validator(mode="after")
@@ -163,3 +177,38 @@ class TullaConfig(BaseSettings):
         # Merge: YAML provides the base, overrides win
         merged = {**yaml_data, **overrides}
         return cls(**merged)
+
+    def create_llm_adapter(self) -> Any:
+        """Create an LLM adapter based on the configured backend.
+
+        Returns:
+            A :class:`ClaudePort` implementation (ClaudeCLIAdapter or
+            CodexCLIAdapter) configured according to this config.
+
+        Raises:
+            ValueError: If ``llm_backend`` is not a recognized value.
+        """
+        from tulla.adapters.claude_cli import ClaudeCLIAdapter
+        from tulla.adapters.codex_cli import CodexCLIAdapter
+        from tulla.adapters.opencode_cli import OpenCodeCLIAdapter
+
+        backend = self.llm_backend.lower()
+
+        if backend == "claude":
+            bin_path = self.llm_bin or "claude"
+            return ClaudeCLIAdapter(claude_bin=bin_path)
+
+        if backend == "codex":
+            bin_path = self.llm_bin or "codex"
+            model = self.llm_model or "gpt-5.3-codex"
+            return CodexCLIAdapter(codex_bin=bin_path, model=model)
+
+        if backend == "opencode":
+            bin_path = self.llm_bin or "opencode"
+            model = self.llm_model or "gpt-4.1"
+            return OpenCodeCLIAdapter(opencode_bin=bin_path, model=model)
+
+        raise ValueError(
+            f"Unknown LLM backend: {self.llm_backend!r}. "
+            "Supported: 'claude', 'codex', 'opencode'."
+        )

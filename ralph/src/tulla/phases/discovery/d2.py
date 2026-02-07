@@ -7,10 +7,14 @@ their jobs-to-be-done, pain points, and desired outcomes for a given idea.
 from __future__ import annotations
 
 import json
-import re
 from datetime import date
 from typing import Any
 
+from tulla.core.markdown_extract import (
+    extract_bullet_items,
+    extract_section,
+    extract_table_rows,
+)
 from tulla.core.phase import ParseError, Phase, PhaseContext
 from tulla.core.phase_facts import group_upstream_facts
 
@@ -140,7 +144,8 @@ class D2Phase(Phase[D2Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D2Output:
         """Parse D2 output by reading ``d2-personas.md`` from *work_dir*.
 
-        Extracts persona count from the Persona Overview table.
+        Extracts semantic fields: personas, non_negotiable_needs,
+        and primary_persona_jtbd from the markdown sections.
         Raises :class:`ParseError` if the personas file is missing.
         """
         personas_file = ctx.work_dir / "d2-personas.md"
@@ -154,17 +159,39 @@ class D2Phase(Phase[D2Output]):
 
         content = personas_file.read_text(encoding="utf-8")
 
-        # Count personas from "Persona Overview" table rows.
-        overview_section = _extract_section(content, "Persona Overview")
-        persona_count = _count_table_rows(overview_section)
+        # Extract personas from overview table
+        overview_section = extract_section(content, "Persona Overview")
+        table_rows = extract_table_rows(overview_section)
 
-        # Fallback: count ### Persona N headings if table is empty.
-        if persona_count == 0:
-            persona_count = len(re.findall(r"###\s+Persona\s+\d+", content))
+        personas_list: list[dict[str, str]] = []
+        for row in table_rows:
+            # Table headers: Persona | Role | Primary JTBD | Frequency
+            personas_list.append({
+                "name": row.get("Persona", ""),
+                "role": row.get("Role", ""),
+                "primary_jtbd": row.get("Primary JTBD", ""),
+            })
+        personas = json.dumps(personas_list)
+
+        # Extract non-negotiable needs from cross-persona insights
+        insights_section = extract_section(content, "Cross-Persona Insights")
+        pain_section = extract_section(
+            "## Cross-Persona Insights\n" + insights_section,
+            "Common pain points",
+            level=3,
+        ) if insights_section else ""
+        needs = extract_bullet_items(pain_section) if pain_section else []
+        non_negotiable_needs = json.dumps(needs)
+
+        # Extract JTBD summary statement
+        jtbd_section = extract_section(content, "JTBD Summary")
+        primary_persona_jtbd = jtbd_section.strip() if jtbd_section else ""
 
         return D2Output(
             personas_file=personas_file,
-            persona_count=persona_count,
+            personas=personas,
+            non_negotiable_needs=non_negotiable_needs,
+            primary_persona_jtbd=primary_persona_jtbd,
         )
 
     def get_timeout_seconds(self) -> float:
@@ -172,30 +199,3 @@ class D2Phase(Phase[D2Output]):
         return self.timeout_s
 
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-
-
-def _extract_section(content: str, heading: str) -> str:
-    """Extract content under a markdown ``## heading`` until the next heading."""
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
-
-
-def _count_table_rows(section: str) -> int:
-    """Count markdown table data rows (excludes header and separator rows)."""
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        # Skip header separator rows like |---|---|---|
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        # Count lines that look like table rows: | content | ... |
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    # Subtract 1 for the header row if we counted any rows
-    return max(0, rows - 1) if rows > 0 else 0

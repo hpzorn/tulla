@@ -1,1647 +1,468 @@
-@prefix isaqb: <http://impl-ralph.io/isaqb#> .
-@prefix prd: <http://impl-ralph.io/prd#> .
 @prefix code: <http://impl-ralph.io/code#> .
-@prefix trace: <http://impl-ralph.io/trace#> .
+@prefix isaqb: <http://impl-ralph.io/isaqb#> .
+@prefix ns1: <rdf:> .
+@prefix ns2: <rdfs:> .
+@prefix ns3: <isaqb:> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prd: <http://impl-ralph.io/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# =============================================================================
-# iSAQB Architecture Knowledge Ontology
-# =============================================================================
-#
-# Formal representation of the iSAQB (International Software Architecture
-# Qualification Board) body of knowledge: design principles, quality attributes,
-# architectural patterns, views, cross-cutting concerns, and decision structures.
-#
-# T-Box: Classes and properties defining the architectural knowledge schema.
-# A-Box: Pre-populated individuals from the CPSA-FL/AL curricula, ISO 25010,
-#         arc42 template, and Q42 quality model.
-#
-# Usage:
-#   - Planning-Ralph P3: Query principles, patterns, quality attributes to
-#     guide architecture design and generate ADRs.
-#   - Implementation-Ralph: Validate code against design principles and
-#     cross-cutting concept specifications.
-#   - Evaluation-Ralph: Check quality scenario coverage, risk mitigation,
-#     and arc42 completeness.
-#
-# Cross-ontology links:
-#   - prd:Requirement  --isaqb:addressesQuality-->  isaqb:QualityAttribute
-#   - prd:Requirement  --isaqb:justifiedBy-->        isaqb:ArchitectureDecision
-#   - code:Class       --isaqb:realizesPattern-->     isaqb:DesignPattern
-#   - code:Module      --isaqb:realizesPattern-->     isaqb:ArchitecturalPattern
-#
-# =============================================================================
+isaqb:Arc42Section a rdfs:Class,
+        owl:Class ;
+    rdfs:label "arc42 Section" ;
+    rdfs:comment "One of the 12 sections of the arc42 documentation template" .
 
-# -----------------------------------------------------------------------------
-# Ontology Metadata
-# -----------------------------------------------------------------------------
+isaqb:ArchitecturalPattern a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Architectural Pattern" ;
+    rdfs:comment "A proven structural solution to a recurring architectural problem (LG 03-08)" .
+
+isaqb:ArchitecturalView a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Architectural View" ;
+    rdfs:comment "A representation of a system from a particular perspective (LG 04-05, ISO/IEC/IEEE 42010)" .
+
+isaqb:ArchitectureDecision a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Architecture Decision" ;
+    rdfs:comment "A documented architectural decision following ADR structure: context, options, decision, consequences (LG 04-08). Created per-project by Planning-Ralph." .
+
+isaqb:ConcernCategory a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Concern Category" ;
+    rdfs:comment "Grouping of cross-cutting concerns per Stefan Zörner's arc42 section 8 sub-structuring" .
+
+isaqb:Constraint a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Constraint" ;
+    rdfs:comment "A non-negotiable boundary on the solution space (LG 02-02). Created per-project." .
+
+isaqb:ConstraintType a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Constraint Type" ;
+    rdfs:comment "Classification of constraints: technical, organizational, legal/regulatory" .
+
+isaqb:CrossCuttingConcern a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Cross-Cutting Concern" ;
+    rdfs:comment "A concern that affects multiple building blocks and requires a uniform project-wide solution (LG 03-10, arc42 section 8)" .
+
+isaqb:DebtType a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Debt Type" ;
+    rdfs:comment "Classification: code debt, architectural debt, documentation debt" .
+
+isaqb:DecisionOption a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Decision Option" ;
+    rdfs:comment "A considered alternative within an architecture decision" .
+
+isaqb:DecisionStatus a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Decision Status" ;
+    rdfs:comment "Lifecycle status of an architecture decision" .
+
+isaqb:DesignPattern a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Design Pattern" ;
+    rdfs:comment "A proven solution to a recurring design problem at component/class level (LG 03-09)" .
+
+isaqb:DesignPrinciple a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Design Principle" ;
+    rdfs:comment "A fundamental design principle guiding architectural decomposition and code structure (LG 03-04)" .
+
+isaqb:EvaluationMethod a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Evaluation Method" ;
+    rdfs:comment "A method for analyzing or assessing software architecture (LG 05-01 to 05-03)" .
+
+isaqb:PatternRelevance a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Pattern Relevance" ;
+    rdfs:comment "CPSA-FL relevance classification (R1 must-know, R2 should-know, R3 may-know)" .
+
+isaqb:PrincipleCategory a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Principle Category" ;
+    rdfs:comment "Grouping of related design principles (abstraction, modularization, complexity reduction, robustness)" .
+
+isaqb:QualityAttribute a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Quality Attribute" ;
+    rdfs:comment "A measurable property of a software system derived from ISO/IEC 25010 and Q42 (LG 02-03)" .
+
+isaqb:QualityCategory a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Quality Category" ;
+    rdfs:comment "Top-level grouping from ISO/IEC 25010:2023 product quality model" .
+
+isaqb:QualityGoal a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Quality Goal" ;
+    rdfs:comment "A top-3-to-5 prioritized quality attribute for a specific project (arc42 section 1). Created per-project." .
+
+isaqb:QualityScenario a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Quality Scenario" ;
+    rdfs:comment "A concrete, testable scenario making a quality attribute measurable. Leaf of the quality tree. Form: stimulus -> environment -> response -> measure (Len Bass). Created per-project by Planning-Ralph." .
+
+isaqb:Risk a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Risk" ;
+    rdfs:comment "An identified architectural risk with severity, likelihood, and mitigation (arc42 section 11). Created per-project." .
+
+isaqb:RiskSeverity a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Risk Severity" ;
+    rdfs:comment "Classification of risk impact" .
+
+isaqb:SensitivityPoint a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Sensitivity Point" ;
+    rdfs:comment "A building block or decision where small changes significantly affect a quality attribute (ATAM). Created per-project." .
+
+isaqb:StakeholderRole a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Stakeholder Role" ;
+    rdfs:comment "A role with concerns relevant to the architecture (LG 01-06, LG 02-01)" .
+
+isaqb:TechnicalDebt a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Technical Debt" ;
+    rdfs:comment "A known architectural shortcut with long-term negative consequences (arc42 section 11, IMPROVE module). Created per-project." .
+
+isaqb:TradeoffPoint a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Tradeoff Point" ;
+    rdfs:comment "A decision where improving one quality attribute negatively affects another (ATAM). Created per-project." .
+
+<arch:adr-58-1> ns3:addresses "isaqb:Correctness",
+        "isaqb:Modifiability",
+        "isaqb:Reliability" ;
+    ns3:consequences "(+) Minimal new code ~20 lines. (+) Backward compatible. (+) Testable via config fixture. (-) No compile-time mode exhaustiveness. (~) May revisit with strategy pattern if modes exceed 5.",
+        "(+) Single type for R6Output.recommendation. (+) A-box queries work without knowing mode. (-) No compile-time mode-verdict enforcement. (~) Discovery-fed shares groundwork verdicts intentionally.",
+        "(+) Zero Pipeline.run() changes. (+) R1 IntentFields still persisted. (+) Minimal R6 record ensures work_dir always has synthesis. (-) PipelineResult.final_status is FAILURE for intentional stop. (~) Reusable EarlyTermination exception for future phases." ;
+    ns3:context "R1 detects derivative ideas in groundwork mode. Need to stop pipeline before R2-R6 (~$7 savings). Options: new PhaseStatus enum, FAILURE with metadata, or pipeline hook. FAILURE+metadata requires zero Pipeline changes.",
+        "R6 produces different verdicts per mode. Single ResearchVerdict enum with all 6 values and valid_verdicts(mode) helper chosen over separate per-mode enums to avoid union types and keep A-box representation uniform.",
+        "Three research modes need different behavior. Options: subclasses, strategy objects, or config field. R1 already uses config implicitly. R2-R6 are mode-agnostic. Only R1 has mode-specific branching — subclasses/strategy for one branch point is over-engineering." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-58-1: Early Termination via PhaseStatus.FAILURE",
+        "ADR-58-1: Mode as Config Field, Not Subclass Hierarchy",
+        "ADR-58-1: Single Enum with All Verdict Values" .
+
+<arch:adr-58-2> ns3:addresses "isaqb:Maintainability",
+        "isaqb:Modifiability",
+        "isaqb:Usability" ;
+    ns3:consequences "(+) Pipeline engine stays domain-agnostic. (+) Reusable by planning/implementation agents. (+) Testable with mock callback. (-) Callback must not throw — needs try/except wrapper. (~) Adds ~8 lines to Pipeline.run().",
+        "(+) Single resolution point ensures consistency across R1-R6. (+) Follows established discovery pipeline convention. (-) Factory gains 15 lines of mode-resolution logic. (~) R1 retains directory-presence fallback for backward compat.",
+        "(+) Zero new infrastructure, uses glob on existing work dir convention. (+) Deterministic routing. (+) --research-mode override as escape hatch. (-) Depends on work directory naming convention. (~) Routing function is pure and unit-testable." ;
+    ns3:context "Groundwork must stop after R1 on DERIVATIVE verdict. Options: engine checks specific field, phase raises exception, or callback function. Callback is generic and reusable — no research semantics leak into core engine.",
+        "Mode needs to be determined from CLI flags or directory presence. Resolved in pipeline factory (_resolve_mode in pipeline.py) matching the established discovery pipeline pattern. CLI passes raw string, factory resolves to ResearchMode enum, stores in config[\"mode\"].",
+        "Users need tulla run research --idea N to just work. Mode depends on prior-phase artifacts. Options: ontology lifecycle query (requires unimplemented tracking), filesystem artifact scan (simple, deterministic), or always require explicit flags (rejects primary JTBD)." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-58-2: Auto-Routing via Artifact Scan",
+        "ADR-58-2: Exit Condition as Callback on Pipeline Engine",
+        "ADR-58-2: Mode Resolution in Pipeline Factory" .
+
+<arch:adr-58-3> ns3:addresses "isaqb:Correctness",
+        "isaqb:Maintainability" ;
+    ns3:consequences "(+) No fake checkpoints — cleaner data integrity. (+) R4 reads it naturally via work_dir scanning. (+) Inspectable by user. (-) Must verify R4 glob pattern picks up spike-context.md. (~) File becomes a contract between factory and R4.",
+        "(+) Research-specific logic stays in research code. (+) Simple 10 lines, no new hooks. (-) parse_output gains side effect. (~) Only triggers for GROUNDWORK mode.",
+        "(+) Routing is a pure function, easy to test with fixture directories. (+) CLI stays focused on Click; pipeline stays mode-agnostic. (-) One new file. (~) ~60 lines including dataclass and enum." ;
+    ns3:context "After R6 verdict, idea lifecycle should update (go->sprout, park->parked). Lifecycle logic added to R6 parse_output rather than a pipeline post-hook, keeping research-specific behavior in research code. ontology_port already available in ctx.config. Wrapped in try/except for resilience.",
+        "Auto-routing logic needs a home. Options: inline in cli.py (mixes Click with business logic), in pipeline.py (makes mode-agnostic factory mode-aware), or new routing.py (clean separation, ~60 lines, testable in isolation).",
+        "Spike starts at R4 but R4 expects R1-R3 context. Options: fake R1-R3 checkpoints, context summary file, or config dict. Fake checkpoints risk schema drift. Config bloats. A spike-context.md file in work_dir is clean and inspectable." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-58-3: Lifecycle Integration in R6 parse_output",
+        "ADR-58-3: Separate routing.py Module",
+        "ADR-58-3: Spike Pre-Population via Context File, Not Synthetic Checkpoints" .
+
+<arch:adr-58-4> ns3:addresses "isaqb:Maintainability" ;
+    ns3:consequences "(+) No silent breakage for existing users. (+) Deprecation warning guides migration. (+) Clean separation: --mode is semantic, --planning-dir is a path. (-) Path detection heuristic could theoretically misfire on exotic mode names.",
+        "(+) Pipeline engine and phases remain pure — no ontology dependency. (+) Easy to disable in tests. (+) CLI already the integration boundary. (-) Lifecycle transition only happens via CLI caller. (~) Could add Pipeline post-hook later for programmatic callers.",
+        "(+) Simplest implementation, one line change. (+) No conditional logic in discovery pipeline. (-) 6 extra SPARQL queries per discovery run when no groundwork done (negligible cost). (~) Consistent with planning pipeline which already does this." ;
+    ns3:context "Current --mode flag for research is overloaded as planning_dir path. Detect path-like values (starts with / or .) and treat as planning_dir with deprecation warning. New --planning-dir option added. Non-path values are explicit research modes.",
+        "Groundwork-to-discovery handoff needs R1-R6 as prior_phases. Options: conditionally add R-phases only when groundwork has run (complex), or always include them (collect_upstream_facts returns empty if no R-phase triples exist).",
+        "R6 recommendations should trigger lifecycle transitions. Options: Pipeline calls ontology, R6 phase calls ontology, or CLI reads result and calls ontology. CLI is already the integration boundary — keeps engine and phases pure." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-58-4: Backward-Compatible CLI with Path Detection",
+        "ADR-58-4: Discovery Pipeline Unconditionally Includes R-Phase Prior Phases",
+        "ADR-58-4: Lifecycle Transitions in CLI Post-Hook, Not Pipeline Engine" .
 
 <http://impl-ralph.io/isaqb> a owl:Ontology ;
     rdfs:label "iSAQB Architecture Knowledge Ontology" ;
     rdfs:comment "Formal representation of iSAQB CPSA-FL/AL body of knowledge for architecture-aware planning and implementation" ;
-    owl:versionInfo "1.0.0" ;
-    owl:imports <http://impl-ralph.io/prd>, <http://impl-ralph.io/code> .
-
-
-# =============================================================================
-# T-BOX: CLASSES
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Design Principles
-# -----------------------------------------------------------------------------
-
-isaqb:DesignPrinciple a rdfs:Class, owl:Class ;
-    rdfs:label "Design Principle" ;
-    rdfs:comment "A fundamental design principle guiding architectural decomposition and code structure (LG 03-04)" .
-
-isaqb:PrincipleCategory a rdfs:Class, owl:Class ;
-    rdfs:label "Principle Category" ;
-    rdfs:comment "Grouping of related design principles (abstraction, modularization, complexity reduction, robustness)" .
-
-# -----------------------------------------------------------------------------
-# Quality Attributes
-# -----------------------------------------------------------------------------
-
-isaqb:QualityAttribute a rdfs:Class, owl:Class ;
-    rdfs:label "Quality Attribute" ;
-    rdfs:comment "A measurable property of a software system derived from ISO/IEC 25010 and Q42 (LG 02-03)" .
-
-isaqb:QualityCategory a rdfs:Class, owl:Class ;
-    rdfs:label "Quality Category" ;
-    rdfs:comment "Top-level grouping from ISO/IEC 25010:2023 product quality model" .
-
-isaqb:QualityScenario a rdfs:Class, owl:Class ;
-    rdfs:label "Quality Scenario" ;
-    rdfs:comment "A concrete, testable scenario making a quality attribute measurable. Leaf of the quality tree. Form: stimulus -> environment -> response -> measure (Len Bass). Created per-project by Planning-Ralph." .
-
-isaqb:QualityGoal a rdfs:Class, owl:Class ;
-    rdfs:label "Quality Goal" ;
-    rdfs:comment "A top-3-to-5 prioritized quality attribute for a specific project (arc42 section 1). Created per-project." .
-
-# -----------------------------------------------------------------------------
-# Architectural Patterns
-# -----------------------------------------------------------------------------
-
-isaqb:ArchitecturalPattern a rdfs:Class, owl:Class ;
-    rdfs:label "Architectural Pattern" ;
-    rdfs:comment "A proven structural solution to a recurring architectural problem (LG 03-08)" .
-
-isaqb:DesignPattern a rdfs:Class, owl:Class ;
-    rdfs:label "Design Pattern" ;
-    rdfs:comment "A proven solution to a recurring design problem at component/class level (LG 03-09)" .
-
-isaqb:PatternRelevance a rdfs:Class, owl:Class ;
-    rdfs:label "Pattern Relevance" ;
-    rdfs:comment "CPSA-FL relevance classification (R1 must-know, R2 should-know, R3 may-know)" .
-
-# -----------------------------------------------------------------------------
-# Architectural Views
-# -----------------------------------------------------------------------------
-
-isaqb:ArchitecturalView a rdfs:Class, owl:Class ;
-    rdfs:label "Architectural View" ;
-    rdfs:comment "A representation of a system from a particular perspective (LG 04-05, ISO/IEC/IEEE 42010)" .
-
-# -----------------------------------------------------------------------------
-# Cross-Cutting Concerns
-# -----------------------------------------------------------------------------
-
-isaqb:CrossCuttingConcern a rdfs:Class, owl:Class ;
-    rdfs:label "Cross-Cutting Concern" ;
-    rdfs:comment "A concern that affects multiple building blocks and requires a uniform project-wide solution (LG 03-10, arc42 section 8)" .
-
-isaqb:ConcernCategory a rdfs:Class, owl:Class ;
-    rdfs:label "Concern Category" ;
-    rdfs:comment "Grouping of cross-cutting concerns per Stefan Zörner's arc42 section 8 sub-structuring" .
-
-# -----------------------------------------------------------------------------
-# Architecture Decisions
-# -----------------------------------------------------------------------------
-
-isaqb:ArchitectureDecision a rdfs:Class, owl:Class ;
-    rdfs:label "Architecture Decision" ;
-    rdfs:comment "A documented architectural decision following ADR structure: context, options, decision, consequences (LG 04-08). Created per-project by Planning-Ralph." .
-
-isaqb:DecisionStatus a rdfs:Class, owl:Class ;
-    rdfs:label "Decision Status" ;
-    rdfs:comment "Lifecycle status of an architecture decision" .
-
-isaqb:DecisionOption a rdfs:Class, owl:Class ;
-    rdfs:label "Decision Option" ;
-    rdfs:comment "A considered alternative within an architecture decision" .
-
-# -----------------------------------------------------------------------------
-# Stakeholders
-# -----------------------------------------------------------------------------
-
-isaqb:StakeholderRole a rdfs:Class, owl:Class ;
-    rdfs:label "Stakeholder Role" ;
-    rdfs:comment "A role with concerns relevant to the architecture (LG 01-06, LG 02-01)" .
-
-# -----------------------------------------------------------------------------
-# Constraints
-# -----------------------------------------------------------------------------
-
-isaqb:Constraint a rdfs:Class, owl:Class ;
-    rdfs:label "Constraint" ;
-    rdfs:comment "A non-negotiable boundary on the solution space (LG 02-02). Created per-project." .
-
-isaqb:ConstraintType a rdfs:Class, owl:Class ;
-    rdfs:label "Constraint Type" ;
-    rdfs:comment "Classification of constraints: technical, organizational, legal/regulatory" .
-
-# -----------------------------------------------------------------------------
-# Risks and Technical Debt
-# -----------------------------------------------------------------------------
-
-isaqb:Risk a rdfs:Class, owl:Class ;
-    rdfs:label "Risk" ;
-    rdfs:comment "An identified architectural risk with severity, likelihood, and mitigation (arc42 section 11). Created per-project." .
-
-isaqb:RiskSeverity a rdfs:Class, owl:Class ;
-    rdfs:label "Risk Severity" ;
-    rdfs:comment "Classification of risk impact" .
-
-isaqb:TechnicalDebt a rdfs:Class, owl:Class ;
-    rdfs:label "Technical Debt" ;
-    rdfs:comment "A known architectural shortcut with long-term negative consequences (arc42 section 11, IMPROVE module). Created per-project." .
-
-isaqb:DebtType a rdfs:Class, owl:Class ;
-    rdfs:label "Debt Type" ;
-    rdfs:comment "Classification: code debt, architectural debt, documentation debt" .
-
-# -----------------------------------------------------------------------------
-# arc42 Documentation Structure
-# -----------------------------------------------------------------------------
-
-isaqb:Arc42Section a rdfs:Class, owl:Class ;
-    rdfs:label "arc42 Section" ;
-    rdfs:comment "One of the 12 sections of the arc42 documentation template" .
-
-# -----------------------------------------------------------------------------
-# Evaluation
-# -----------------------------------------------------------------------------
-
-isaqb:EvaluationMethod a rdfs:Class, owl:Class ;
-    rdfs:label "Evaluation Method" ;
-    rdfs:comment "A method for analyzing or assessing software architecture (LG 05-01 to 05-03)" .
-
-isaqb:SensitivityPoint a rdfs:Class, owl:Class ;
-    rdfs:label "Sensitivity Point" ;
-    rdfs:comment "A building block or decision where small changes significantly affect a quality attribute (ATAM). Created per-project." .
-
-isaqb:TradeoffPoint a rdfs:Class, owl:Class ;
-    rdfs:label "Tradeoff Point" ;
-    rdfs:comment "A decision where improving one quality attribute negatively affects another (ATAM). Created per-project." .
-
-
-# =============================================================================
-# T-BOX: PROPERTIES
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Core Metadata Properties
-# -----------------------------------------------------------------------------
-
-isaqb:category a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "category" ;
-    rdfs:comment "Classifies an individual into a category" .
-
-isaqb:level a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "level" ;
-    rdfs:comment "CPSA curriculum level: Foundation or Advanced" .
-
-isaqb:relevance a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "relevance" ;
-    rdfs:comment "CPSA-FL relevance classification (R1, R2, R3)" ;
-    rdfs:range isaqb:PatternRelevance .
-
-isaqb:learningGoal a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "learning goal" ;
-    rdfs:comment "Reference to CPSA-FL learning goal (e.g., 'LG 03-04')" ;
-    rdfs:range xsd:string .
-
-isaqb:alias a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "alias" ;
-    rdfs:comment "Alternative name for a concept" ;
-    rdfs:range xsd:string .
-
-isaqb:sectionNumber a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "section number" ;
-    rdfs:comment "Numeric position within arc42 template" ;
-    rdfs:domain isaqb:Arc42Section ;
-    rdfs:range xsd:integer .
-
-# -----------------------------------------------------------------------------
-# Intra-Ontology Relationships
-# -----------------------------------------------------------------------------
-
-isaqb:hasSubAttribute a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "has sub-attribute" ;
-    rdfs:comment "Quality attribute is refined by sub-attributes (ISO 25010 hierarchy)" ;
-    rdfs:domain isaqb:QualityAttribute ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:conflictsWith a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "conflicts with" ;
-    rdfs:comment "Improving this quality attribute typically degrades the other (architectural tradeoff)" ;
-    rdfs:domain isaqb:QualityAttribute ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:supportedBy a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "supported by" ;
-    rdfs:comment "Improving this quality attribute typically also improves the other (synergy)" ;
-    rdfs:domain isaqb:QualityAttribute ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:addresses a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "addresses" ;
-    rdfs:comment "This pattern or decision positively affects the quality attribute" ;
-    rdfs:domain isaqb:ArchitecturalPattern, isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:challenges a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "challenges" ;
-    rdfs:comment "This pattern or decision negatively affects or complicates the quality attribute" ;
-    rdfs:domain isaqb:ArchitecturalPattern, isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:embodies a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "embodies" ;
-    rdfs:comment "This pattern structurally embodies the design principle" ;
-    rdfs:domain isaqb:ArchitecturalPattern, isaqb:DesignPattern ;
-    rdfs:range isaqb:DesignPrinciple .
-
-isaqb:refines a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "refines" ;
-    rdfs:comment "Quality scenario concretizes a quality attribute" ;
-    rdfs:domain isaqb:QualityScenario ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:mitigates a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "mitigates" ;
-    rdfs:comment "Decision or pattern mitigates this risk" ;
-    rdfs:domain isaqb:ArchitectureDecision, isaqb:ArchitecturalPattern ;
-    rdfs:range isaqb:Risk .
-
-isaqb:introduces a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "introduces" ;
-    rdfs:comment "Decision introduces this technical debt as a known consequence" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:TechnicalDebt .
-
-isaqb:governedBy a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "governed by" ;
-    rdfs:comment "Cross-cutting concern is governed by this architecture decision" ;
-    rdfs:domain isaqb:CrossCuttingConcern ;
-    rdfs:range isaqb:ArchitectureDecision .
-
-isaqb:appliesView a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "applies view" ;
-    rdfs:comment "Evaluation method uses this architectural view" ;
-    rdfs:domain isaqb:EvaluationMethod ;
-    rdfs:range isaqb:ArchitecturalView .
-
-isaqb:sensitiveToQuality a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "sensitive to quality" ;
-    rdfs:comment "Sensitivity point is sensitive to this quality attribute" ;
-    rdfs:domain isaqb:SensitivityPoint ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:tradesOff a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "trades off" ;
-    rdfs:comment "Links a tradeoff point to the quality attributes in tension" ;
-    rdfs:domain isaqb:TradeoffPoint ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:documentedIn a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "documented in" ;
-    rdfs:comment "Concept is documented in this arc42 section" ;
-    rdfs:range isaqb:Arc42Section .
-
-isaqb:hasOption a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "has option" ;
-    rdfs:comment "Architecture decision considered this option" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:DecisionOption .
-
-isaqb:chosenOption a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "chosen option" ;
-    rdfs:comment "The option that was selected in this decision" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:DecisionOption .
-
-isaqb:concernOf a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "concern of" ;
-    rdfs:comment "Quality attribute or view is a concern of this stakeholder role" ;
-    rdfs:range isaqb:StakeholderRole .
-
-# -----------------------------------------------------------------------------
-# Decision Properties
-# -----------------------------------------------------------------------------
-
-isaqb:decisionStatus a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "decision status" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:DecisionStatus .
-
-isaqb:context a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "context" ;
-    rdfs:comment "Problem statement, constraints, assumptions, forces acting on the decision" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range xsd:string .
-
-isaqb:rationale a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "rationale" ;
-    rdfs:comment "Why the chosen option was selected" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range xsd:string .
-
-isaqb:consequences a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "consequences" ;
-    rdfs:comment "Positive and negative outcomes of the decision" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range xsd:string .
-
-isaqb:supersedes a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "supersedes" ;
-    rdfs:comment "This decision replaces a deprecated earlier decision" ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:ArchitectureDecision .
-
-# -----------------------------------------------------------------------------
-# Quality Scenario Properties
-# -----------------------------------------------------------------------------
-
-isaqb:stimulus a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "stimulus" ;
-    rdfs:comment "Event or condition that triggers the scenario" ;
-    rdfs:domain isaqb:QualityScenario ;
-    rdfs:range xsd:string .
-
-isaqb:environment a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "environment" ;
-    rdfs:comment "System state when the stimulus occurs" ;
-    rdfs:domain isaqb:QualityScenario ;
-    rdfs:range xsd:string .
-
-isaqb:response a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "response" ;
-    rdfs:comment "Expected system behavior in response to the stimulus" ;
-    rdfs:domain isaqb:QualityScenario ;
-    rdfs:range xsd:string .
-
-isaqb:responseMeasure a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "response measure" ;
-    rdfs:comment "Quantifiable measure of acceptable response (e.g., '< 200ms', '99.9% uptime')" ;
-    rdfs:domain isaqb:QualityScenario ;
-    rdfs:range xsd:string .
-
-# -----------------------------------------------------------------------------
-# Risk Properties
-# -----------------------------------------------------------------------------
-
-isaqb:severity a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "severity" ;
-    rdfs:domain isaqb:Risk ;
-    rdfs:range isaqb:RiskSeverity .
-
-isaqb:likelihood a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "likelihood" ;
-    rdfs:comment "Probability of risk materializing (low, medium, high)" ;
-    rdfs:domain isaqb:Risk ;
-    rdfs:range xsd:string .
-
-isaqb:mitigation a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "mitigation" ;
-    rdfs:comment "Strategy to reduce or eliminate the risk" ;
-    rdfs:domain isaqb:Risk ;
-    rdfs:range xsd:string .
-
-# -----------------------------------------------------------------------------
-# Technical Debt Properties
-# -----------------------------------------------------------------------------
-
-isaqb:debtType a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "debt type" ;
-    rdfs:domain isaqb:TechnicalDebt ;
-    rdfs:range isaqb:DebtType .
-
-isaqb:remediationCost a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "remediation cost" ;
-    rdfs:comment "Estimated effort to resolve (low, medium, high)" ;
-    rdfs:domain isaqb:TechnicalDebt ;
-    rdfs:range xsd:string .
-
-# -----------------------------------------------------------------------------
-# Constraint Properties
-# -----------------------------------------------------------------------------
-
-isaqb:constraintType a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "constraint type" ;
-    rdfs:domain isaqb:Constraint ;
-    rdfs:range isaqb:ConstraintType .
-
-isaqb:constraintSource a rdf:Property, owl:DatatypeProperty ;
-    rdfs:label "constraint source" ;
-    rdfs:comment "Origin of the constraint (e.g., 'company policy', 'GDPR', 'existing infrastructure')" ;
-    rdfs:domain isaqb:Constraint ;
-    rdfs:range xsd:string .
-
-# -----------------------------------------------------------------------------
-# Cross-Ontology Properties (links to prd: and code:)
-# -----------------------------------------------------------------------------
-
-isaqb:addressesQuality a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "addresses quality" ;
-    rdfs:comment "Requirement addresses this quality attribute" ;
-    rdfs:domain prd:Requirement ;
-    rdfs:range isaqb:QualityAttribute .
-
-isaqb:justifiedBy a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "justified by" ;
-    rdfs:comment "Requirement or building block is justified by this architecture decision" ;
-    rdfs:domain prd:Requirement ;
-    rdfs:range isaqb:ArchitectureDecision .
-
-isaqb:realizesPattern a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "realizes pattern" ;
-    rdfs:comment "Code component realizes this architectural or design pattern" ;
-    rdfs:domain code:Module, code:Class, code:Function ;
-    rdfs:range isaqb:ArchitecturalPattern, isaqb:DesignPattern .
-
-isaqb:appliesPrinciple a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "applies principle" ;
-    rdfs:comment "Code component or requirement applies this design principle" ;
-    rdfs:domain code:Module, code:Class, prd:Requirement ;
-    rdfs:range isaqb:DesignPrinciple .
-
-isaqb:verifiedByScenario a rdf:Property, owl:ObjectProperty ;
-    rdfs:label "verified by scenario" ;
-    rdfs:comment "Requirement is verified against this quality scenario" ;
-    rdfs:domain prd:Requirement ;
-    rdfs:range isaqb:QualityScenario .
-
-
-# =============================================================================
-# A-BOX: ENUMERATED INDIVIDUALS
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Curriculum Levels
-# -----------------------------------------------------------------------------
-
-isaqb:Foundation a isaqb:CurriculumLevel ;
-    rdfs:label "Foundation Level (CPSA-FL)" .
-
-isaqb:Advanced a isaqb:CurriculumLevel ;
-    rdfs:label "Advanced Level (CPSA-AL)" .
-
-# -----------------------------------------------------------------------------
-# Pattern Relevance (R1, R2, R3)
-# -----------------------------------------------------------------------------
-
-isaqb:R1 a isaqb:PatternRelevance ;
-    rdfs:label "R1 - Must Know" ;
-    rdfs:comment "Participants must be able to explain, apply, and analyze this concept" .
-
-isaqb:R2 a isaqb:PatternRelevance ;
-    rdfs:label "R2 - Should Know" ;
-    rdfs:comment "Participants should be able to explain this concept" .
-
-isaqb:R3 a isaqb:PatternRelevance ;
-    rdfs:label "R3 - May Know" ;
-    rdfs:comment "Participants may be aware of this concept" .
-
-# -----------------------------------------------------------------------------
-# Decision Status Values
-# -----------------------------------------------------------------------------
-
-isaqb:Proposed a isaqb:DecisionStatus ;
-    rdfs:label "Proposed" ;
-    rdfs:comment "Decision is under consideration" .
+    owl:imports <http://impl-ralph.io/code>,
+        <http://impl-ralph.io/prd> ;
+    owl:versionInfo "1.0.0" .
+
+isaqb:ADRShapeStrict a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "ADR must have a title (rdfs:label)" ;
+            sh:minCount 1 ;
+            sh:path rdfs:label ;
+            sh:severity sh:Violation ],
+        [ sh:datatype xsd:string ;
+            sh:message "ADR must document context (forces, constraints)" ;
+            sh:minCount 1 ;
+            sh:path isaqb:context ;
+            sh:severity sh:Violation ],
+        [ sh:datatype xsd:string ;
+            sh:message "ADR must document rationale" ;
+            sh:minCount 1 ;
+            sh:path isaqb:rationale ;
+            sh:severity sh:Violation ],
+        [ sh:datatype xsd:string ;
+            sh:message "ADR must document consequences" ;
+            sh:minCount 1 ;
+            sh:path isaqb:consequences ;
+            sh:severity sh:Violation ],
+        [ sh:maxCount 1 ;
+            sh:message "ADR must have a status" ;
+            sh:minCount 1 ;
+            sh:path isaqb:decisionStatus ;
+            sh:severity sh:Violation ],
+        [ sh:message "ADR should consider at least 2 options" ;
+            sh:minCount 2 ;
+            sh:path isaqb:hasOption ;
+            sh:severity sh:Warning ],
+        [ sh:message "ADR should address at least one quality attribute" ;
+            sh:minCount 1 ;
+            sh:path isaqb:addresses ;
+            sh:severity sh:Warning ] ;
+    sh:targetClass isaqb:ArchitectureDecision .
+
+isaqb:ATAM a isaqb:EvaluationMethod ;
+    rdfs:label "ATAM" ;
+    isaqb:appliesView isaqb:BuildingBlockView,
+        isaqb:RuntimeView ;
+    isaqb:learningGoal "LG 05-02" ;
+    rdfs:comment "Architecture Tradeoff Analysis Method: scenario-based, identifies risks, sensitivity and tradeoff points (SEI/CMU)" .
+
+isaqb:Abstraction a isaqb:DesignPrinciple ;
+    rdfs:label "Abstraction" ;
+    isaqb:category isaqb:AbstractionPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Derive useful generalizations; depend on abstractions rather than implementations" .
 
 isaqb:Accepted a isaqb:DecisionStatus ;
     rdfs:label "Accepted" ;
     rdfs:comment "Decision has been accepted and is in effect" .
 
-isaqb:Deprecated a isaqb:DecisionStatus ;
-    rdfs:label "Deprecated" ;
-    rdfs:comment "Decision has been superseded by a newer decision" .
+isaqb:AccessibilityConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Accessibility" ;
+    isaqb:category isaqb:UXConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Cross-cutting concern ensuring the system can be used by people with diverse abilities. Includes WCAG compliance levels, semantic markup, keyboard navigation, screen reader support, and color contrast requirements. (arc42 section 8, LG 03-10)" .
 
-isaqb:Rejected a isaqb:DecisionStatus ;
-    rdfs:label "Rejected" ;
-    rdfs:comment "Decision was considered but rejected" .
+isaqb:AcyclicDependencies a isaqb:DesignPrinciple ;
+    rdfs:label "Acyclic Dependencies Principle" ;
+    isaqb:alias "ADP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-06" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "No cycles in the dependency graph between packages or modules" .
 
-# -----------------------------------------------------------------------------
-# Risk Severity Values
-# -----------------------------------------------------------------------------
+isaqb:AdapterPattern a isaqb:DesignPattern ;
+    rdfs:label "Adapter" ;
+    isaqb:embodies isaqb:InterfaceSegregation,
+        isaqb:LooseCoupling ;
+    rdfs:comment "Converts the interface of a class into another interface clients expect" .
 
-isaqb:Critical a isaqb:RiskSeverity ;
-    rdfs:label "Critical" ;
-    rdfs:comment "Could cause project failure or severe system degradation" .
+isaqb:Arc42_01 a isaqb:Arc42Section ;
+    rdfs:label "1. Introduction and Goals" ;
+    isaqb:sectionNumber 1 ;
+    rdfs:comment "Requirements extract, top 3-5 quality goals, stakeholder table" .
 
-isaqb:High a isaqb:RiskSeverity ;
-    rdfs:label "High" ;
-    rdfs:comment "Significant impact on quality or schedule" .
+isaqb:Arc42_02 a isaqb:Arc42Section ;
+    rdfs:label "2. Constraints" ;
+    isaqb:sectionNumber 2 ;
+    rdfs:comment "Technical, organizational, and regulatory constraints; conventions" .
 
-isaqb:Medium a isaqb:RiskSeverity ;
-    rdfs:label "Medium" ;
-    rdfs:comment "Moderate impact, manageable with mitigation" .
+isaqb:Arc42_04 a isaqb:Arc42Section ;
+    rdfs:label "4. Solution Strategy" ;
+    isaqb:sectionNumber 4 ;
+    rdfs:comment "Fundamental technology decisions and solution approaches" .
 
-isaqb:Low a isaqb:RiskSeverity ;
-    rdfs:label "Low" ;
-    rdfs:comment "Minor impact, acceptable risk" .
+isaqb:Arc42_09 a isaqb:Arc42Section ;
+    rdfs:label "9. Architecture Decisions" ;
+    isaqb:sectionNumber 9 ;
+    rdfs:comment "ADRs for important, expensive, or critical decisions" .
 
-# -----------------------------------------------------------------------------
-# Technical Debt Types
-# -----------------------------------------------------------------------------
+isaqb:Arc42_10 a isaqb:Arc42Section ;
+    rdfs:label "10. Quality" ;
+    isaqb:sectionNumber 10 ;
+    rdfs:comment "Quality tree and quality scenarios linked to goals from section 1" .
 
-isaqb:CodeDebt a isaqb:DebtType ;
-    rdfs:label "Code Debt" ;
-    rdfs:comment "Temporary hacks, shortcuts, or workarounds in code" .
+isaqb:Arc42_11 a isaqb:Arc42Section ;
+    rdfs:label "11. Risks and Technical Debt" ;
+    isaqb:sectionNumber 11 ;
+    rdfs:comment "Prioritized risks, mitigation measures, technical debt items" .
+
+isaqb:Arc42_12 a isaqb:Arc42Section ;
+    rdfs:label "12. Glossary" ;
+    isaqb:sectionNumber 12 ;
+    rdfs:comment "Important domain and technical terms with definitions" .
+
+isaqb:ArchConformanceCheck a isaqb:EvaluationMethod ;
+    rdfs:label "Architecture Conformance Check" ;
+    isaqb:learningGoal "LG 05-03" ;
+    rdfs:comment "Tool-supported validation that code structure matches architectural intent (ArchUnit, Sonargraph, Structure101)" .
 
 isaqb:ArchitecturalDebt a isaqb:DebtType ;
     rdfs:label "Architectural Debt" ;
     rdfs:comment "Structural decisions with known long-term negative consequences" .
 
-isaqb:DocumentationDebt a isaqb:DebtType ;
-    rdfs:label "Documentation Debt" ;
-    rdfs:comment "Incomplete or outdated architecture documentation" .
-
-isaqb:TestDebt a isaqb:DebtType ;
-    rdfs:label "Test Debt" ;
-    rdfs:comment "Missing or inadequate test coverage" .
-
-# -----------------------------------------------------------------------------
-# Constraint Types
-# -----------------------------------------------------------------------------
-
-isaqb:TechnicalConstraint a isaqb:ConstraintType ;
-    rdfs:label "Technical Constraint" ;
-    rdfs:comment "Technology choices, platforms, protocols mandated by existing infrastructure" .
-
-isaqb:OrganizationalConstraint a isaqb:ConstraintType ;
-    rdfs:label "Organizational Constraint" ;
-    rdfs:comment "Team structure, processes, budget, timeline, Conway's Law effects" .
-
-isaqb:RegulatoryConstraint a isaqb:ConstraintType ;
-    rdfs:label "Regulatory Constraint" ;
-    rdfs:comment "Legal, compliance, data protection, licensing requirements" .
-
-isaqb:ConventionConstraint a isaqb:ConstraintType ;
-    rdfs:label "Convention Constraint" ;
-    rdfs:comment "Coding standards, naming conventions, documentation standards" .
-
-
-# =============================================================================
-# A-BOX: DESIGN PRINCIPLES (LG 03-04)
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Principle Categories
-# -----------------------------------------------------------------------------
-
-isaqb:AbstractionPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Abstraction Principles" ;
-    rdfs:comment "Principles concerned with managing complexity through generalization, hiding implementation details, and depending on interfaces rather than concrete implementations" .
-
-isaqb:ModularizationPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Modularization Principles" ;
-    rdfs:comment "Principles concerned with decomposing systems into cohesive, loosely coupled modules with well-defined interfaces and responsibilities. Includes SOLID principles and Robert C. Martin's packaging principles." .
-
-isaqb:ConceptualIntegrityPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Conceptual Integrity Principles" ;
-    rdfs:comment "Principles ensuring uniformity and consistency across the entire system design, so the architecture appears as if conceived by a single mind. Central theme of Fred Brooks' 'The Mythical Man-Month'." .
-
-isaqb:ComplexityReductionPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Complexity Reduction Principles" ;
-    rdfs:comment "Principles focused on minimizing accidental complexity by avoiding unnecessary features, premature optimization, and duplicated knowledge" .
-
-isaqb:RobustnessPrinciples a isaqb:PrincipleCategory ;
-    rdfs:label "Robustness Principles" ;
-    rdfs:comment "Principles ensuring the system handles unexpected inputs, failures, and edge cases gracefully without catastrophic degradation" .
-
-# -----------------------------------------------------------------------------
-# Abstraction Principles
-# -----------------------------------------------------------------------------
-
-isaqb:Abstraction a isaqb:DesignPrinciple ;
-    rdfs:label "Abstraction" ;
-    rdfs:comment "Derive useful generalizations; depend on abstractions rather than implementations" ;
-    isaqb:category isaqb:AbstractionPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-# -----------------------------------------------------------------------------
-# Modularization Principles
-# -----------------------------------------------------------------------------
-
-isaqb:InformationHiding a isaqb:DesignPrinciple ;
-    rdfs:label "Information Hiding" ;
-    rdfs:comment "Keep design decisions hidden that are likely to change (Parnas)" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:Encapsulation a isaqb:DesignPrinciple ;
-    rdfs:label "Encapsulation" ;
-    rdfs:comment "Bundle data and behavior together; restrict access to internals" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:SeparationOfConcerns a isaqb:DesignPrinciple ;
-    rdfs:label "Separation of Concerns" ;
-    rdfs:comment "Each module addresses a single, distinct concern" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:LooseCoupling a isaqb:DesignPrinciple ;
-    rdfs:label "Loose Coupling" ;
-    rdfs:comment "Minimize dependencies between building blocks" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04, LG 03-06" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:HighCohesion a isaqb:DesignPrinciple ;
-    rdfs:label "High Cohesion" ;
-    rdfs:comment "Group strongly related functionality together within a building block" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:OpenClosedPrinciple a isaqb:DesignPrinciple ;
-    rdfs:label "Open/Closed Principle" ;
-    rdfs:comment "Open for extension, closed for modification" ;
-    isaqb:alias "OCP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:DependencyInversion a isaqb:DesignPrinciple ;
-    rdfs:label "Dependency Inversion Principle" ;
-    rdfs:comment "High-level modules should not depend on low-level modules; both depend on abstractions" ;
-    isaqb:alias "DIP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:SingleResponsibility a isaqb:DesignPrinciple ;
-    rdfs:label "Single Responsibility Principle" ;
-    rdfs:comment "A class or module should have only one reason to change" ;
-    isaqb:alias "SRP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:InterfaceSegregation a isaqb:DesignPrinciple ;
-    rdfs:label "Interface Segregation Principle" ;
-    rdfs:comment "Clients should not be forced to depend on interfaces they do not use" ;
-    isaqb:alias "ISP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:AcyclicDependencies a isaqb:DesignPrinciple ;
-    rdfs:label "Acyclic Dependencies Principle" ;
-    rdfs:comment "No cycles in the dependency graph between packages or modules" ;
-    isaqb:alias "ADP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-06" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:CommonClosure a isaqb:DesignPrinciple ;
-    rdfs:label "Common Closure Principle" ;
-    rdfs:comment "Classes that change together belong together in the same package" ;
-    isaqb:alias "CCP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:CommonReuse a isaqb:DesignPrinciple ;
-    rdfs:label "Common Reuse Principle" ;
-    rdfs:comment "Classes used together belong together in the same package" ;
-    isaqb:alias "CRP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:level isaqb:Foundation .
-
-# -----------------------------------------------------------------------------
-# Conceptual Integrity Principles
-# -----------------------------------------------------------------------------
-
-isaqb:ConceptualIntegrity a isaqb:DesignPrinciple ;
-    rdfs:label "Conceptual Integrity" ;
-    rdfs:comment "Uniformity and consistency of solutions throughout the system (Brooks)" ;
-    isaqb:category isaqb:ConceptualIntegrityPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:LeastSurprise a isaqb:DesignPrinciple ;
-    rdfs:label "Principle of Least Surprise" ;
-    rdfs:comment "System behavior should match user/developer expectations" ;
-    isaqb:alias "POLA", "Principle of Least Astonishment" ;
-    isaqb:category isaqb:ConceptualIntegrityPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:LiskovSubstitution a isaqb:DesignPrinciple ;
-    rdfs:label "Liskov Substitution Principle" ;
-    rdfs:comment "Subtypes must be substitutable for their base types without altering correctness" ;
-    isaqb:alias "LSP" ;
-    isaqb:category isaqb:ConceptualIntegrityPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-# -----------------------------------------------------------------------------
-# Complexity Reduction Principles
-# -----------------------------------------------------------------------------
-
-isaqb:KISS a isaqb:DesignPrinciple ;
-    rdfs:label "KISS" ;
-    rdfs:comment "Keep It Simple, Stupid — reduce unnecessary complexity" ;
-    isaqb:category isaqb:ComplexityReductionPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:YAGNI a isaqb:DesignPrinciple ;
-    rdfs:label "YAGNI" ;
-    rdfs:comment "You Ain't Gonna Need It — don't build for hypothetical future requirements" ;
-    isaqb:category isaqb:ComplexityReductionPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:DRY a isaqb:DesignPrinciple ;
-    rdfs:label "DRY" ;
-    rdfs:comment "Don't Repeat Yourself — single source of truth for every piece of knowledge" ;
-    isaqb:category isaqb:ComplexityReductionPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-# -----------------------------------------------------------------------------
-# Robustness Principles
-# -----------------------------------------------------------------------------
-
-isaqb:ExpectErrors a isaqb:DesignPrinciple ;
-    rdfs:label "Expect Errors" ;
-    rdfs:comment "Design for failure; assume errors will occur and handle them gracefully" ;
-    isaqb:category isaqb:RobustnessPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-isaqb:PostelsLaw a isaqb:DesignPrinciple ;
-    rdfs:label "Postel's Law" ;
-    rdfs:comment "Be conservative in what you send, liberal in what you accept (Robustness Principle)" ;
-    isaqb:alias "Robustness Principle" ;
-    isaqb:category isaqb:RobustnessPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation .
-
-
-# =============================================================================
-# A-BOX: QUALITY ATTRIBUTES (ISO/IEC 25010:2023 Hierarchy)
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Top-Level Quality Categories
-# -----------------------------------------------------------------------------
-
-isaqb:ProductQuality a isaqb:QualityCategory ;
-    rdfs:label "Product Quality" ;
-    rdfs:comment "ISO/IEC 25010:2023 product quality model — 8 characteristics" .
-
-# -----------------------------------------------------------------------------
-# 8 Top-Level Quality Attributes
-# -----------------------------------------------------------------------------
-
-isaqb:FunctionalSuitability a isaqb:QualityAttribute ;
-    rdfs:label "Functional Suitability" ;
-    rdfs:comment "Degree to which a product or system provides functions that meet stated and implied needs when used under specified conditions (ISO/IEC 25010:2023)." ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:FunctionalCompleteness, isaqb:FunctionalCorrectness, isaqb:FunctionalAppropriateness ;
-    isaqb:learningGoal "LG 02-03" .
-
-isaqb:PerformanceEfficiency a isaqb:QualityAttribute ;
-    rdfs:label "Performance Efficiency" ;
-    rdfs:comment "Degree of performance relative to the amount of resources used under stated conditions (ISO/IEC 25010:2023)." ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:TimeBehaviour, isaqb:ResourceUtilization, isaqb:Capacity ;
-    isaqb:learningGoal "LG 02-03" ;
-    isaqb:conflictsWith isaqb:Maintainability, isaqb:Security, isaqb:Reliability, isaqb:Flexibility .
-
-isaqb:Compatibility a isaqb:QualityAttribute ;
-    rdfs:label "Compatibility" ;
-    rdfs:comment "Degree to which a product, system or component can exchange information with other products, systems or components, and/or perform its required functions while sharing the same hardware or software environment (ISO/IEC 25010:2023)." ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:CoExistence, isaqb:Interoperability ;
-    isaqb:learningGoal "LG 02-03" ;
-    isaqb:conflictsWith isaqb:Security ;
-    isaqb:supportedBy isaqb:Flexibility .
-
-isaqb:InteractionCapability a isaqb:QualityAttribute ;
-    rdfs:label "Interaction Capability" ;
-    rdfs:comment "Degree to which a product or system can be used by specified users to achieve specified goals with effectiveness, efficiency, and satisfaction in a specified context of use. Replaces 'Usability' from ISO 25010:2011 (ISO/IEC 25010:2023)." ;
-    isaqb:alias "Usability" ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:Learnability, isaqb:Operability, isaqb:UserErrorProtection, isaqb:Accessibility, isaqb:UserInterfaceAesthetics ;
-    isaqb:learningGoal "LG 02-03" .
-
-isaqb:Reliability a isaqb:QualityAttribute ;
-    rdfs:label "Reliability" ;
-    rdfs:comment "Degree to which a system, product or component performs specified functions under specified conditions for a specified period of time (ISO/IEC 25010:2023)." ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:Availability, isaqb:FaultTolerance, isaqb:Recoverability, isaqb:Maturity ;
-    isaqb:learningGoal "LG 02-03" ;
-    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
-    isaqb:supportedBy isaqb:InteractionCapability .
-
-isaqb:Security a isaqb:QualityAttribute ;
-    rdfs:label "Security" ;
-    rdfs:comment "Degree to which a product or system protects information and data so that persons or other products or systems have the degree of data access appropriate to their types and levels of authorization (ISO/IEC 25010:2023)." ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:Confidentiality, isaqb:Integrity, isaqb:NonRepudiation, isaqb:Accountability, isaqb:Authenticity ;
-    isaqb:learningGoal "LG 02-03" ;
-    isaqb:conflictsWith isaqb:InteractionCapability, isaqb:PerformanceEfficiency, isaqb:Flexibility .
-
-isaqb:Maintainability a isaqb:QualityAttribute ;
-    rdfs:label "Maintainability" ;
-    rdfs:comment "Degree of effectiveness and efficiency with which a product or system can be modified by the intended maintainers. Modifications include corrections, improvements, or adaptation to changes in environment and requirements (ISO/IEC 25010:2023)." ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:Modularity, isaqb:Reusability, isaqb:Analysability, isaqb:Modifiability, isaqb:Testability ;
-    isaqb:learningGoal "LG 02-03" ;
-    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
-    isaqb:supportedBy isaqb:Reliability, isaqb:Flexibility .
-
-isaqb:Flexibility a isaqb:QualityAttribute ;
-    rdfs:label "Flexibility" ;
-    rdfs:comment "Degree to which a product can be transferred from one hardware, software or other operational or usage environment to another, or adapted for different or evolving requirements. Replaces 'Portability' from ISO 25010:2011 (ISO/IEC 25010:2023)." ;
-    isaqb:alias "Portability" ;
-    isaqb:category isaqb:ProductQuality ;
-    isaqb:hasSubAttribute isaqb:Adaptability, isaqb:Installability, isaqb:Replaceability ;
-    isaqb:learningGoal "LG 02-03" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Functional Suitability
-# -----------------------------------------------------------------------------
-
-isaqb:FunctionalCompleteness a isaqb:QualityAttribute ;
-    rdfs:label "Functional Completeness" ;
-    rdfs:comment "Degree to which the set of functions covers all specified tasks and objectives" .
-
-isaqb:FunctionalCorrectness a isaqb:QualityAttribute ;
-    rdfs:label "Functional Correctness" ;
-    rdfs:comment "Degree to which a product provides correct results with needed precision" .
-
-isaqb:FunctionalAppropriateness a isaqb:QualityAttribute ;
-    rdfs:label "Functional Appropriateness" ;
-    rdfs:comment "Degree to which functions facilitate accomplishment of specified tasks" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Performance Efficiency
-# -----------------------------------------------------------------------------
-
-isaqb:TimeBehaviour a isaqb:QualityAttribute ;
-    rdfs:label "Time Behaviour" ;
-    rdfs:comment "Response time, processing time, throughput rates" .
-
-isaqb:ResourceUtilization a isaqb:QualityAttribute ;
-    rdfs:label "Resource Utilization" ;
-    rdfs:comment "Amounts and types of resources used (CPU, memory, I/O)" .
-
-isaqb:Capacity a isaqb:QualityAttribute ;
-    rdfs:label "Capacity" ;
-    rdfs:comment "Maximum limits of a product parameter (connections, transactions, storage)" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Compatibility
-# -----------------------------------------------------------------------------
-
-isaqb:CoExistence a isaqb:QualityAttribute ;
-    rdfs:label "Co-existence" ;
-    rdfs:comment "Can coexist with other software sharing resources without adverse impact" .
-
-isaqb:Interoperability a isaqb:QualityAttribute ;
-    rdfs:label "Interoperability" ;
-    rdfs:comment "Degree to which two or more systems can exchange and use information" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Interaction Capability
-# -----------------------------------------------------------------------------
-
-isaqb:Learnability a isaqb:QualityAttribute ;
-    rdfs:label "Learnability" ;
-    rdfs:comment "Degree to which the product enables users to learn to use it" .
-
-isaqb:Operability a isaqb:QualityAttribute ;
-    rdfs:label "Operability" ;
-    rdfs:comment "Degree to which the product is easy to operate and control" .
-
-isaqb:UserErrorProtection a isaqb:QualityAttribute ;
-    rdfs:label "User Error Protection" ;
-    rdfs:comment "Degree to which the system protects users against making errors" .
-
-isaqb:Accessibility a isaqb:QualityAttribute ;
-    rdfs:label "Accessibility" ;
-    rdfs:comment "Degree to which the product can be used by people with the widest range of capabilities" .
-
-isaqb:UserInterfaceAesthetics a isaqb:QualityAttribute ;
-    rdfs:label "User Interface Aesthetics" ;
-    rdfs:comment "Degree to which the UI is pleasing and satisfying" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Reliability
-# -----------------------------------------------------------------------------
-
-isaqb:Availability a isaqb:QualityAttribute ;
-    rdfs:label "Availability" ;
-    rdfs:comment "Degree to which a system is operational and accessible when required" .
-
-isaqb:FaultTolerance a isaqb:QualityAttribute ;
-    rdfs:label "Fault Tolerance" ;
-    rdfs:comment "Degree to which a system operates as intended despite hardware or software faults" .
-
-isaqb:Recoverability a isaqb:QualityAttribute ;
-    rdfs:label "Recoverability" ;
-    rdfs:comment "Degree to which a product can recover data and re-establish desired state after failure" .
-
-isaqb:Maturity a isaqb:QualityAttribute ;
-    rdfs:label "Maturity" ;
-    rdfs:comment "Degree to which a system meets reliability needs under normal operation" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Security
-# -----------------------------------------------------------------------------
-
-isaqb:Confidentiality a isaqb:QualityAttribute ;
-    rdfs:label "Confidentiality" ;
-    rdfs:comment "Data is accessible only to those authorized" .
-
-isaqb:Integrity a isaqb:QualityAttribute ;
-    rdfs:label "Integrity" ;
-    rdfs:comment "System prevents unauthorized modification of data or programs" .
-
-isaqb:NonRepudiation a isaqb:QualityAttribute ;
-    rdfs:label "Non-repudiation" ;
-    rdfs:comment "Actions or events can be proven to have taken place" .
-
-isaqb:Accountability a isaqb:QualityAttribute ;
-    rdfs:label "Accountability" ;
-    rdfs:comment "Actions of an entity can be traced uniquely to that entity" .
-
-isaqb:Authenticity a isaqb:QualityAttribute ;
-    rdfs:label "Authenticity" ;
-    rdfs:comment "Identity of a subject or resource can be verified" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Maintainability
-# -----------------------------------------------------------------------------
-
-isaqb:Modularity a isaqb:QualityAttribute ;
-    rdfs:label "Modularity" ;
-    rdfs:comment "Degree to which a system is composed of discrete, independently changeable components" .
-
-isaqb:Reusability a isaqb:QualityAttribute ;
-    rdfs:label "Reusability" ;
-    rdfs:comment "Degree to which an asset can be used in more than one system" .
-
-isaqb:Analysability a isaqb:QualityAttribute ;
-    rdfs:label "Analysability" ;
-    rdfs:comment "Degree of effectiveness with which impact of a change can be assessed" .
-
-isaqb:Modifiability a isaqb:QualityAttribute ;
-    rdfs:label "Modifiability" ;
-    rdfs:comment "Degree to which a product can be effectively modified without introducing defects" .
-
-isaqb:Testability a isaqb:QualityAttribute ;
-    rdfs:label "Testability" ;
-    rdfs:comment "Degree of effectiveness with which test criteria can be established and tests performed" .
-
-# -----------------------------------------------------------------------------
-# Sub-Attributes: Flexibility
-# -----------------------------------------------------------------------------
-
-isaqb:Adaptability a isaqb:QualityAttribute ;
-    rdfs:label "Adaptability" ;
-    rdfs:comment "Degree to which a product can be adapted for different environments" .
-
-isaqb:Installability a isaqb:QualityAttribute ;
-    rdfs:label "Installability" ;
-    rdfs:comment "Degree of effectiveness with which a product can be installed or uninstalled" .
-
-isaqb:Replaceability a isaqb:QualityAttribute ;
-    rdfs:label "Replaceability" ;
-    rdfs:comment "Degree to which a product can replace another for the same purpose" ;
-    isaqb:conflictsWith isaqb:PerformanceEfficiency .
-
-# -----------------------------------------------------------------------------
-# Sub-Attribute Level Conflict/Support Relationships
-# Sources: Bass et al. (4th ed.), iSAQB CPSA-FL (LG 02-03, LG 05-02),
-#          Masuda et al. PoDF (2020), Elahi & Yu (2007), ISO 25010:2023
-# -----------------------------------------------------------------------------
-
-# --- TimeBehaviour conflicts ---
-isaqb:TimeBehaviour isaqb:conflictsWith isaqb:Confidentiality .  # Encryption adds latency
-isaqb:TimeBehaviour isaqb:conflictsWith isaqb:FaultTolerance .   # Retries/circuit breakers add latency
-isaqb:TimeBehaviour isaqb:conflictsWith isaqb:Testability .      # Test instrumentation slows execution
-isaqb:TimeBehaviour isaqb:conflictsWith isaqb:NonRepudiation .   # Audit logging adds I/O overhead
-
-# --- ResourceUtilization conflicts ---
-isaqb:ResourceUtilization isaqb:conflictsWith isaqb:FaultTolerance .  # Redundant components consume resources
-isaqb:ResourceUtilization isaqb:conflictsWith isaqb:Recoverability .  # Checkpoints require storage/CPU
-
-# --- Capacity conflicts ---
-isaqb:Capacity isaqb:conflictsWith isaqb:Confidentiality .     # Encrypted traffic needs more bandwidth
-isaqb:Capacity isaqb:conflictsWith isaqb:Accountability .      # Audit logs grow with transaction volume
-
-# --- Modularity relationships ---
-isaqb:Modularity isaqb:conflictsWith isaqb:TimeBehaviour .     # Module boundaries add marshaling overhead
-isaqb:Modularity isaqb:supportedBy isaqb:Testability .         # Independent modules testable in isolation
-isaqb:Modularity isaqb:supportedBy isaqb:Reusability .         # Well-bounded modules are reusable
-isaqb:Modularity isaqb:supportedBy isaqb:Modifiability .       # Changes localized to single module
-
-# --- Modifiability relationships ---
-isaqb:Modifiability isaqb:conflictsWith isaqb:PerformanceEfficiency .  # Extensible designs add indirection
-isaqb:Modifiability isaqb:conflictsWith isaqb:Reliability .    # Frequent changes increase regression risk
-
-# --- Testability relationships ---
-isaqb:Testability isaqb:conflictsWith isaqb:PerformanceEfficiency .  # Test hooks add overhead
-isaqb:Testability isaqb:supportedBy isaqb:Reliability .        # Well-tested code has fewer defects
-
-# --- Availability conflicts ---
-isaqb:Availability isaqb:conflictsWith isaqb:Modifiability .   # High-availability restricts deployments
-isaqb:Availability isaqb:conflictsWith isaqb:ResourceUtilization .  # Standby resources required
-
-# --- FaultTolerance conflicts ---
-isaqb:FaultTolerance isaqb:conflictsWith isaqb:Analysability . # Redundancy complicates debugging
-isaqb:FaultTolerance isaqb:conflictsWith isaqb:Modifiability . # More moving parts to update
-
-# --- Interoperability conflicts ---
-isaqb:Interoperability isaqb:conflictsWith isaqb:Security .    # Open APIs increase attack surface
-isaqb:Interoperability isaqb:conflictsWith isaqb:Confidentiality .  # Data exchange risks disclosure
-
-# --- InteractionCapability sub-attribute conflicts ---
-isaqb:Learnability isaqb:conflictsWith isaqb:Security .        # Simplified UIs bypass security
-isaqb:Learnability isaqb:conflictsWith isaqb:FunctionalCompleteness .  # More features = steeper curve
-isaqb:Operability isaqb:conflictsWith isaqb:Security .         # Easy operation conflicts with access controls
-
-# --- Adaptability relationships ---
-isaqb:Adaptability isaqb:conflictsWith isaqb:PerformanceEfficiency .  # Abstraction layers add overhead
-isaqb:Adaptability isaqb:supportedBy isaqb:Modifiability .     # Adaptable systems easily modifiable
-
-# --- Recoverability conflicts ---
-isaqb:Recoverability isaqb:conflictsWith isaqb:TimeBehaviour . # Recovery mechanisms add write latency
-
-# --- Analysability relationships ---
-isaqb:Analysability isaqb:conflictsWith isaqb:TimeBehaviour .  # Logging/tracing adds overhead
-isaqb:Analysability isaqb:supportedBy isaqb:Testability .      # Analyzable systems expose testable state
-
-# --- Reusability supports ---
-isaqb:Reusability isaqb:supportedBy isaqb:Modifiability .      # Clean interfaces facilitate modification
-
-# --- Integrity conflicts ---
-isaqb:Integrity isaqb:conflictsWith isaqb:Operability .        # Strict checks restrict flexibility
-isaqb:Integrity isaqb:conflictsWith isaqb:TimeBehaviour .      # Verification adds processing time
-
-# --- Accountability conflicts ---
-isaqb:Accountability isaqb:conflictsWith isaqb:TimeBehaviour .  # Audit trail writes add latency
-
-# --- Authenticity conflicts ---
-isaqb:Authenticity isaqb:conflictsWith isaqb:Operability .     # Strict auth complicates workflows
-isaqb:Authenticity isaqb:conflictsWith isaqb:TimeBehaviour .   # Auth handshakes add latency
-
-# --- UserErrorProtection supports ---
-isaqb:UserErrorProtection isaqb:supportedBy isaqb:Operability .   # Error protection aids operation
-isaqb:UserErrorProtection isaqb:supportedBy isaqb:Learnability .  # Error prevention guides learning
-
-# --- FunctionalCorrectness supports ---
-isaqb:FunctionalCorrectness isaqb:supportedBy isaqb:Testability .  # Clear expected behavior aids testing
-
-# --- FunctionalAppropriateness supports ---
-isaqb:FunctionalAppropriateness isaqb:supportedBy isaqb:Learnability .  # Appropriate functions match mental models
-
-
-# =============================================================================
-# A-BOX: ARCHITECTURAL PATTERNS (LG 03-08)
-# =============================================================================
-
-isaqb:LayeredArchitecture a isaqb:ArchitecturalPattern ;
-    rdfs:label "Layers" ;
-    rdfs:comment "System organized into hierarchical layers with unidirectional dependencies" ;
-    isaqb:relevance isaqb:R1 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Maintainability, isaqb:Testability ;
-    isaqb:challenges isaqb:PerformanceEfficiency ;
-    isaqb:embodies isaqb:SeparationOfConcerns, isaqb:LooseCoupling .
-
-isaqb:PipesAndFilters a isaqb:ArchitecturalPattern ;
-    rdfs:label "Pipes and Filters" ;
-    rdfs:comment "Data flows through a chain of processing stages connected by channels" ;
-    isaqb:relevance isaqb:R1 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Reusability, isaqb:Modifiability ;
-    isaqb:embodies isaqb:SeparationOfConcerns, isaqb:SingleResponsibility .
-
-isaqb:Microservices a isaqb:ArchitecturalPattern ;
-    rdfs:label "Microservices" ;
-    rdfs:comment "System decomposed into independently deployable services organized around business capabilities" ;
-    isaqb:relevance isaqb:R1 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Flexibility, isaqb:Modularity ;
-    isaqb:challenges isaqb:Reliability, isaqb:PerformanceEfficiency ;
-    isaqb:embodies isaqb:SeparationOfConcerns, isaqb:HighCohesion, isaqb:LooseCoupling .
-
-isaqb:PortsAndAdapters a isaqb:ArchitecturalPattern ;
-    rdfs:label "Ports and Adapters" ;
-    rdfs:comment "Application core isolated from external concerns via ports (interfaces) and adapters (implementations)" ;
-    isaqb:alias "Hexagonal Architecture", "Clean Architecture", "Onion Architecture" ;
-    isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Testability, isaqb:Maintainability, isaqb:Flexibility ;
-    isaqb:embodies isaqb:DependencyInversion, isaqb:SeparationOfConcerns, isaqb:InformationHiding .
-
-isaqb:CQRS a isaqb:ArchitecturalPattern ;
-    rdfs:label "CQRS" ;
-    rdfs:comment "Command-Query Responsibility Segregation: separate models for read and write operations" ;
-    isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:PerformanceEfficiency, isaqb:Modularity ;
-    isaqb:challenges isaqb:Analysability ;
-    isaqb:embodies isaqb:SeparationOfConcerns, isaqb:SingleResponsibility .
-
-isaqb:EventSourcing a isaqb:ArchitecturalPattern ;
-    rdfs:label "Event Sourcing" ;
-    rdfs:comment "State derived from an append-only sequence of domain events" ;
-    isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Recoverability, isaqb:NonRepudiation, isaqb:Analysability ;
-    isaqb:challenges isaqb:Capacity, isaqb:Operability .
+isaqb:ArchitecturePatternConcerns a isaqb:ConcernCategory ;
+    rdfs:label "Architecture and Design Patterns" ;
+    rdfs:comment "Recurring patterns applied across the system" .
 
 isaqb:Blackboard a isaqb:ArchitecturalPattern ;
     rdfs:label "Blackboard" ;
-    rdfs:comment "Shared knowledge base with independent knowledge sources contributing solutions" ;
-    isaqb:relevance isaqb:R3 ;
+    isaqb:addresses isaqb:Modifiability,
+        isaqb:Reusability ;
     isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Modifiability, isaqb:Reusability .
-
-isaqb:Broker a isaqb:ArchitecturalPattern ;
-    rdfs:label "Broker" ;
-    rdfs:comment "Mediates communication between distributed components" ;
     isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Interoperability, isaqb:LooseCoupling ;
-    isaqb:challenges isaqb:PerformanceEfficiency .
+    rdfs:comment "Shared knowledge base with independent knowledge sources contributing solutions" .
 
-isaqb:MVC a isaqb:ArchitecturalPattern ;
-    rdfs:label "Model-View-Controller" ;
-    rdfs:comment "Separates an application into three interconnected components: Model (data and business logic), View (presentation and UI), and Controller (input handling and mediation). Enables independent development and testing of UI and business logic. Originated by Trygve Reenskaug at Xerox PARC." ;
-    isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Maintainability, isaqb:Testability ;
-    isaqb:embodies isaqb:SeparationOfConcerns .
-
-isaqb:Plugin a isaqb:ArchitecturalPattern ;
-    rdfs:label "Plugin" ;
-    rdfs:comment "Core system extended via dynamically loaded modules conforming to a defined interface" ;
-    isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Flexibility, isaqb:Modifiability ;
-    isaqb:embodies isaqb:OpenClosedPrinciple, isaqb:DependencyInversion .
-
-isaqb:SOA a isaqb:ArchitecturalPattern ;
-    rdfs:label "Service-Oriented Architecture" ;
-    rdfs:comment "Enterprise-scale architectural style where functionality is grouped into reusable, interoperable services with well-defined interfaces and contracts. Services communicate via standardized protocols. Emphasizes service composability, discoverability, and loose coupling." ;
-    isaqb:relevance isaqb:R3 ;
-    isaqb:learningGoal "LG 03-08" ;
-    isaqb:addresses isaqb:Interoperability, isaqb:Reusability ;
-    isaqb:challenges isaqb:PerformanceEfficiency .
-
-
-# =============================================================================
-# A-BOX: DESIGN PATTERNS (LG 03-09)
-# =============================================================================
-
-isaqb:AdapterPattern a isaqb:DesignPattern ;
-    rdfs:label "Adapter" ;
-    rdfs:comment "Converts the interface of a class into another interface clients expect" ;
-    isaqb:embodies isaqb:InterfaceSegregation, isaqb:LooseCoupling .
-
-isaqb:FacadePattern a isaqb:DesignPattern ;
-    rdfs:label "Facade" ;
-    rdfs:comment "Provides a unified interface to a set of interfaces in a subsystem" ;
-    isaqb:embodies isaqb:InformationHiding, isaqb:LooseCoupling .
-
-isaqb:ProxyPattern a isaqb:DesignPattern ;
-    rdfs:label "Proxy" ;
-    rdfs:comment "Provides a surrogate or placeholder for another object to control access" ;
-    isaqb:embodies isaqb:SeparationOfConcerns .
-
-isaqb:ObserverPattern a isaqb:DesignPattern ;
-    rdfs:label "Observer" ;
-    rdfs:comment "Define one-to-many dependency so that when one object changes, dependents are notified" ;
-    isaqb:embodies isaqb:LooseCoupling .
-
-isaqb:StrategyPattern a isaqb:DesignPattern ;
-    rdfs:label "Strategy" ;
-    rdfs:comment "Define a family of algorithms, encapsulate each, and make them interchangeable" ;
-    isaqb:embodies isaqb:OpenClosedPrinciple, isaqb:SingleResponsibility .
-
-isaqb:TemplateMethodPattern a isaqb:DesignPattern ;
-    rdfs:label "Template Method" ;
-    rdfs:comment "Define the skeleton of an algorithm, deferring steps to subclasses" ;
-    isaqb:embodies isaqb:OpenClosedPrinciple, isaqb:DRY .
-
-isaqb:VisitorPattern a isaqb:DesignPattern ;
-    rdfs:label "Visitor" ;
-    rdfs:comment "Represent an operation to be performed on elements of a structure without changing the classes" ;
-    isaqb:embodies isaqb:OpenClosedPrinciple, isaqb:SeparationOfConcerns .
-
-isaqb:InterpreterPattern a isaqb:DesignPattern ;
-    rdfs:label "Interpreter" ;
-    rdfs:comment "Given a language, define a representation for its grammar and an interpreter" .
-
-isaqb:CombinatorPattern a isaqb:DesignPattern ;
-    rdfs:label "Combinator" ;
-    rdfs:comment "Build complex behavior by composing simple, self-similar building blocks" ;
-    isaqb:embodies isaqb:HighCohesion, isaqb:SeparationOfConcerns .
-
-isaqb:FactoryPattern a isaqb:DesignPattern ;
-    rdfs:label "Factory" ;
-    rdfs:comment "Encapsulate object creation behind an interface" ;
-    isaqb:embodies isaqb:DependencyInversion, isaqb:InformationHiding .
-
-isaqb:GatewayPattern a isaqb:DesignPattern ;
-    rdfs:label "Gateway" ;
-    rdfs:comment "Encapsulates access to an external system or resource" ;
-    isaqb:embodies isaqb:InformationHiding, isaqb:LooseCoupling .
+isaqb:BottomUp a owl:NamedIndividual ;
+    rdfs:label "Bottom-Up Approach" ;
+    isaqb:learningGoal "LG 03-03" ;
+    rdfs:comment "Build from concrete components to abstract compositions" .
 
 isaqb:BridgePattern a isaqb:DesignPattern ;
     rdfs:label "Bridge" ;
-    rdfs:comment "Decouple abstraction from implementation so both can vary independently" ;
-    isaqb:embodies isaqb:DependencyInversion, isaqb:SeparationOfConcerns .
+    isaqb:embodies isaqb:DependencyInversion,
+        isaqb:SeparationOfConcerns ;
+    rdfs:comment "Decouple abstraction from implementation so both can vary independently" .
 
-
-# =============================================================================
-# A-BOX: ARCHITECTURAL VIEWS (LG 04-05)
-# =============================================================================
-
-isaqb:ContextView a isaqb:ArchitecturalView ;
-    rdfs:label "Context View" ;
-    rdfs:comment "System boundary, external actors, and interfaces (arc42 sections 3). Mandatory." ;
-    isaqb:documentedIn isaqb:Arc42_03 ;
-    isaqb:learningGoal "LG 04-05" ;
-    isaqb:concernOf isaqb:ProductOwnerRole, isaqb:EnterpriseArchitectRole .
-
-isaqb:BuildingBlockView a isaqb:ArchitecturalView ;
-    rdfs:label "Building Block View" ;
-    rdfs:comment "Static decomposition into components/modules with black-box and white-box refinement (arc42 section 5). Mandatory." ;
-    isaqb:documentedIn isaqb:Arc42_05 ;
-    isaqb:learningGoal "LG 04-05" ;
-    isaqb:concernOf isaqb:DeveloperRole, isaqb:ArchitectRole .
-
-isaqb:RuntimeView a isaqb:ArchitecturalView ;
-    rdfs:label "Runtime View" ;
-    rdfs:comment "Dynamic behavior: sequences, interactions, state machines (arc42 section 6). Mandatory." ;
-    isaqb:documentedIn isaqb:Arc42_06 ;
-    isaqb:learningGoal "LG 04-05" ;
-    isaqb:concernOf isaqb:DeveloperRole, isaqb:TesterRole .
-
-isaqb:DeploymentView a isaqb:ArchitecturalView ;
-    rdfs:label "Deployment View" ;
-    rdfs:comment "Hardware, infrastructure, and mapping of building blocks to deployment nodes (arc42 section 7). Mandatory." ;
-    isaqb:documentedIn isaqb:Arc42_07 ;
-    isaqb:learningGoal "LG 04-05" ;
-    isaqb:concernOf isaqb:OperatorRole, isaqb:EnterpriseArchitectRole .
-
-
-# =============================================================================
-# A-BOX: CROSS-CUTTING CONCERNS (LG 03-10, arc42 section 8)
-# =============================================================================
-
-# -----------------------------------------------------------------------------
-# Concern Categories (Zörner sub-structuring)
-# -----------------------------------------------------------------------------
+isaqb:Broker a isaqb:ArchitecturalPattern ;
+    rdfs:label "Broker" ;
+    isaqb:addresses isaqb:Interoperability,
+        isaqb:LooseCoupling ;
+    isaqb:challenges isaqb:PerformanceEfficiency ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "Mediates communication between distributed components" .
 
 isaqb:BusinessDomainConcerns a isaqb:ConcernCategory ;
     rdfs:label "Business/Domain Aspects" ;
     rdfs:comment "Domain models, entity models, ubiquitous language (DDD)" .
 
-isaqb:ArchitecturePatternConcerns a isaqb:ConcernCategory ;
-    rdfs:label "Architecture and Design Patterns" ;
-    rdfs:comment "Recurring patterns applied across the system" .
-
-isaqb:UXConcerns a isaqb:ConcernCategory ;
-    rdfs:label "User Experience" ;
-    rdfs:comment "UI conventions, usability, i18n, validation, accessibility" .
-
-isaqb:SafetySecurityConcerns a isaqb:ConcernCategory ;
-    rdfs:label "Safety and Security" ;
-    rdfs:comment "Authentication, authorization, safety constraints" .
-
-isaqb:UnderTheHoodConcerns a isaqb:ConcernCategory ;
-    rdfs:label "Under the Hood" ;
-    rdfs:comment "Persistence, distribution, transactions, caching, threading, error handling" .
-
-isaqb:DevelopmentConcerns a isaqb:ConcernCategory ;
-    rdfs:label "Development" ;
-    rdfs:comment "Build management, code generation, configuration, testing, migration" .
-
-isaqb:OperationsConcerns a isaqb:ConcernCategory ;
-    rdfs:label "Operations" ;
-    rdfs:comment "Deployment, installation, monitoring" .
-
-# -----------------------------------------------------------------------------
-# Individual Cross-Cutting Concerns
-# -----------------------------------------------------------------------------
-
-isaqb:PersistenceConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Persistence" ;
-    rdfs:comment "Uniform strategy for storing and retrieving data across building blocks. Includes choice of storage technology (relational, document, graph), ORM/ODM strategy, migration approach, and data access patterns. Must be decided system-wide to avoid inconsistent data handling. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:CommunicationConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Communication" ;
-    rdfs:comment "Uniform approach to inter-component and external communication. Includes protocol selection (REST, gRPC, GraphQL, messaging), synchronous vs. asynchronous patterns, message formats, API versioning, retry/timeout policies, and service discovery. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:ErrorHandlingConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Error/Exception Handling" ;
-    rdfs:comment "System-wide strategy for detecting, propagating, logging, and recovering from errors and exceptions. Defines which errors are handled locally vs. propagated, error categorization, user-facing error messages, and circuit-breaker patterns for external dependencies. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:LoggingConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Logging, Monitoring, Tracing" ;
-    rdfs:comment "Uniform approach to recording system behavior for diagnostics, operational monitoring, and distributed tracing. Includes log levels, structured logging format, centralized log aggregation, health checks, metrics collection, and correlation IDs for request tracing across services. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:OperationsConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:SecurityConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Security (AuthN/AuthZ)" ;
-    rdfs:comment "System-wide approach to authentication (verifying identity), authorization (granting access), and data protection. Includes identity provider integration, role/permission models, token management, encryption at rest and in transit, and security headers. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:SafetySecurityConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:ConcurrencyConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Concurrency/Synchronization" ;
-    rdfs:comment "Strategy for handling parallel execution, shared resource access, and thread safety across building blocks. Includes threading model, lock strategies, async patterns, deadlock prevention, and consistency guarantees for concurrent data access. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:ValidationConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Validation" ;
-    rdfs:comment "Uniform approach to verifying input data at system boundaries and between building blocks. Includes input sanitization, schema validation, business rule validation, and consistent error reporting for validation failures. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:UXConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:ConfigurationConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Configuration" ;
-    rdfs:comment "System-wide strategy for managing configuration data across environments (development, staging, production). Includes configuration sources, secrets management, feature flags, environment-specific overrides, and configuration change propagation. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:DevelopmentConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:TestingConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Testing Strategy" ;
-    rdfs:comment "Cross-cutting approach to quality assurance including test pyramid structure, unit/integration/system test boundaries, test data management, mocking strategy, and continuous integration test execution. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:DevelopmentConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:DeploymentConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Deployment/CI-CD" ;
-    rdfs:comment "Uniform approach to building, packaging, and deploying the system. Includes CI/CD pipeline design, deployment strategies (blue-green, canary, rolling), infrastructure as code, containerization, and rollback procedures. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:OperationsConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:I18nConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Internationalization" ;
-    rdfs:comment "System-wide approach to supporting multiple languages, locales, and cultural conventions. Includes string externalization, locale-aware formatting (dates, numbers, currencies), right-to-left support, and translation management workflows. (arc42 section 8, LG 03-10)" ;
-    isaqb:alias "i18n" ;
-    isaqb:category isaqb:UXConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:AccessibilityConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Accessibility" ;
-    rdfs:comment "Cross-cutting concern ensuring the system can be used by people with diverse abilities. Includes WCAG compliance levels, semantic markup, keyboard navigation, screen reader support, and color contrast requirements. (arc42 section 8, LG 03-10)" ;
-    isaqb:category isaqb:UXConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
-
-isaqb:EnergyEfficiencyConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Energy Efficiency" ;
-    rdfs:comment "Cross-cutting concern for minimizing energy consumption and environmental impact of software systems. Includes resource-efficient algorithms, reducing unnecessary computation, optimizing data transfer, and green hosting strategies. Aligned with iSAQB GREEN module for sustainable software engineering. (arc42 section 8)" ;
-    isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
+isaqb:CQRS a isaqb:ArchitecturalPattern ;
+    rdfs:label "CQRS" ;
+    isaqb:addresses isaqb:Modularity,
+        isaqb:PerformanceEfficiency ;
+    isaqb:challenges isaqb:Analysability ;
+    isaqb:embodies isaqb:SeparationOfConcerns,
+        isaqb:SingleResponsibility ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "Command-Query Responsibility Segregation: separate models for read and write operations" .
 
 isaqb:CachingConcern a isaqb:CrossCuttingConcern ;
     rdfs:label "Caching" ;
-    rdfs:comment "System-wide strategy for storing frequently accessed data closer to the consumer to reduce latency and load. Includes cache levels (in-process, distributed, CDN), invalidation strategies, TTL policies, and cache consistency patterns. (arc42 section 8, LG 03-10)" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "System-wide strategy for storing frequently accessed data closer to the consumer to reduce latency and load. Includes cache levels (in-process, distributed, CDN), invalidation strategies, TTL policies, and cache consistency patterns. (arc42 section 8, LG 03-10)" .
 
-isaqb:TransactionConcern a isaqb:CrossCuttingConcern ;
-    rdfs:label "Transactions" ;
-    rdfs:comment "Uniform approach to ensuring data consistency across operations, especially when multiple building blocks or data stores are involved. Includes ACID vs. BASE trade-offs, saga patterns, compensating transactions, and idempotency guarantees. (arc42 section 8, LG 03-10)" ;
+isaqb:CodeDebt a isaqb:DebtType ;
+    rdfs:label "Code Debt" ;
+    rdfs:comment "Temporary hacks, shortcuts, or workarounds in code" .
+
+isaqb:CombinatorPattern a isaqb:DesignPattern ;
+    rdfs:label "Combinator" ;
+    isaqb:embodies isaqb:HighCohesion,
+        isaqb:SeparationOfConcerns ;
+    rdfs:comment "Build complex behavior by composing simple, self-similar building blocks" .
+
+isaqb:CommonClosure a isaqb:DesignPrinciple ;
+    rdfs:label "Common Closure Principle" ;
+    isaqb:alias "CCP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Classes that change together belong together in the same package" .
+
+isaqb:CommonReuse a isaqb:DesignPrinciple ;
+    rdfs:label "Common Reuse Principle" ;
+    isaqb:alias "CRP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Classes used together belong together in the same package" .
+
+isaqb:CommunicationConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Communication" ;
     isaqb:category isaqb:UnderTheHoodConcerns ;
-    isaqb:documentedIn isaqb:Arc42_08 .
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Uniform approach to inter-component and external communication. Includes protocol selection (REST, gRPC, GraphQL, messaging), synchronous vs. asynchronous patterns, message formats, API versioning, retry/timeout policies, and service discovery. (arc42 section 8, LG 03-10)" .
 
-
-# =============================================================================
-# A-BOX: STAKEHOLDER ROLES (LG 01-06)
-# =============================================================================
-
-isaqb:ProductOwnerRole a isaqb:StakeholderRole ;
-    rdfs:label "Product Owner / Product Management" ;
-    rdfs:comment "Provides business requirements, prioritization, and domain knowledge" .
-
-isaqb:DeveloperRole a isaqb:StakeholderRole ;
-    rdfs:label "Developer" ;
-    rdfs:comment "Implements the architecture; needs building block and runtime views" .
-
-isaqb:ArchitectRole a isaqb:StakeholderRole ;
-    rdfs:label "Software Architect" ;
-    rdfs:comment "Designs and evolves the architecture; responsible for all views and decisions" .
-
-isaqb:TesterRole a isaqb:StakeholderRole ;
-    rdfs:label "Quality Assurance / Tester" ;
-    rdfs:comment "Validates quality attributes via test scenarios; needs runtime and quality views" .
-
-isaqb:OperatorRole a isaqb:StakeholderRole ;
-    rdfs:label "IT Operator / Administrator" ;
-    rdfs:comment "Deploys, monitors, and maintains the system; needs deployment view" .
-
-isaqb:EnterpriseArchitectRole a isaqb:StakeholderRole ;
-    rdfs:label "Enterprise Architect" ;
-    rdfs:comment "Ensures alignment with enterprise-wide architecture; needs context and deployment views" .
-
-isaqb:ProjectManagerRole a isaqb:StakeholderRole ;
-    rdfs:label "Project Manager" ;
-    rdfs:comment "Manages budget, timeline, staffing; needs risk register and constraint documentation" .
-
-isaqb:DomainExpertRole a isaqb:StakeholderRole ;
-    rdfs:label "Domain Expert / SME" ;
-    rdfs:comment "Provides domain knowledge; needs context view and glossary" .
-
-
-# =============================================================================
-# A-BOX: ARC42 SECTIONS
-# =============================================================================
-
-isaqb:Arc42_01 a isaqb:Arc42Section ;
-    rdfs:label "1. Introduction and Goals" ;
-    rdfs:comment "Requirements extract, top 3-5 quality goals, stakeholder table" ;
-    isaqb:sectionNumber 1 .
-
-isaqb:Arc42_02 a isaqb:Arc42Section ;
-    rdfs:label "2. Constraints" ;
-    rdfs:comment "Technical, organizational, and regulatory constraints; conventions" ;
-    isaqb:sectionNumber 2 .
-
-isaqb:Arc42_03 a isaqb:Arc42Section ;
-    rdfs:label "3. Context and Scope" ;
-    rdfs:comment "Business context, technical context, external interfaces" ;
-    isaqb:sectionNumber 3 .
-
-isaqb:Arc42_04 a isaqb:Arc42Section ;
-    rdfs:label "4. Solution Strategy" ;
-    rdfs:comment "Fundamental technology decisions and solution approaches" ;
-    isaqb:sectionNumber 4 .
-
-isaqb:Arc42_05 a isaqb:Arc42Section ;
-    rdfs:label "5. Building Block View" ;
-    rdfs:comment "Static decomposition: black boxes, white boxes, hierarchical refinement" ;
-    isaqb:sectionNumber 5 .
-
-isaqb:Arc42_06 a isaqb:Arc42Section ;
-    rdfs:label "6. Runtime View" ;
-    rdfs:comment "Runtime scenarios, interactions between building blocks" ;
-    isaqb:sectionNumber 6 .
-
-isaqb:Arc42_07 a isaqb:Arc42Section ;
-    rdfs:label "7. Deployment View" ;
-    rdfs:comment "Hardware/infrastructure mapping, deployment diagrams" ;
-    isaqb:sectionNumber 7 .
-
-isaqb:Arc42_08 a isaqb:Arc42Section ;
-    rdfs:label "8. Crosscutting Concepts" ;
-    rdfs:comment "Recurring patterns, rules, and solution approaches across building blocks" ;
-    isaqb:sectionNumber 8 .
-
-isaqb:Arc42_09 a isaqb:Arc42Section ;
-    rdfs:label "9. Architecture Decisions" ;
-    rdfs:comment "ADRs for important, expensive, or critical decisions" ;
-    isaqb:sectionNumber 9 .
-
-isaqb:Arc42_10 a isaqb:Arc42Section ;
-    rdfs:label "10. Quality" ;
-    rdfs:comment "Quality tree and quality scenarios linked to goals from section 1" ;
-    isaqb:sectionNumber 10 .
-
-isaqb:Arc42_11 a isaqb:Arc42Section ;
-    rdfs:label "11. Risks and Technical Debt" ;
-    rdfs:comment "Prioritized risks, mitigation measures, technical debt items" ;
-    isaqb:sectionNumber 11 .
-
-isaqb:Arc42_12 a isaqb:Arc42Section ;
-    rdfs:label "12. Glossary" ;
-    rdfs:comment "Important domain and technical terms with definitions" ;
-    isaqb:sectionNumber 12 .
-
-
-# =============================================================================
-# A-BOX: EVALUATION METHODS (LG 05-01 to 05-03)
-# =============================================================================
-
-isaqb:ATAM a isaqb:EvaluationMethod ;
-    rdfs:label "ATAM" ;
-    rdfs:comment "Architecture Tradeoff Analysis Method: scenario-based, identifies risks, sensitivity and tradeoff points (SEI/CMU)" ;
-    isaqb:learningGoal "LG 05-02" ;
-    isaqb:appliesView isaqb:BuildingBlockView, isaqb:RuntimeView .
-
-isaqb:DCAR a isaqb:EvaluationMethod ;
-    rdfs:label "DCAR" ;
-    rdfs:comment "Decision-Centric Architecture Review: evaluates architecture through its key decisions" ;
-    isaqb:learningGoal "LG 05-02" .
-
-isaqb:SAAM a isaqb:EvaluationMethod ;
-    rdfs:label "SAAM" ;
-    rdfs:comment "Software Architecture Analysis Method: earliest scenario-based evaluation method" ;
-    isaqb:learningGoal "LG 05-02" .
-
-isaqb:LASR a isaqb:EvaluationMethod ;
-    rdfs:label "LASR" ;
-    rdfs:comment "Lightweight Approach for Software Reviews" ;
-    isaqb:learningGoal "LG 05-02" .
-
-isaqb:ArchConformanceCheck a isaqb:EvaluationMethod ;
-    rdfs:label "Architecture Conformance Check" ;
-    rdfs:comment "Tool-supported validation that code structure matches architectural intent (ArchUnit, Sonargraph, Structure101)" ;
-    isaqb:learningGoal "LG 05-03" .
-
-
-# =============================================================================
-# A-BOX: DEVELOPMENT APPROACHES (LG 03-03)
-# =============================================================================
-
-isaqb:TopDown a owl:NamedIndividual ;
-    rdfs:label "Top-Down Approach" ;
-    rdfs:comment "Decompose from problem to subproblems to solution components" ;
-    isaqb:learningGoal "LG 03-03" .
-
-isaqb:BottomUp a owl:NamedIndividual ;
-    rdfs:label "Bottom-Up Approach" ;
-    rdfs:comment "Build from concrete components to abstract compositions" ;
-    isaqb:learningGoal "LG 03-03" .
-
-isaqb:ViewBasedDevelopment a owl:NamedIndividual ;
-    rdfs:label "View-Based Architecture Development" ;
-    rdfs:comment "Develop architecture through multiple complementary views" ;
-    isaqb:learningGoal "LG 03-03" .
-
-isaqb:DomainDrivenDesign a owl:NamedIndividual ;
-    rdfs:label "Domain-Driven Design" ;
-    rdfs:comment "Strategic and tactical design driven by domain models, bounded contexts, and ubiquitous language (Eric Evans)" ;
-    isaqb:alias "DDD" ;
-    isaqb:learningGoal "LG 03-03" ;
-    isaqb:level isaqb:Advanced .
-
-isaqb:EvolutionaryArchitecture a owl:NamedIndividual ;
-    rdfs:label "Evolutionary Architecture" ;
-    rdfs:comment "Architecture evolves incrementally guided by fitness functions (Ford, Parsons, Kua)" ;
-    isaqb:learningGoal "LG 03-03" .
-
-
-# =============================================================================
-# A-BOX: COUPLING TYPES (LG 03-06)
-# =============================================================================
-
-isaqb:UseCoupling a owl:NamedIndividual ;
-    rdfs:label "Use/Delegation Coupling" ;
-    rdfs:comment "Component A calls or delegates to component B" .
-
-isaqb:MessageCoupling a owl:NamedIndividual ;
-    rdfs:label "Message/Event Coupling" ;
-    rdfs:comment "Components communicate via asynchronous messages or events" .
+isaqb:Compatibility a isaqb:QualityAttribute ;
+    rdfs:label "Compatibility" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:conflictsWith isaqb:Security ;
+    isaqb:hasSubAttribute isaqb:CoExistence,
+        isaqb:Interoperability ;
+    isaqb:learningGoal "LG 02-03" ;
+    isaqb:supportedBy isaqb:Flexibility ;
+    rdfs:comment "Degree to which a product, system or component can exchange information with other products, systems or components, and/or perform its required functions while sharing the same hardware or software environment (ISO/IEC 25010:2023)." .
 
 isaqb:CompositionCoupling a owl:NamedIndividual ;
     rdfs:label "Composition Coupling" ;
     rdfs:comment "Component A contains or is composed of component B" .
 
+isaqb:ConceptualIntegrity a isaqb:DesignPrinciple ;
+    rdfs:label "Conceptual Integrity" ;
+    isaqb:category isaqb:ConceptualIntegrityPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Uniformity and consistency of solutions throughout the system (Brooks)" .
+
+isaqb:ConcurrencyConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Concurrency/Synchronization" ;
+    isaqb:category isaqb:UnderTheHoodConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Strategy for handling parallel execution, shared resource access, and thread safety across building blocks. Includes threading model, lock strategies, async patterns, deadlock prevention, and consistency guarantees for concurrent data access. (arc42 section 8, LG 03-10)" .
+
+isaqb:ConfigurationConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Configuration" ;
+    isaqb:category isaqb:DevelopmentConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "System-wide strategy for managing configuration data across environments (development, staging, production). Includes configuration sources, secrets management, feature flags, environment-specific overrides, and configuration change propagation. (arc42 section 8, LG 03-10)" .
+
+isaqb:ContextView a isaqb:ArchitecturalView ;
+    rdfs:label "Context View" ;
+    isaqb:concernOf isaqb:EnterpriseArchitectRole,
+        isaqb:ProductOwnerRole ;
+    isaqb:documentedIn isaqb:Arc42_03 ;
+    isaqb:learningGoal "LG 04-05" ;
+    rdfs:comment "System boundary, external actors, and interfaces (arc42 sections 3). Mandatory." .
+
+isaqb:ConventionConstraint a isaqb:ConstraintType ;
+    rdfs:label "Convention Constraint" ;
+    rdfs:comment "Coding standards, naming conventions, documentation standards" .
+
 isaqb:CreationCoupling a owl:NamedIndividual ;
     rdfs:label "Creation Coupling" ;
     rdfs:comment "Component A creates instances of component B" .
 
-isaqb:InheritanceCoupling a owl:NamedIndividual ;
-    rdfs:label "Inheritance Coupling" ;
-    rdfs:comment "Component A inherits from component B" .
+isaqb:Critical a isaqb:RiskSeverity ;
+    rdfs:label "Critical" ;
+    rdfs:comment "Could cause project failure or severe system degradation" .
 
-isaqb:TemporalCoupling a owl:NamedIndividual ;
-    rdfs:label "Temporal Coupling" ;
-    rdfs:comment "Components must execute in a specific order or timeframe" .
+isaqb:DCAR a isaqb:EvaluationMethod ;
+    rdfs:label "DCAR" ;
+    isaqb:learningGoal "LG 05-02" ;
+    rdfs:comment "Decision-Centric Architecture Review: evaluates architecture through its key decisions" .
 
 isaqb:DataCoupling a owl:NamedIndividual ;
     rdfs:label "Data Coupling" ;
@@ -1651,202 +472,1175 @@ isaqb:DataTypeCoupling a owl:NamedIndividual ;
     rdfs:label "Data Type Coupling" ;
     rdfs:comment "Components share type definitions" .
 
+isaqb:DeploymentConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Deployment/CI-CD" ;
+    isaqb:category isaqb:OperationsConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Uniform approach to building, packaging, and deploying the system. Includes CI/CD pipeline design, deployment strategies (blue-green, canary, rolling), infrastructure as code, containerization, and rollback procedures. (arc42 section 8, LG 03-10)" .
 
-# =============================================================================
-# SHACL SHAPES FOR VALIDATION (Two-Tier Severity Model)
-# =============================================================================
-#
-# Tier 1 (sh:Violation): Hard structural requirements that MUST be met.
-#   Missing these indicates a genuinely defective artifact.
-# Tier 2 (sh:Warning): Best-practice guidance that SHOULD be followed.
-#   Missing these is acceptable in edge cases (e.g., emergency ADRs).
-#
-# Validated by RQ3: 100% precision, 100% recall on 10-artifact test suite.
-# Based on Kruchten's ADR classification [19] for severity assignment.
-#
+isaqb:DeploymentView a isaqb:ArchitecturalView ;
+    rdfs:label "Deployment View" ;
+    isaqb:concernOf isaqb:EnterpriseArchitectRole,
+        isaqb:OperatorRole ;
+    isaqb:documentedIn isaqb:Arc42_07 ;
+    isaqb:learningGoal "LG 04-05" ;
+    rdfs:comment "Hardware, infrastructure, and mapping of building blocks to deployment nodes (arc42 section 7). Mandatory." .
 
-# -----------------------------------------------------------------------------
-# Architecture Decision — Two-Tier (ADRShapeStrict)
-# Hard: title, context, rationale, consequences, status
-# Soft: ≥2 options, quality attribute linkage
-# -----------------------------------------------------------------------------
+isaqb:Deprecated a isaqb:DecisionStatus ;
+    rdfs:label "Deprecated" ;
+    rdfs:comment "Decision has been superseded by a newer decision" .
 
-isaqb:ADRShapeStrict a sh:NodeShape ;
-    sh:targetClass isaqb:ArchitectureDecision ;
+isaqb:DocumentationDebt a isaqb:DebtType ;
+    rdfs:label "Documentation Debt" ;
+    rdfs:comment "Incomplete or outdated architecture documentation" .
 
-    # --- TIER 1: sh:Violation (hard requirements) ---
-    sh:property [
-        sh:path rdfs:label ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "ADR must have a title (rdfs:label)"
-    ] ;
-    sh:property [
-        sh:path isaqb:context ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "ADR must document context (forces, constraints)"
-    ] ;
-    sh:property [
-        sh:path isaqb:rationale ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "ADR must document rationale"
-    ] ;
-    sh:property [
-        sh:path isaqb:consequences ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "ADR must document consequences"
-    ] ;
-    sh:property [
-        sh:path isaqb:decisionStatus ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:severity sh:Violation ;
-        sh:message "ADR must have a status"
-    ] ;
+isaqb:DomainDrivenDesign a owl:NamedIndividual ;
+    rdfs:label "Domain-Driven Design" ;
+    isaqb:alias "DDD" ;
+    isaqb:learningGoal "LG 03-03" ;
+    isaqb:level isaqb:Advanced ;
+    rdfs:comment "Strategic and tactical design driven by domain models, bounded contexts, and ubiquitous language (Eric Evans)" .
 
-    # --- TIER 2: sh:Warning (soft guidance) ---
-    sh:property [
-        sh:path isaqb:hasOption ;
-        sh:minCount 2 ;
-        sh:severity sh:Warning ;
-        sh:message "ADR should consider at least 2 options"
-    ] ;
-    sh:property [
-        sh:path isaqb:addresses ;
-        sh:minCount 1 ;
-        sh:severity sh:Warning ;
-        sh:message "ADR should address at least one quality attribute"
-    ] .
+isaqb:DomainExpertRole a isaqb:StakeholderRole ;
+    rdfs:label "Domain Expert / SME" ;
+    rdfs:comment "Provides domain knowledge; needs context view and glossary" .
 
-# -----------------------------------------------------------------------------
-# Quality Scenario — Two-Tier (QualityScenarioShapeStrict)
-# Hard: stimulus, response, response measure
-# Soft: quality attribute linkage, environment
-# Based on Len Bass quality scenario form (stimulus→environment→response→measure)
-# -----------------------------------------------------------------------------
+isaqb:Encapsulation a isaqb:DesignPrinciple ;
+    rdfs:label "Encapsulation" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Bundle data and behavior together; restrict access to internals" .
 
-isaqb:QualityScenarioShapeStrict a sh:NodeShape ;
-    sh:targetClass isaqb:QualityScenario ;
+isaqb:EnergyEfficiencyConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Energy Efficiency" ;
+    isaqb:category isaqb:UnderTheHoodConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Cross-cutting concern for minimizing energy consumption and environmental impact of software systems. Includes resource-efficient algorithms, reducing unnecessary computation, optimizing data transfer, and green hosting strategies. Aligned with iSAQB GREEN module for sustainable software engineering. (arc42 section 8)" .
 
-    # --- TIER 1: sh:Violation ---
-    sh:property [
-        sh:path isaqb:stimulus ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "Scenario must specify a stimulus (triggering event)"
-    ] ;
-    sh:property [
-        sh:path isaqb:response ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "Scenario must specify the expected response"
-    ] ;
-    sh:property [
-        sh:path isaqb:responseMeasure ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "Scenario must specify a measurable response criterion"
-    ] ;
+isaqb:ErrorHandlingConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Error/Exception Handling" ;
+    isaqb:category isaqb:UnderTheHoodConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "System-wide strategy for detecting, propagating, logging, and recovering from errors and exceptions. Defines which errors are handled locally vs. propagated, error categorization, user-facing error messages, and circuit-breaker patterns for external dependencies. (arc42 section 8, LG 03-10)" .
 
-    # --- TIER 2: sh:Warning ---
-    sh:property [
-        sh:path isaqb:refines ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:severity sh:Warning ;
-        sh:message "Scenario should refine exactly one quality attribute"
-    ] ;
-    sh:property [
-        sh:path isaqb:environment ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Warning ;
-        sh:message "Scenario should specify the environment/system state"
-    ] .
+isaqb:EventSourcing a isaqb:ArchitecturalPattern ;
+    rdfs:label "Event Sourcing" ;
+    isaqb:addresses isaqb:Analysability,
+        isaqb:NonRepudiation,
+        isaqb:Recoverability ;
+    isaqb:challenges isaqb:Capacity,
+        isaqb:Operability ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "State derived from an append-only sequence of domain events" .
 
-# -----------------------------------------------------------------------------
-# Risk — Two-Tier (RiskShapeStrict)
-# Hard: label, severity
-# Soft: mitigation, likelihood
-# -----------------------------------------------------------------------------
+isaqb:EvolutionaryArchitecture a owl:NamedIndividual ;
+    rdfs:label "Evolutionary Architecture" ;
+    isaqb:learningGoal "LG 03-03" ;
+    rdfs:comment "Architecture evolves incrementally guided by fitness functions (Ford, Parsons, Kua)" .
 
-isaqb:RiskShapeStrict a sh:NodeShape ;
-    sh:targetClass isaqb:Risk ;
+isaqb:ExpectErrors a isaqb:DesignPrinciple ;
+    rdfs:label "Expect Errors" ;
+    isaqb:category isaqb:RobustnessPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Design for failure; assume errors will occur and handle them gracefully" .
 
-    # --- TIER 1: sh:Violation ---
-    sh:property [
-        sh:path rdfs:label ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Violation ;
-        sh:message "Risk must have a description (rdfs:label)"
-    ] ;
-    sh:property [
-        sh:path isaqb:severity ;
-        sh:minCount 1 ;
-        sh:maxCount 1 ;
-        sh:severity sh:Violation ;
-        sh:message "Risk must have a severity classification"
-    ] ;
+isaqb:FacadePattern a isaqb:DesignPattern ;
+    rdfs:label "Facade" ;
+    isaqb:embodies isaqb:InformationHiding,
+        isaqb:LooseCoupling ;
+    rdfs:comment "Provides a unified interface to a set of interfaces in a subsystem" .
 
-    # --- TIER 2: sh:Warning ---
-    sh:property [
-        sh:path isaqb:mitigation ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Warning ;
-        sh:message "Risk should have a mitigation strategy"
-    ] ;
-    sh:property [
-        sh:path isaqb:likelihood ;
-        sh:minCount 1 ;
-        sh:datatype xsd:string ;
-        sh:severity sh:Warning ;
-        sh:message "Risk should specify likelihood (low, medium, high)"
-    ] .
+isaqb:FactoryPattern a isaqb:DesignPattern ;
+    rdfs:label "Factory" ;
+    isaqb:embodies isaqb:DependencyInversion,
+        isaqb:InformationHiding ;
+    rdfs:comment "Encapsulate object creation behind an interface" .
 
-# -----------------------------------------------------------------------------
-# Quality Goal — Two-Tier
-# Hard: must link to quality attribute
-# Soft: should have priority ranking
-# -----------------------------------------------------------------------------
+isaqb:FunctionalSuitability a isaqb:QualityAttribute ;
+    rdfs:label "Functional Suitability" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:hasSubAttribute isaqb:FunctionalAppropriateness,
+        isaqb:FunctionalCompleteness,
+        isaqb:FunctionalCorrectness ;
+    isaqb:learningGoal "LG 02-03" ;
+    rdfs:comment "Degree to which a product or system provides functions that meet stated and implied needs when used under specified conditions (ISO/IEC 25010:2023)." .
+
+isaqb:GatewayPattern a isaqb:DesignPattern ;
+    rdfs:label "Gateway" ;
+    isaqb:embodies isaqb:InformationHiding,
+        isaqb:LooseCoupling ;
+    rdfs:comment "Encapsulates access to an external system or resource" .
+
+isaqb:High a isaqb:RiskSeverity ;
+    rdfs:label "High" ;
+    rdfs:comment "Significant impact on quality or schedule" .
+
+isaqb:I18nConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Internationalization" ;
+    isaqb:alias "i18n" ;
+    isaqb:category isaqb:UXConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "System-wide approach to supporting multiple languages, locales, and cultural conventions. Includes string externalization, locale-aware formatting (dates, numbers, currencies), right-to-left support, and translation management workflows. (arc42 section 8, LG 03-10)" .
+
+isaqb:InheritanceCoupling a owl:NamedIndividual ;
+    rdfs:label "Inheritance Coupling" ;
+    rdfs:comment "Component A inherits from component B" .
+
+isaqb:InterpreterPattern a isaqb:DesignPattern ;
+    rdfs:label "Interpreter" ;
+    rdfs:comment "Given a language, define a representation for its grammar and an interpreter" .
+
+isaqb:KISS a isaqb:DesignPrinciple ;
+    rdfs:label "KISS" ;
+    isaqb:category isaqb:ComplexityReductionPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Keep It Simple, Stupid — reduce unnecessary complexity" .
+
+isaqb:LASR a isaqb:EvaluationMethod ;
+    rdfs:label "LASR" ;
+    isaqb:learningGoal "LG 05-02" ;
+    rdfs:comment "Lightweight Approach for Software Reviews" .
+
+isaqb:LayeredArchitecture a isaqb:ArchitecturalPattern ;
+    rdfs:label "Layers" ;
+    isaqb:addresses isaqb:Maintainability,
+        isaqb:Testability ;
+    isaqb:challenges isaqb:PerformanceEfficiency ;
+    isaqb:embodies isaqb:LooseCoupling,
+        isaqb:SeparationOfConcerns ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R1 ;
+    rdfs:comment "System organized into hierarchical layers with unidirectional dependencies" .
+
+isaqb:LeastSurprise a isaqb:DesignPrinciple ;
+    rdfs:label "Principle of Least Surprise" ;
+    isaqb:alias "POLA",
+        "Principle of Least Astonishment" ;
+    isaqb:category isaqb:ConceptualIntegrityPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "System behavior should match user/developer expectations" .
+
+isaqb:LiskovSubstitution a isaqb:DesignPrinciple ;
+    rdfs:label "Liskov Substitution Principle" ;
+    isaqb:alias "LSP" ;
+    isaqb:category isaqb:ConceptualIntegrityPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Subtypes must be substitutable for their base types without altering correctness" .
+
+isaqb:LoggingConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Logging, Monitoring, Tracing" ;
+    isaqb:category isaqb:OperationsConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Uniform approach to recording system behavior for diagnostics, operational monitoring, and distributed tracing. Includes log levels, structured logging format, centralized log aggregation, health checks, metrics collection, and correlation IDs for request tracing across services. (arc42 section 8, LG 03-10)" .
+
+isaqb:Low a isaqb:RiskSeverity ;
+    rdfs:label "Low" ;
+    rdfs:comment "Minor impact, acceptable risk" .
+
+isaqb:MVC a isaqb:ArchitecturalPattern ;
+    rdfs:label "Model-View-Controller" ;
+    isaqb:addresses isaqb:Maintainability,
+        isaqb:Testability ;
+    isaqb:embodies isaqb:SeparationOfConcerns ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "Separates an application into three interconnected components: Model (data and business logic), View (presentation and UI), and Controller (input handling and mediation). Enables independent development and testing of UI and business logic. Originated by Trygve Reenskaug at Xerox PARC." .
+
+isaqb:Medium a isaqb:RiskSeverity ;
+    rdfs:label "Medium" ;
+    rdfs:comment "Moderate impact, manageable with mitigation" .
+
+isaqb:MessageCoupling a owl:NamedIndividual ;
+    rdfs:label "Message/Event Coupling" ;
+    rdfs:comment "Components communicate via asynchronous messages or events" .
+
+isaqb:Microservices a isaqb:ArchitecturalPattern ;
+    rdfs:label "Microservices" ;
+    isaqb:addresses isaqb:Flexibility,
+        isaqb:Modularity ;
+    isaqb:challenges isaqb:PerformanceEfficiency,
+        isaqb:Reliability ;
+    isaqb:embodies isaqb:HighCohesion,
+        isaqb:LooseCoupling,
+        isaqb:SeparationOfConcerns ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R1 ;
+    rdfs:comment "System decomposed into independently deployable services organized around business capabilities" .
+
+isaqb:ObserverPattern a isaqb:DesignPattern ;
+    rdfs:label "Observer" ;
+    isaqb:embodies isaqb:LooseCoupling ;
+    rdfs:comment "Define one-to-many dependency so that when one object changes, dependents are notified" .
+
+isaqb:OrganizationalConstraint a isaqb:ConstraintType ;
+    rdfs:label "Organizational Constraint" ;
+    rdfs:comment "Team structure, processes, budget, timeline, Conway's Law effects" .
+
+isaqb:PersistenceConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Persistence" ;
+    isaqb:category isaqb:UnderTheHoodConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Uniform strategy for storing and retrieving data across building blocks. Includes choice of storage technology (relational, document, graph), ORM/ODM strategy, migration approach, and data access patterns. Must be decided system-wide to avoid inconsistent data handling. (arc42 section 8, LG 03-10)" .
+
+isaqb:PipesAndFilters a isaqb:ArchitecturalPattern ;
+    rdfs:label "Pipes and Filters" ;
+    isaqb:addresses isaqb:Modifiability,
+        isaqb:Reusability ;
+    isaqb:embodies isaqb:SeparationOfConcerns,
+        isaqb:SingleResponsibility ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R1 ;
+    rdfs:comment "Data flows through a chain of processing stages connected by channels" .
+
+isaqb:Plugin a isaqb:ArchitecturalPattern ;
+    rdfs:label "Plugin" ;
+    isaqb:addresses isaqb:Flexibility,
+        isaqb:Modifiability ;
+    isaqb:embodies isaqb:DependencyInversion,
+        isaqb:OpenClosedPrinciple ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "Core system extended via dynamically loaded modules conforming to a defined interface" .
+
+isaqb:PortsAndAdapters a isaqb:ArchitecturalPattern ;
+    rdfs:label "Ports and Adapters" ;
+    isaqb:addresses isaqb:Flexibility,
+        isaqb:Maintainability,
+        isaqb:Testability ;
+    isaqb:alias "Clean Architecture",
+        "Hexagonal Architecture",
+        "Onion Architecture" ;
+    isaqb:embodies isaqb:DependencyInversion,
+        isaqb:InformationHiding,
+        isaqb:SeparationOfConcerns ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "Application core isolated from external concerns via ports (interfaces) and adapters (implementations)" .
+
+isaqb:PostelsLaw a isaqb:DesignPrinciple ;
+    rdfs:label "Postel's Law" ;
+    isaqb:alias "Robustness Principle" ;
+    isaqb:category isaqb:RobustnessPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Be conservative in what you send, liberal in what you accept (Robustness Principle)" .
+
+isaqb:ProjectManagerRole a isaqb:StakeholderRole ;
+    rdfs:label "Project Manager" ;
+    rdfs:comment "Manages budget, timeline, staffing; needs risk register and constraint documentation" .
+
+isaqb:Proposed a isaqb:DecisionStatus ;
+    rdfs:label "Proposed" ;
+    rdfs:comment "Decision is under consideration" .
+
+isaqb:ProxyPattern a isaqb:DesignPattern ;
+    rdfs:label "Proxy" ;
+    isaqb:embodies isaqb:SeparationOfConcerns ;
+    rdfs:comment "Provides a surrogate or placeholder for another object to control access" .
 
 isaqb:QualityGoalShapeStrict a sh:NodeShape ;
-    sh:targetClass isaqb:QualityGoal ;
+    sh:property [ sh:class isaqb:QualityAttribute ;
+            sh:message "Quality goal must reference at least one quality attribute" ;
+            sh:minCount 1 ;
+            sh:path isaqb:refines ;
+            sh:severity sh:Violation ] ;
+    sh:targetClass isaqb:QualityGoal .
 
-    # --- TIER 1: sh:Violation ---
-    sh:property [
-        sh:path isaqb:refines ;
-        sh:minCount 1 ;
-        sh:class isaqb:QualityAttribute ;
-        sh:severity sh:Violation ;
-        sh:message "Quality goal must reference at least one quality attribute"
-    ] .
+isaqb:QualityScenarioShapeStrict a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "Scenario must specify a measurable response criterion" ;
+            sh:minCount 1 ;
+            sh:path isaqb:responseMeasure ;
+            sh:severity sh:Violation ],
+        [ sh:maxCount 1 ;
+            sh:message "Scenario should refine exactly one quality attribute" ;
+            sh:minCount 1 ;
+            sh:path isaqb:refines ;
+            sh:severity sh:Warning ],
+        [ sh:datatype xsd:string ;
+            sh:message "Scenario should specify the environment/system state" ;
+            sh:minCount 1 ;
+            sh:path isaqb:environment ;
+            sh:severity sh:Warning ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "Scenario must specify a stimulus (triggering event)" ;
+            sh:minCount 1 ;
+            sh:path isaqb:stimulus ;
+            sh:severity sh:Violation ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "Scenario must specify the expected response" ;
+            sh:minCount 1 ;
+            sh:path isaqb:response ;
+            sh:severity sh:Violation ] ;
+    sh:targetClass isaqb:QualityScenario .
 
-# -----------------------------------------------------------------------------
-# Cross-ontology: Requirement should address at least one quality attribute
-# (Warning only — not all requirements directly map to quality attributes)
-# -----------------------------------------------------------------------------
+isaqb:R2 a isaqb:PatternRelevance ;
+    rdfs:label "R2 - Should Know" ;
+    rdfs:comment "Participants should be able to explain this concept" .
+
+isaqb:RegulatoryConstraint a isaqb:ConstraintType ;
+    rdfs:label "Regulatory Constraint" ;
+    rdfs:comment "Legal, compliance, data protection, licensing requirements" .
+
+isaqb:Rejected a isaqb:DecisionStatus ;
+    rdfs:label "Rejected" ;
+    rdfs:comment "Decision was considered but rejected" .
 
 isaqb:RequirementQualityShape a sh:NodeShape ;
-    sh:targetClass prd:Requirement ;
-    sh:property [
-        sh:path isaqb:addressesQuality ;
-        sh:minCount 0 ;
-        sh:severity sh:Warning ;
-        sh:message "Requirement should link to at least one quality attribute (isaqb:addressesQuality)"
-    ] .
+    sh:property [ sh:message "Requirement should link to at least one quality attribute (isaqb:addressesQuality)" ;
+            sh:minCount 0 ;
+            sh:path isaqb:addressesQuality ;
+            sh:severity sh:Warning ] ;
+    sh:targetClass prd:Requirement .
+
+isaqb:RiskShapeStrict a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "Risk must have a description (rdfs:label)" ;
+            sh:minCount 1 ;
+            sh:path rdfs:label ;
+            sh:severity sh:Violation ],
+        [ sh:maxCount 1 ;
+            sh:message "Risk must have a severity classification" ;
+            sh:minCount 1 ;
+            sh:path isaqb:severity ;
+            sh:severity sh:Violation ],
+        [ sh:datatype xsd:string ;
+            sh:message "Risk should have a mitigation strategy" ;
+            sh:minCount 1 ;
+            sh:path isaqb:mitigation ;
+            sh:severity sh:Warning ],
+        [ sh:datatype xsd:string ;
+            sh:message "Risk should specify likelihood (low, medium, high)" ;
+            sh:minCount 1 ;
+            sh:path isaqb:likelihood ;
+            sh:severity sh:Warning ] ;
+    sh:targetClass isaqb:Risk .
+
+isaqb:SAAM a isaqb:EvaluationMethod ;
+    rdfs:label "SAAM" ;
+    isaqb:learningGoal "LG 05-02" ;
+    rdfs:comment "Software Architecture Analysis Method: earliest scenario-based evaluation method" .
+
+isaqb:SOA a isaqb:ArchitecturalPattern ;
+    rdfs:label "Service-Oriented Architecture" ;
+    isaqb:addresses isaqb:Interoperability,
+        isaqb:Reusability ;
+    isaqb:challenges isaqb:PerformanceEfficiency ;
+    isaqb:learningGoal "LG 03-08" ;
+    isaqb:relevance isaqb:R3 ;
+    rdfs:comment "Enterprise-scale architectural style where functionality is grouped into reusable, interoperable services with well-defined interfaces and contracts. Services communicate via standardized protocols. Emphasizes service composability, discoverability, and loose coupling." .
+
+isaqb:SecurityConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Security (AuthN/AuthZ)" ;
+    isaqb:category isaqb:SafetySecurityConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "System-wide approach to authentication (verifying identity), authorization (granting access), and data protection. Includes identity provider integration, role/permission models, token management, encryption at rest and in transit, and security headers. (arc42 section 8, LG 03-10)" .
+
+isaqb:StrategyPattern a isaqb:DesignPattern ;
+    rdfs:label "Strategy" ;
+    isaqb:embodies isaqb:OpenClosedPrinciple,
+        isaqb:SingleResponsibility ;
+    rdfs:comment "Define a family of algorithms, encapsulate each, and make them interchangeable" .
+
+isaqb:TechnicalConstraint a isaqb:ConstraintType ;
+    rdfs:label "Technical Constraint" ;
+    rdfs:comment "Technology choices, platforms, protocols mandated by existing infrastructure" .
+
+isaqb:TemplateMethodPattern a isaqb:DesignPattern ;
+    rdfs:label "Template Method" ;
+    isaqb:embodies isaqb:DRY,
+        isaqb:OpenClosedPrinciple ;
+    rdfs:comment "Define the skeleton of an algorithm, deferring steps to subclasses" .
+
+isaqb:TemporalCoupling a owl:NamedIndividual ;
+    rdfs:label "Temporal Coupling" ;
+    rdfs:comment "Components must execute in a specific order or timeframe" .
+
+isaqb:TestDebt a isaqb:DebtType ;
+    rdfs:label "Test Debt" ;
+    rdfs:comment "Missing or inadequate test coverage" .
+
+isaqb:TestingConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Testing Strategy" ;
+    isaqb:category isaqb:DevelopmentConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Cross-cutting approach to quality assurance including test pyramid structure, unit/integration/system test boundaries, test data management, mocking strategy, and continuous integration test execution. (arc42 section 8, LG 03-10)" .
+
+isaqb:TopDown a owl:NamedIndividual ;
+    rdfs:label "Top-Down Approach" ;
+    isaqb:learningGoal "LG 03-03" ;
+    rdfs:comment "Decompose from problem to subproblems to solution components" .
+
+isaqb:TransactionConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Transactions" ;
+    isaqb:category isaqb:UnderTheHoodConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Uniform approach to ensuring data consistency across operations, especially when multiple building blocks or data stores are involved. Includes ACID vs. BASE trade-offs, saga patterns, compensating transactions, and idempotency guarantees. (arc42 section 8, LG 03-10)" .
+
+isaqb:UseCoupling a owl:NamedIndividual ;
+    rdfs:label "Use/Delegation Coupling" ;
+    rdfs:comment "Component A calls or delegates to component B" .
+
+isaqb:ValidationConcern a isaqb:CrossCuttingConcern ;
+    rdfs:label "Validation" ;
+    isaqb:category isaqb:UXConcerns ;
+    isaqb:documentedIn isaqb:Arc42_08 ;
+    rdfs:comment "Uniform approach to verifying input data at system boundaries and between building blocks. Includes input sanitization, schema validation, business rule validation, and consistent error reporting for validation failures. (arc42 section 8, LG 03-10)" .
+
+isaqb:ViewBasedDevelopment a owl:NamedIndividual ;
+    rdfs:label "View-Based Architecture Development" ;
+    isaqb:learningGoal "LG 03-03" ;
+    rdfs:comment "Develop architecture through multiple complementary views" .
+
+isaqb:VisitorPattern a isaqb:DesignPattern ;
+    rdfs:label "Visitor" ;
+    isaqb:embodies isaqb:OpenClosedPrinciple,
+        isaqb:SeparationOfConcerns ;
+    rdfs:comment "Represent an operation to be performed on elements of a structure without changing the classes" .
+
+isaqb:YAGNI a isaqb:DesignPrinciple ;
+    rdfs:label "YAGNI" ;
+    isaqb:category isaqb:ComplexityReductionPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "You Ain't Gonna Need It — don't build for hypothetical future requirements" .
+
+isaqb:alias a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "alias" ;
+    rdfs:comment "Alternative name for a concept" ;
+    rdfs:range xsd:string .
+
+isaqb:appliesPrinciple a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "applies principle" ;
+    rdfs:comment "Code component or requirement applies this design principle" ;
+    rdfs:domain code:Class,
+        code:Module,
+        prd:Requirement ;
+    rdfs:range isaqb:DesignPrinciple .
+
+isaqb:appliesView a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "applies view" ;
+    rdfs:comment "Evaluation method uses this architectural view" ;
+    rdfs:domain isaqb:EvaluationMethod ;
+    rdfs:range isaqb:ArchitecturalView .
+
+isaqb:category a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "category" ;
+    rdfs:comment "Classifies an individual into a category" .
+
+isaqb:challenges a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "challenges" ;
+    rdfs:comment "This pattern or decision negatively affects or complicates the quality attribute" ;
+    rdfs:domain isaqb:ArchitecturalPattern,
+        isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:chosenOption a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "chosen option" ;
+    rdfs:comment "The option that was selected in this decision" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:DecisionOption .
+
+isaqb:concernOf a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "concern of" ;
+    rdfs:comment "Quality attribute or view is a concern of this stakeholder role" ;
+    rdfs:range isaqb:StakeholderRole .
+
+isaqb:conflictsWith a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "conflicts with" ;
+    rdfs:comment "Improving this quality attribute typically degrades the other (architectural tradeoff)" ;
+    rdfs:domain isaqb:QualityAttribute ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:constraintSource a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "constraint source" ;
+    rdfs:comment "Origin of the constraint (e.g., 'company policy', 'GDPR', 'existing infrastructure')" ;
+    rdfs:domain isaqb:Constraint ;
+    rdfs:range xsd:string .
+
+isaqb:constraintType a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "constraint type" ;
+    rdfs:domain isaqb:Constraint ;
+    rdfs:range isaqb:ConstraintType .
+
+isaqb:debtType a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "debt type" ;
+    rdfs:domain isaqb:TechnicalDebt ;
+    rdfs:range isaqb:DebtType .
+
+isaqb:documentedIn a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "documented in" ;
+    rdfs:comment "Concept is documented in this arc42 section" ;
+    rdfs:range isaqb:Arc42Section .
+
+isaqb:embodies a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "embodies" ;
+    rdfs:comment "This pattern structurally embodies the design principle" ;
+    rdfs:domain isaqb:ArchitecturalPattern,
+        isaqb:DesignPattern ;
+    rdfs:range isaqb:DesignPrinciple .
+
+isaqb:governedBy a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "governed by" ;
+    rdfs:comment "Cross-cutting concern is governed by this architecture decision" ;
+    rdfs:domain isaqb:CrossCuttingConcern ;
+    rdfs:range isaqb:ArchitectureDecision .
+
+isaqb:hasSubAttribute a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has sub-attribute" ;
+    rdfs:comment "Quality attribute is refined by sub-attributes (ISO 25010 hierarchy)" ;
+    rdfs:domain isaqb:QualityAttribute ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:introduces a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "introduces" ;
+    rdfs:comment "Decision introduces this technical debt as a known consequence" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:TechnicalDebt .
+
+isaqb:justifiedBy a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "justified by" ;
+    rdfs:comment "Requirement or building block is justified by this architecture decision" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range isaqb:ArchitectureDecision .
+
+isaqb:learningGoal a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "learning goal" ;
+    rdfs:comment "Reference to CPSA-FL learning goal (e.g., 'LG 03-04')" ;
+    rdfs:range xsd:string .
+
+isaqb:level a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "level" ;
+    rdfs:comment "CPSA curriculum level: Foundation or Advanced" .
+
+isaqb:mitigates a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "mitigates" ;
+    rdfs:comment "Decision or pattern mitigates this risk" ;
+    rdfs:domain isaqb:ArchitecturalPattern,
+        isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:Risk .
+
+isaqb:realizesPattern a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "realizes pattern" ;
+    rdfs:comment "Code component realizes this architectural or design pattern" ;
+    rdfs:domain code:Class,
+        code:Function,
+        code:Module ;
+    rdfs:range isaqb:ArchitecturalPattern,
+        isaqb:DesignPattern .
+
+isaqb:relevance a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "relevance" ;
+    rdfs:comment "CPSA-FL relevance classification (R1, R2, R3)" ;
+    rdfs:range isaqb:PatternRelevance .
+
+isaqb:remediationCost a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "remediation cost" ;
+    rdfs:comment "Estimated effort to resolve (low, medium, high)" ;
+    rdfs:domain isaqb:TechnicalDebt ;
+    rdfs:range xsd:string .
+
+isaqb:sectionNumber a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "section number" ;
+    rdfs:comment "Numeric position within arc42 template" ;
+    rdfs:domain isaqb:Arc42Section ;
+    rdfs:range xsd:integer .
+
+isaqb:sensitiveToQuality a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "sensitive to quality" ;
+    rdfs:comment "Sensitivity point is sensitive to this quality attribute" ;
+    rdfs:domain isaqb:SensitivityPoint ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:supersedes a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "supersedes" ;
+    rdfs:comment "This decision replaces a deprecated earlier decision" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:ArchitectureDecision .
+
+isaqb:supportedBy a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "supported by" ;
+    rdfs:comment "Improving this quality attribute typically also improves the other (synergy)" ;
+    rdfs:domain isaqb:QualityAttribute ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:tradesOff a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "trades off" ;
+    rdfs:comment "Links a tradeoff point to the quality attributes in tension" ;
+    rdfs:domain isaqb:TradeoffPoint ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:verifiedByScenario a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "verified by scenario" ;
+    rdfs:comment "Requirement is verified against this quality scenario" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range isaqb:QualityScenario .
+
+isaqb:AbstractionPrinciples a isaqb:PrincipleCategory ;
+    rdfs:label "Abstraction Principles" ;
+    rdfs:comment "Principles concerned with managing complexity through generalization, hiding implementation details, and depending on interfaces rather than concrete implementations" .
+
+isaqb:Accessibility a isaqb:QualityAttribute ;
+    rdfs:label "Accessibility" ;
+    rdfs:comment "Degree to which the product can be used by people with the widest range of capabilities" .
+
+isaqb:Adaptability a isaqb:QualityAttribute ;
+    rdfs:label "Adaptability" ;
+    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
+    isaqb:supportedBy isaqb:Modifiability ;
+    rdfs:comment "Degree to which a product can be adapted for different environments" .
+
+isaqb:Advanced a isaqb:CurriculumLevel ;
+    rdfs:label "Advanced Level (CPSA-AL)" .
+
+isaqb:Arc42_03 a isaqb:Arc42Section ;
+    rdfs:label "3. Context and Scope" ;
+    isaqb:sectionNumber 3 ;
+    rdfs:comment "Business context, technical context, external interfaces" .
+
+isaqb:Arc42_05 a isaqb:Arc42Section ;
+    rdfs:label "5. Building Block View" ;
+    isaqb:sectionNumber 5 ;
+    rdfs:comment "Static decomposition: black boxes, white boxes, hierarchical refinement" .
+
+isaqb:Arc42_06 a isaqb:Arc42Section ;
+    rdfs:label "6. Runtime View" ;
+    isaqb:sectionNumber 6 ;
+    rdfs:comment "Runtime scenarios, interactions between building blocks" .
+
+isaqb:Arc42_07 a isaqb:Arc42Section ;
+    rdfs:label "7. Deployment View" ;
+    isaqb:sectionNumber 7 ;
+    rdfs:comment "Hardware/infrastructure mapping, deployment diagrams" .
+
+isaqb:ArchitectRole a isaqb:StakeholderRole ;
+    rdfs:label "Software Architect" ;
+    rdfs:comment "Designs and evolves the architecture; responsible for all views and decisions" .
+
+isaqb:Authenticity a isaqb:QualityAttribute ;
+    rdfs:label "Authenticity" ;
+    isaqb:conflictsWith isaqb:Operability,
+        isaqb:TimeBehaviour ;
+    rdfs:comment "Identity of a subject or resource can be verified" .
+
+isaqb:Availability a isaqb:QualityAttribute ;
+    rdfs:label "Availability" ;
+    isaqb:conflictsWith isaqb:Modifiability,
+        isaqb:ResourceUtilization ;
+    rdfs:comment "Degree to which a system is operational and accessible when required" .
+
+isaqb:BuildingBlockView a isaqb:ArchitecturalView ;
+    rdfs:label "Building Block View" ;
+    isaqb:concernOf isaqb:ArchitectRole,
+        isaqb:DeveloperRole ;
+    isaqb:documentedIn isaqb:Arc42_05 ;
+    isaqb:learningGoal "LG 04-05" ;
+    rdfs:comment "Static decomposition into components/modules with black-box and white-box refinement (arc42 section 5). Mandatory." .
+
+isaqb:CoExistence a isaqb:QualityAttribute ;
+    rdfs:label "Co-existence" ;
+    rdfs:comment "Can coexist with other software sharing resources without adverse impact" .
+
+isaqb:DRY a isaqb:DesignPrinciple ;
+    rdfs:label "DRY" ;
+    isaqb:category isaqb:ComplexityReductionPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Don't Repeat Yourself — single source of truth for every piece of knowledge" .
+
+isaqb:FunctionalAppropriateness a isaqb:QualityAttribute ;
+    rdfs:label "Functional Appropriateness" ;
+    isaqb:supportedBy isaqb:Learnability ;
+    rdfs:comment "Degree to which functions facilitate accomplishment of specified tasks" .
+
+isaqb:FunctionalCorrectness a isaqb:QualityAttribute ;
+    rdfs:label "Functional Correctness" ;
+    isaqb:supportedBy isaqb:Testability ;
+    rdfs:comment "Degree to which a product provides correct results with needed precision" .
+
+isaqb:Installability a isaqb:QualityAttribute ;
+    rdfs:label "Installability" ;
+    rdfs:comment "Degree of effectiveness with which a product can be installed or uninstalled" .
+
+isaqb:Integrity a isaqb:QualityAttribute ;
+    rdfs:label "Integrity" ;
+    isaqb:conflictsWith isaqb:Operability,
+        isaqb:TimeBehaviour ;
+    rdfs:comment "System prevents unauthorized modification of data or programs" .
+
+isaqb:InterfaceSegregation a isaqb:DesignPrinciple ;
+    rdfs:label "Interface Segregation Principle" ;
+    isaqb:alias "ISP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Clients should not be forced to depend on interfaces they do not use" .
+
+isaqb:Maturity a isaqb:QualityAttribute ;
+    rdfs:label "Maturity" ;
+    rdfs:comment "Degree to which a system meets reliability needs under normal operation" .
+
+isaqb:OperatorRole a isaqb:StakeholderRole ;
+    rdfs:label "IT Operator / Administrator" ;
+    rdfs:comment "Deploys, monitors, and maintains the system; needs deployment view" .
+
+isaqb:ProductOwnerRole a isaqb:StakeholderRole ;
+    rdfs:label "Product Owner / Product Management" ;
+    rdfs:comment "Provides business requirements, prioritization, and domain knowledge" .
+
+isaqb:Replaceability a isaqb:QualityAttribute ;
+    rdfs:label "Replaceability" ;
+    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
+    rdfs:comment "Degree to which a product can replace another for the same purpose" .
+
+isaqb:RuntimeView a isaqb:ArchitecturalView ;
+    rdfs:label "Runtime View" ;
+    isaqb:concernOf isaqb:DeveloperRole,
+        isaqb:TesterRole ;
+    isaqb:documentedIn isaqb:Arc42_06 ;
+    isaqb:learningGoal "LG 04-05" ;
+    rdfs:comment "Dynamic behavior: sequences, interactions, state machines (arc42 section 6). Mandatory." .
+
+isaqb:SafetySecurityConcerns a isaqb:ConcernCategory ;
+    rdfs:label "Safety and Security" ;
+    rdfs:comment "Authentication, authorization, safety constraints" .
+
+isaqb:TesterRole a isaqb:StakeholderRole ;
+    rdfs:label "Quality Assurance / Tester" ;
+    rdfs:comment "Validates quality attributes via test scenarios; needs runtime and quality views" .
+
+isaqb:UserErrorProtection a isaqb:QualityAttribute ;
+    rdfs:label "User Error Protection" ;
+    isaqb:supportedBy isaqb:Learnability,
+        isaqb:Operability ;
+    rdfs:comment "Degree to which the system protects users against making errors" .
+
+isaqb:UserInterfaceAesthetics a isaqb:QualityAttribute ;
+    rdfs:label "User Interface Aesthetics" ;
+    rdfs:comment "Degree to which the UI is pleasing and satisfying" .
+
+isaqb:addresses a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "addresses" ;
+    rdfs:comment "This pattern or decision positively affects the quality attribute" ;
+    rdfs:domain isaqb:ArchitecturalPattern,
+        isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:addressesQuality a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "addresses quality" ;
+    rdfs:comment "Requirement addresses this quality attribute" ;
+    rdfs:domain prd:Requirement ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:consequences a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "consequences" ;
+    rdfs:comment "Positive and negative outcomes of the decision" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range xsd:string .
+
+isaqb:context a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "context" ;
+    rdfs:comment "Problem statement, constraints, assumptions, forces acting on the decision" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range xsd:string .
+
+isaqb:decisionStatus a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "decision status" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:DecisionStatus .
+
+isaqb:environment a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "environment" ;
+    rdfs:comment "System state when the stimulus occurs" ;
+    rdfs:domain isaqb:QualityScenario ;
+    rdfs:range xsd:string .
+
+isaqb:hasOption a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has option" ;
+    rdfs:comment "Architecture decision considered this option" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:DecisionOption .
+
+isaqb:likelihood a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "likelihood" ;
+    rdfs:comment "Probability of risk materializing (low, medium, high)" ;
+    rdfs:domain isaqb:Risk ;
+    rdfs:range xsd:string .
+
+isaqb:mitigation a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "mitigation" ;
+    rdfs:comment "Strategy to reduce or eliminate the risk" ;
+    rdfs:domain isaqb:Risk ;
+    rdfs:range xsd:string .
+
+isaqb:rationale a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "rationale" ;
+    rdfs:comment "Why the chosen option was selected" ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range xsd:string .
+
+isaqb:response a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "response" ;
+    rdfs:comment "Expected system behavior in response to the stimulus" ;
+    rdfs:domain isaqb:QualityScenario ;
+    rdfs:range xsd:string .
+
+isaqb:responseMeasure a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "response measure" ;
+    rdfs:comment "Quantifiable measure of acceptable response (e.g., '< 200ms', '99.9% uptime')" ;
+    rdfs:domain isaqb:QualityScenario ;
+    rdfs:range xsd:string .
+
+isaqb:severity a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "severity" ;
+    rdfs:domain isaqb:Risk ;
+    rdfs:range isaqb:RiskSeverity .
+
+isaqb:stimulus a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "stimulus" ;
+    rdfs:comment "Event or condition that triggers the scenario" ;
+    rdfs:domain isaqb:QualityScenario ;
+    rdfs:range xsd:string .
+
+isaqb:Accountability a isaqb:QualityAttribute ;
+    rdfs:label "Accountability" ;
+    isaqb:conflictsWith isaqb:TimeBehaviour ;
+    rdfs:comment "Actions of an entity can be traced uniquely to that entity" .
+
+isaqb:Capacity a isaqb:QualityAttribute ;
+    rdfs:label "Capacity" ;
+    isaqb:conflictsWith isaqb:Accountability,
+        isaqb:Confidentiality ;
+    rdfs:comment "Maximum limits of a product parameter (connections, transactions, storage)" .
+
+isaqb:DeveloperRole a isaqb:StakeholderRole ;
+    rdfs:label "Developer" ;
+    rdfs:comment "Implements the architecture; needs building block and runtime views" .
+
+isaqb:DevelopmentConcerns a isaqb:ConcernCategory ;
+    rdfs:label "Development" ;
+    rdfs:comment "Build management, code generation, configuration, testing, migration" .
+
+isaqb:EnterpriseArchitectRole a isaqb:StakeholderRole ;
+    rdfs:label "Enterprise Architect" ;
+    rdfs:comment "Ensures alignment with enterprise-wide architecture; needs context and deployment views" .
+
+isaqb:FunctionalCompleteness a isaqb:QualityAttribute ;
+    rdfs:label "Functional Completeness" ;
+    rdfs:comment "Degree to which the set of functions covers all specified tasks and objectives" .
+
+isaqb:HighCohesion a isaqb:DesignPrinciple ;
+    rdfs:label "High Cohesion" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Group strongly related functionality together within a building block" .
+
+isaqb:InteractionCapability a isaqb:QualityAttribute ;
+    rdfs:label "Interaction Capability" ;
+    isaqb:alias "Usability" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:hasSubAttribute isaqb:Accessibility,
+        isaqb:Learnability,
+        isaqb:Operability,
+        isaqb:UserErrorProtection,
+        isaqb:UserInterfaceAesthetics ;
+    isaqb:learningGoal "LG 02-03" ;
+    rdfs:comment "Degree to which a product or system can be used by specified users to achieve specified goals with effectiveness, efficiency, and satisfaction in a specified context of use. Replaces 'Usability' from ISO 25010:2011 (ISO/IEC 25010:2023)." .
+
+isaqb:OperationsConcerns a isaqb:ConcernCategory ;
+    rdfs:label "Operations" ;
+    rdfs:comment "Deployment, installation, monitoring" .
+
+isaqb:ResourceUtilization a isaqb:QualityAttribute ;
+    rdfs:label "Resource Utilization" ;
+    isaqb:conflictsWith isaqb:FaultTolerance,
+        isaqb:Recoverability ;
+    rdfs:comment "Amounts and types of resources used (CPU, memory, I/O)" .
+
+isaqb:RobustnessPrinciples a isaqb:PrincipleCategory ;
+    rdfs:label "Robustness Principles" ;
+    rdfs:comment "Principles ensuring the system handles unexpected inputs, failures, and edge cases gracefully without catastrophic degradation" .
+
+isaqb:refines a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "refines" ;
+    rdfs:comment "Quality scenario concretizes a quality attribute" ;
+    rdfs:domain isaqb:QualityScenario ;
+    rdfs:range isaqb:QualityAttribute .
+
+isaqb:ComplexityReductionPrinciples a isaqb:PrincipleCategory ;
+    rdfs:label "Complexity Reduction Principles" ;
+    rdfs:comment "Principles focused on minimizing accidental complexity by avoiding unnecessary features, premature optimization, and duplicated knowledge" .
+
+isaqb:ConceptualIntegrityPrinciples a isaqb:PrincipleCategory ;
+    rdfs:label "Conceptual Integrity Principles" ;
+    rdfs:comment "Principles ensuring uniformity and consistency across the entire system design, so the architecture appears as if conceived by a single mind. Central theme of Fred Brooks' 'The Mythical Man-Month'." .
+
+isaqb:FaultTolerance a isaqb:QualityAttribute ;
+    rdfs:label "Fault Tolerance" ;
+    isaqb:conflictsWith isaqb:Analysability,
+        isaqb:Modifiability ;
+    rdfs:comment "Degree to which a system operates as intended despite hardware or software faults" .
+
+isaqb:Interoperability a isaqb:QualityAttribute ;
+    rdfs:label "Interoperability" ;
+    isaqb:conflictsWith isaqb:Confidentiality,
+        isaqb:Security ;
+    rdfs:comment "Degree to which two or more systems can exchange and use information" .
+
+isaqb:Learnability a isaqb:QualityAttribute ;
+    rdfs:label "Learnability" ;
+    isaqb:conflictsWith isaqb:FunctionalCompleteness,
+        isaqb:Security ;
+    rdfs:comment "Degree to which the product enables users to learn to use it" .
+
+isaqb:Modularity a isaqb:QualityAttribute ;
+    rdfs:label "Modularity" ;
+    isaqb:conflictsWith isaqb:TimeBehaviour ;
+    isaqb:supportedBy isaqb:Modifiability,
+        isaqb:Reusability,
+        isaqb:Testability ;
+    rdfs:comment "Degree to which a system is composed of discrete, independently changeable components" .
+
+isaqb:NonRepudiation a isaqb:QualityAttribute ;
+    rdfs:label "Non-repudiation" ;
+    rdfs:comment "Actions or events can be proven to have taken place" .
+
+isaqb:R1 a isaqb:PatternRelevance ;
+    rdfs:label "R1 - Must Know" ;
+    rdfs:comment "Participants must be able to explain, apply, and analyze this concept" .
+
+isaqb:Recoverability a isaqb:QualityAttribute ;
+    rdfs:label "Recoverability" ;
+    isaqb:conflictsWith isaqb:TimeBehaviour ;
+    rdfs:comment "Degree to which a product can recover data and re-establish desired state after failure" .
+
+isaqb:SingleResponsibility a isaqb:DesignPrinciple ;
+    rdfs:label "Single Responsibility Principle" ;
+    isaqb:alias "SRP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "A class or module should have only one reason to change" .
+
+isaqb:UXConcerns a isaqb:ConcernCategory ;
+    rdfs:label "User Experience" ;
+    rdfs:comment "UI conventions, usability, i18n, validation, accessibility" .
+
+isaqb:Analysability a isaqb:QualityAttribute ;
+    rdfs:label "Analysability" ;
+    isaqb:conflictsWith isaqb:TimeBehaviour ;
+    isaqb:supportedBy isaqb:Testability ;
+    rdfs:comment "Degree of effectiveness with which impact of a change can be assessed" .
+
+isaqb:Confidentiality a isaqb:QualityAttribute ;
+    rdfs:label "Confidentiality" ;
+    rdfs:comment "Data is accessible only to those authorized" .
+
+isaqb:DependencyInversion a isaqb:DesignPrinciple ;
+    rdfs:label "Dependency Inversion Principle" ;
+    isaqb:alias "DIP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "High-level modules should not depend on low-level modules; both depend on abstractions" .
+
+isaqb:InformationHiding a isaqb:DesignPrinciple ;
+    rdfs:label "Information Hiding" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Keep design decisions hidden that are likely to change (Parnas)" .
+
+isaqb:Maintainability a isaqb:QualityAttribute ;
+    rdfs:label "Maintainability" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
+    isaqb:hasSubAttribute isaqb:Analysability,
+        isaqb:Modifiability,
+        isaqb:Modularity,
+        isaqb:Reusability,
+        isaqb:Testability ;
+    isaqb:learningGoal "LG 02-03" ;
+    isaqb:supportedBy isaqb:Flexibility,
+        isaqb:Reliability ;
+    rdfs:comment "Degree of effectiveness and efficiency with which a product or system can be modified by the intended maintainers. Modifications include corrections, improvements, or adaptation to changes in environment and requirements (ISO/IEC 25010:2023)." .
+
+isaqb:OpenClosedPrinciple a isaqb:DesignPrinciple ;
+    rdfs:label "Open/Closed Principle" ;
+    isaqb:alias "OCP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Open for extension, closed for modification" .
+
+isaqb:Operability a isaqb:QualityAttribute ;
+    rdfs:label "Operability" ;
+    isaqb:conflictsWith isaqb:Security ;
+    rdfs:comment "Degree to which the product is easy to operate and control" .
+
+isaqb:Reliability a isaqb:QualityAttribute ;
+    rdfs:label "Reliability" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
+    isaqb:hasSubAttribute isaqb:Availability,
+        isaqb:FaultTolerance,
+        isaqb:Maturity,
+        isaqb:Recoverability ;
+    isaqb:learningGoal "LG 02-03" ;
+    isaqb:supportedBy isaqb:InteractionCapability ;
+    rdfs:comment "Degree to which a system, product or component performs specified functions under specified conditions for a specified period of time (ISO/IEC 25010:2023)." .
+
+isaqb:Reusability a isaqb:QualityAttribute ;
+    rdfs:label "Reusability" ;
+    isaqb:supportedBy isaqb:Modifiability ;
+    rdfs:comment "Degree to which an asset can be used in more than one system" .
+
+isaqb:Security a isaqb:QualityAttribute ;
+    rdfs:label "Security" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:conflictsWith isaqb:Flexibility,
+        isaqb:InteractionCapability,
+        isaqb:PerformanceEfficiency ;
+    isaqb:hasSubAttribute isaqb:Accountability,
+        isaqb:Authenticity,
+        isaqb:Confidentiality,
+        isaqb:Integrity,
+        isaqb:NonRepudiation ;
+    isaqb:learningGoal "LG 02-03" ;
+    rdfs:comment "Degree to which a product or system protects information and data so that persons or other products or systems have the degree of data access appropriate to their types and levels of authorization (ISO/IEC 25010:2023)." .
+
+isaqb:Flexibility a isaqb:QualityAttribute ;
+    rdfs:label "Flexibility" ;
+    isaqb:alias "Portability" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:hasSubAttribute isaqb:Adaptability,
+        isaqb:Installability,
+        isaqb:Replaceability ;
+    isaqb:learningGoal "LG 02-03" ;
+    rdfs:comment "Degree to which a product can be transferred from one hardware, software or other operational or usage environment to another, or adapted for different or evolving requirements. Replaces 'Portability' from ISO 25010:2011 (ISO/IEC 25010:2023)." .
+
+isaqb:LooseCoupling a isaqb:DesignPrinciple ;
+    rdfs:label "Loose Coupling" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04, LG 03-06" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Minimize dependencies between building blocks" .
+
+isaqb:TimeBehaviour a isaqb:QualityAttribute ;
+    rdfs:label "Time Behaviour" ;
+    isaqb:conflictsWith isaqb:Confidentiality,
+        isaqb:FaultTolerance,
+        isaqb:NonRepudiation,
+        isaqb:Testability ;
+    rdfs:comment "Response time, processing time, throughput rates" .
+
+isaqb:UnderTheHoodConcerns a isaqb:ConcernCategory ;
+    rdfs:label "Under the Hood" ;
+    rdfs:comment "Persistence, distribution, transactions, caching, threading, error handling" .
+
+isaqb:ProductQuality a isaqb:QualityCategory ;
+    rdfs:label "Product Quality" ;
+    rdfs:comment "ISO/IEC 25010:2023 product quality model — 8 characteristics" .
+
+isaqb:R3 a isaqb:PatternRelevance ;
+    rdfs:label "R3 - May Know" ;
+    rdfs:comment "Participants may be aware of this concept" .
+
+isaqb:Testability a isaqb:QualityAttribute ;
+    rdfs:label "Testability" ;
+    isaqb:conflictsWith isaqb:PerformanceEfficiency ;
+    isaqb:supportedBy isaqb:Reliability ;
+    rdfs:comment "Degree of effectiveness with which test criteria can be established and tests performed" .
+
+isaqb:Modifiability a isaqb:QualityAttribute ;
+    rdfs:label "Modifiability" ;
+    isaqb:conflictsWith isaqb:PerformanceEfficiency,
+        isaqb:Reliability ;
+    rdfs:comment "Degree to which a product can be effectively modified without introducing defects" .
+
+isaqb:SeparationOfConcerns a isaqb:DesignPrinciple ;
+    rdfs:label "Separation of Concerns" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Each module addresses a single, distinct concern" .
+
+isaqb:ModularizationPrinciples a isaqb:PrincipleCategory ;
+    rdfs:label "Modularization Principles" ;
+    rdfs:comment "Principles concerned with decomposing systems into cohesive, loosely coupled modules with well-defined interfaces and responsibilities. Includes SOLID principles and Robert C. Martin's packaging principles." .
+
+isaqb:PerformanceEfficiency a isaqb:QualityAttribute ;
+    rdfs:label "Performance Efficiency" ;
+    isaqb:category isaqb:ProductQuality ;
+    isaqb:conflictsWith isaqb:Flexibility,
+        isaqb:Maintainability,
+        isaqb:Reliability,
+        isaqb:Security ;
+    isaqb:hasSubAttribute isaqb:Capacity,
+        isaqb:ResourceUtilization,
+        isaqb:TimeBehaviour ;
+    isaqb:learningGoal "LG 02-03" ;
+    rdfs:comment "Degree of performance relative to the amount of resources used under stated conditions (ISO/IEC 25010:2023)." .
+
+isaqb:Arc42_08 a isaqb:Arc42Section ;
+    rdfs:label "8. Crosscutting Concepts" ;
+    isaqb:sectionNumber 8 ;
+    rdfs:comment "Recurring patterns, rules, and solution approaches across building blocks" .
+
+isaqb:Foundation a isaqb:CurriculumLevel ;
+    rdfs:label "Foundation Level (CPSA-FL)" .
+

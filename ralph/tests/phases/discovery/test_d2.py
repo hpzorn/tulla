@@ -98,6 +98,64 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert "d1-inventory.md" in prompt
 
+    def test_upstream_facts_included_when_present(
+        self, phase: D2Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts from config are grouped and rendered in the prompt."""
+        sample_triples = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "[]",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-ecosystem_context",
+                "object": "Core MCP platform",
+            },
+        ]
+        ctx_with_facts = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"upstream_facts": sample_triples},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d2"),
+        )
+        prompt = phase.build_prompt(ctx_with_facts)
+        assert "## Upstream Facts" in prompt
+        assert "key_capabilities" in prompt
+        assert "ecosystem_context" in prompt
+
+    def test_upstream_facts_omitted_when_empty(
+        self, phase: D2Phase, ctx: PhaseContext
+    ) -> None:
+        """No upstream facts section when config has no upstream_facts."""
+        prompt = phase.build_prompt(ctx)
+        assert "## Upstream Facts" not in prompt
+
+    def test_upstream_facts_before_goal(
+        self, phase: D2Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts section appears before ## Goal."""
+        sample_triples = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "[]",
+            },
+        ]
+        ctx_with_facts = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"upstream_facts": sample_triples},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d2"),
+        )
+        prompt = phase.build_prompt(ctx_with_facts)
+        facts_pos = prompt.index("## Upstream Facts")
+        goal_pos = prompt.index("## Goal")
+        assert facts_pos < goal_pos
+
 
 # ===================================================================
 # get_tools includes WebSearch
@@ -162,9 +220,14 @@ class TestParseOutputSuccess:
         result = phase.parse_output(ctx, raw="raw")
 
         assert result.personas_file == personas_file
-        assert result.persona_count == 3
+        import json
+        personas = json.loads(result.personas)
+        assert len(personas) == 3
+        assert result.primary_persona_jtbd == (
+            "When I am building features, I want to track impact, so I can prioritise."
+        )
 
-    def test_zero_personas_when_table_empty(
+    def test_empty_personas_when_table_empty(
         self, phase: D2Phase, ctx: PhaseContext
     ) -> None:
         minimal = (
@@ -177,7 +240,8 @@ class TestParseOutputSuccess:
         personas_file.write_text(minimal, encoding="utf-8")
 
         result = phase.parse_output(ctx, raw="raw")
-        assert result.persona_count == 0
+        import json
+        assert json.loads(result.personas) == []
 
 
 # ===================================================================
@@ -210,6 +274,7 @@ class TestExecuteWithMock:
         assert result.status is PhaseStatus.SUCCESS
         assert result.data is not None
         assert result.data.personas_file == ctx.work_dir / "d2-personas.md"
-        assert result.data.persona_count == 3
+        import json
+        assert len(json.loads(result.data.personas)) == 3
         assert result.error is None
         assert result.duration_s > 0

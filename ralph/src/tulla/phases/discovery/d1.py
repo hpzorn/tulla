@@ -6,10 +6,15 @@ MCP servers, related ideas, and prior work relevant to a given idea.
 
 from __future__ import annotations
 
-import re
+import json
 from datetime import date
 from typing import Any
 
+from tulla.core.markdown_extract import (
+    extract_section,
+    extract_table_rows,
+    trim_text,
+)
 from tulla.core.phase import ParseError, Phase, PhaseContext
 
 from .models import D1Output
@@ -103,7 +108,8 @@ class D1Phase(Phase[D1Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D1Output:
         """Parse D1 output by reading ``d1-inventory.md`` from *work_dir*.
 
-        Extracts tool and MCP server counts from the markdown tables.
+        Extracts semantic fields: key_capabilities, ecosystem_context,
+        and reuse_opportunities from the markdown sections.
         Raises :class:`ParseError` if the inventory file is missing.
         """
         inventory_file = ctx.work_dir / "d1-inventory.md"
@@ -117,20 +123,29 @@ class D1Phase(Phase[D1Output]):
 
         content = inventory_file.read_text(encoding="utf-8")
 
-        # Count tools/components from "Existing Systems & Tools" table rows.
-        # Each table data row matches: | text | text | text |
-        tools_section = _extract_section(content, "Existing Systems & Tools")
-        tools_found = _count_table_rows(tools_section)
-
-        # Count MCP servers mentioned anywhere in the document.
-        mcp_servers_found = len(
-            set(re.findall(r"mcp__([a-zA-Z0-9_-]+)__", content))
+        # Extract semantic fields
+        tools_section = extract_section(content, "Existing Systems & Tools")
+        table_rows = extract_table_rows(tools_section)
+        key_capabilities = json.dumps(
+            [
+                {
+                    k.lower().replace(" ", "_"): v
+                    for k, v in row.items()
+                }
+                for row in table_rows
+            ],
         )
+        ecosystem_text = extract_section(content, "Ecosystem Context")
+        ecosystem_context = trim_text(ecosystem_text) if ecosystem_text else ""
+
+        prior_work_text = extract_section(content, "Prior Work")
+        reuse_opportunities = trim_text(prior_work_text) if prior_work_text else ""
 
         return D1Output(
             inventory_file=inventory_file,
-            tools_found=tools_found,
-            mcp_servers_found=mcp_servers_found,
+            key_capabilities=key_capabilities,
+            ecosystem_context=ecosystem_context,
+            reuse_opportunities=reuse_opportunities,
         )
 
     def get_timeout_seconds(self) -> float:
@@ -138,30 +153,3 @@ class D1Phase(Phase[D1Output]):
         return self.timeout_s
 
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-
-
-def _extract_section(content: str, heading: str) -> str:
-    """Extract content under a markdown ``## heading`` until the next heading."""
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
-
-
-def _count_table_rows(section: str) -> int:
-    """Count markdown table data rows (excludes header and separator rows)."""
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        # Skip header separator rows like |---|---|---|
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        # Count lines that look like table rows: | content | ... |
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    # Subtract 1 for the header row if we counted any rows
-    return max(0, rows - 1) if rows > 0 else 0

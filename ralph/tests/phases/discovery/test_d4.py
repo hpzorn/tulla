@@ -138,6 +138,82 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert "iSAQB Architecture Schema" not in prompt
 
+    def test_upstream_facts_included_when_present(
+        self, phase: D4Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts from D1, D2, and D3 are grouped and rendered in the prompt."""
+        sample_triples = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "[]",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-ecosystem_context",
+                "object": "Core MCP platform",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d2",
+                "predicate": "http://impl-ralph.io/phase#preserves-primary_persona_jtbd",
+                "object": "When I build, I want speed",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d3",
+                "predicate": "http://impl-ralph.io/phase#preserves-verdict",
+                "object": "P1-High | Strong ROI | High confidence",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d3",
+                "predicate": "http://impl-ralph.io/phase#preserves-quadrant",
+                "object": "Major Project",
+            },
+        ]
+        ctx_with_facts = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"upstream_facts": sample_triples},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d4"),
+        )
+        prompt = phase.build_prompt(ctx_with_facts)
+        assert "## Upstream Facts" in prompt
+        assert "key_capabilities" in prompt
+        assert "ecosystem_context" in prompt
+        assert "primary_persona_jtbd" in prompt
+        assert "verdict" in prompt
+        assert "quadrant" in prompt
+
+    def test_upstream_facts_omitted_when_empty(
+        self, phase: D4Phase, ctx: PhaseContext
+    ) -> None:
+        """No upstream facts section when config has no upstream_facts."""
+        prompt = phase.build_prompt(ctx)
+        assert "## Upstream Facts" not in prompt
+
+    def test_upstream_facts_before_goal(
+        self, phase: D4Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts section appears before ## Goal."""
+        sample_triples = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "[]",
+            },
+        ]
+        ctx_with_facts = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"upstream_facts": sample_triples},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d4"),
+        )
+        prompt = phase.build_prompt(ctx_with_facts)
+        facts_pos = prompt.index("## Upstream Facts")
+        goal_pos = prompt.index("## Goal")
+        assert facts_pos < goal_pos
+
 
 # ===================================================================
 # get_tools includes ontology-server
@@ -203,24 +279,24 @@ class TestParseOutputSuccess:
         result = phase.parse_output(ctx, raw="raw")
 
         assert result.gap_analysis_file == gap_file
-        assert result.gaps_found == 5
-        assert result.p0_gaps == 2
+        assert "No API endpoint" in result.root_blocker
+        assert result.blockers != ""
 
-    def test_zero_gaps_when_table_empty(
+    def test_empty_fields_when_sections_missing(
         self, phase: D4Phase, ctx: PhaseContext
     ) -> None:
         minimal = (
             "# D4: Gap Analysis\n"
             "## Priority Matrix\n"
             "No gaps found.\n"
-            "## Blockers\n"
         )
         gap_file = ctx.work_dir / "d4-gap-analysis.md"
         gap_file.write_text(minimal, encoding="utf-8")
 
         result = phase.parse_output(ctx, raw="raw")
-        assert result.gaps_found == 0
-        assert result.p0_gaps == 0
+        assert result.root_blocker == ""
+        assert result.blockers == ""
+        assert result.recommended_next_steps == ""
 
 
 # ===================================================================
@@ -253,7 +329,7 @@ class TestExecuteWithMock:
         assert result.status is PhaseStatus.SUCCESS
         assert result.data is not None
         assert result.data.gap_analysis_file == ctx.work_dir / "d4-gap-analysis.md"
-        assert result.data.gaps_found == 5
-        assert result.data.p0_gaps == 2
+        assert "No API endpoint" in result.data.root_blocker
+        assert result.data.blockers != ""
         assert result.error is None
         assert result.duration_s > 0

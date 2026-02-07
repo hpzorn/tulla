@@ -38,6 +38,7 @@ class ClaudeCLIAdapter(ClaudePort):
         start = time.monotonic()
 
         timeout = request.timeout_seconds if request.timeout_seconds > 0 else None
+        cwd = str(request.cwd) if request.cwd is not None else None
 
         try:
             proc = subprocess.run(
@@ -45,6 +46,7 @@ class ClaudeCLIAdapter(ClaudePort):
                 capture_output=True,
                 text=True,
                 timeout=timeout,
+                cwd=cwd,
             )
         except subprocess.TimeoutExpired:
             elapsed = time.monotonic() - start
@@ -70,6 +72,7 @@ class ClaudeCLIAdapter(ClaudePort):
                 "duration_s": round(elapsed, 2),
                 "stdout_length": len(proc.stdout),
                 "stderr_length": len(proc.stderr),
+                "cwd": cwd,
             },
         )
         if proc.stdout:

@@ -11,6 +11,7 @@ import re
 from datetime import date
 from typing import Any
 
+from tulla.core.markdown_extract import extract_bullet_items, extract_section
 from tulla.core.phase import ParseError, Phase, PhaseContext
 from tulla.core.phase_facts import group_upstream_facts
 
@@ -144,7 +145,7 @@ class D3Phase(Phase[D3Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D3Output:
         """Parse D3 output by reading ``d3-value-mapping.md`` from *work_dir*.
 
-        Extracts total value score and quadrant from the markdown content.
+        Extracts semantic fields: quadrant, strategic_constraints, and verdict.
         Raises :class:`ParseError` if the value mapping file is missing.
         """
         value_mapping_file = ctx.work_dir / "d3-value-mapping.md"
@@ -158,13 +159,23 @@ class D3Phase(Phase[D3Output]):
 
         content = value_mapping_file.read_text(encoding="utf-8")
 
-        total_value_score = _extract_total_value_score(content)
         quadrant = _extract_quadrant(content)
+
+        # Extract strategic constraints
+        strategic_section = extract_section(content, "Strategic Fit")
+        constraints = (
+            extract_bullet_items(strategic_section) if strategic_section else []
+        )
+        strategic_constraints = json.dumps(constraints)
+
+        # Extract verdict: combine priority + ROI + confidence from Value Summary
+        verdict = _extract_verdict(content)
 
         return D3Output(
             value_mapping_file=value_mapping_file,
-            total_value_score=total_value_score,
             quadrant=quadrant,
+            strategic_constraints=strategic_constraints,
+            verdict=verdict,
         )
 
     def get_timeout_seconds(self) -> float:
@@ -177,12 +188,6 @@ class D3Phase(Phase[D3Output]):
 # ------------------------------------------------------------------
 
 
-def _extract_total_value_score(content: str) -> int:
-    """Extract the total value score (X/60) from the markdown content."""
-    match = re.search(r"\*\*Total value score\*\*:\s*(\d+)/60", content)
-    return int(match.group(1)) if match else 0
-
-
 def _extract_quadrant(content: str) -> str:
     """Extract the effort-impact quadrant from the markdown content."""
     match = re.search(
@@ -192,3 +197,34 @@ def _extract_quadrant(content: str) -> str:
     if match:
         return match.group(1).strip()
     return "Unknown"
+
+
+def _extract_verdict(content: str) -> str:
+    """Extract a compact strategic verdict from the Value Summary section.
+
+    Combines **Priority recommendation**, **ROI verdict**, and **Confidence**
+    into a single statement like ``P1-High | Strong ROI | High confidence``.
+    """
+    priority = ""
+    roi = ""
+    confidence = ""
+
+    m = re.search(r"\*\*Priority recommendation\*\*:\s*(.+)", content)
+    if m:
+        priority = m.group(1).strip()
+    m = re.search(r"\*\*ROI verdict\*\*:\s*(.+)", content)
+    if m:
+        roi = m.group(1).strip()
+    m = re.search(r"\*\*Confidence\*\*:\s*(.+)", content)
+    if m:
+        confidence = m.group(1).strip()
+
+    parts = []
+    if priority:
+        parts.append(priority)
+    if roi:
+        parts.append(f"{roi} ROI")
+    if confidence:
+        parts.append(f"{confidence} confidence")
+
+    return " | ".join(parts)

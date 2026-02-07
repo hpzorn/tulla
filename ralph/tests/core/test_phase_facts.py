@@ -5,7 +5,7 @@ Uses _MockOntologyPort for persist() tests and direct function calls for
 group_upstream_facts / _try_coerce.
 
 # @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort ABC to test persistence without a live ontology server
-# @principle:InformationHiding -- _MockOntologyPort hides ontology-server internals (SPARQL, HTTP, graph DB) behind the OntologyPort interface so tests never observe implementation details
+# @pattern:LayeredArchitecture -- Tests mirror the production layers: mock adapter → PhaseFactPersister → pure functions, each test class targets exactly one layer
 """
 
 from __future__ import annotations
@@ -201,7 +201,7 @@ class TestPersistResult:
 # ===================================================================
 # PhaseFactPersister — None-value intent fields skipped (req-73-1-1)
 # ===================================================================
-# @principle:LooseCoupling -- Persist tests couple only to PhaseFactPersister + OntologyPort; swapping _MockOntologyPort for a real adapter requires zero test changes
+# @pattern:MVC -- Test models (_TwoIntentModel etc.) act as M, PhaseFactPersister acts as C, and _MockOntologyPort captures V-layer triple output for assertion
 
 
 class TestPersistSkipsNoneIntentFields:
@@ -756,31 +756,31 @@ class TestGroupUpstreamFacts:
         raw_facts = [
             {
                 "subject": f"{PHASE_NS}42-d1",
-                "predicate": f"{PHASE_NS}preserves-tools_found",
-                "object": "5",
+                "predicate": f"{PHASE_NS}preserves-key_capabilities",
+                "object": '[{"name": "tool1"}]',
             },
             {
                 "subject": f"{PHASE_NS}42-d1",
-                "predicate": f"{PHASE_NS}preserves-mcp_servers_found",
-                "object": "3",
+                "predicate": f"{PHASE_NS}preserves-ecosystem_context",
+                "object": "fits into MCP ecosystem",
             },
             {
                 "subject": f"{PHASE_NS}42-d2",
-                "predicate": f"{PHASE_NS}preserves-persona_count",
-                "object": "3",
+                "predicate": f"{PHASE_NS}preserves-primary_persona_jtbd",
+                "object": "When I build, I want automation, so I can ship faster",
             },
         ]
 
         result = group_upstream_facts(raw_facts)
 
         assert result == {
-            "d1": {"tools_found": 5, "mcp_servers_found": 3},
-            "d2": {"persona_count": 3},
+            "d1": {"key_capabilities": [{"name": "tool1"}], "ecosystem_context": "fits into MCP ecosystem"},
+            "d2": {"primary_persona_jtbd": "When I build, I want automation, so I can ship faster"},
         }
         # Verify Python types
-        assert type(result["d1"]["tools_found"]) is int
-        assert type(result["d1"]["mcp_servers_found"]) is int
-        assert type(result["d2"]["persona_count"]) is int
+        assert type(result["d1"]["key_capabilities"]) is list
+        assert type(result["d1"]["ecosystem_context"]) is str
+        assert type(result["d2"]["primary_persona_jtbd"]) is str
 
     def test_empty_input_returns_empty_dict(self) -> None:
         """Empty fact list yields empty dict."""
@@ -791,8 +791,8 @@ class TestGroupUpstreamFacts:
         raw_facts = [
             {
                 "subject": f"{PHASE_NS}42-d1",
-                "predicate": f"{PHASE_NS}preserves-tools_found",
-                "object": "5",
+                "predicate": f"{PHASE_NS}preserves-key_capabilities",
+                "object": "[]",
             },
             {
                 "subject": f"{PHASE_NS}42-d1",
@@ -818,22 +818,22 @@ class TestGroupUpstreamFacts:
 
         result = group_upstream_facts(raw_facts)
 
-        assert result == {"d1": {"tools_found": 5}}
+        assert result == {"d1": {"key_capabilities": []}}
 
     def test_float_coercion(self) -> None:
         """Float string values are coerced to Python float."""
         raw_facts = [
             {
                 "subject": f"{PHASE_NS}10-d3",
-                "predicate": f"{PHASE_NS}preserves-total_value_score",
+                "predicate": f"{PHASE_NS}preserves-score",
                 "object": "7.5",
             },
         ]
 
         result = group_upstream_facts(raw_facts)
 
-        assert result == {"d3": {"total_value_score": 7.5}}
-        assert type(result["d3"]["total_value_score"]) is float
+        assert result == {"d3": {"score": 7.5}}
+        assert type(result["d3"]["score"]) is float
 
     def test_bool_coercion(self) -> None:
         """Boolean string values ('true'/'false') are coerced to Python bool."""
@@ -906,25 +906,29 @@ class TestGroupUpstreamFacts:
         assert result["d3"]["z"] == 3
 
     def test_realistic_d1_through_d4_field_map(self) -> None:
-        """Verify the field map: D1(tools_found, mcp_servers_found), D2(persona_count),
-        D3(total_value_score, quadrant), D4(gaps_found, p0_gaps)."""
+        """Verify the field map: D1(key_capabilities, ecosystem_context, reuse_opportunities),
+        D2(personas, non_negotiable_needs, primary_persona_jtbd),
+        D3(quadrant, strategic_constraints, verdict),
+        D4(blockers, root_blocker, recommended_next_steps)."""
         raw_facts = [
-            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-tools_found", "object": "12"},
-            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-mcp_servers_found", "object": "4"},
-            {"subject": f"{PHASE_NS}73-d2", "predicate": f"{PHASE_NS}preserves-persona_count", "object": "3"},
-            {"subject": f"{PHASE_NS}73-d3", "predicate": f"{PHASE_NS}preserves-total_value_score", "object": "8.5"},
+            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-key_capabilities", "object": "[]"},
+            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-ecosystem_context", "object": "core platform"},
+            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-reuse_opportunities", "object": "existing MCP tools"},
+            {"subject": f"{PHASE_NS}73-d2", "predicate": f"{PHASE_NS}preserves-personas", "object": "[]"},
+            {"subject": f"{PHASE_NS}73-d2", "predicate": f"{PHASE_NS}preserves-primary_persona_jtbd", "object": "When I build, I want speed"},
             {"subject": f"{PHASE_NS}73-d3", "predicate": f"{PHASE_NS}preserves-quadrant", "object": "top-right"},
-            {"subject": f"{PHASE_NS}73-d4", "predicate": f"{PHASE_NS}preserves-gaps_found", "object": "6"},
-            {"subject": f"{PHASE_NS}73-d4", "predicate": f"{PHASE_NS}preserves-p0_gaps", "object": "2"},
+            {"subject": f"{PHASE_NS}73-d3", "predicate": f"{PHASE_NS}preserves-verdict", "object": "P1-High | Strong ROI | High confidence"},
+            {"subject": f"{PHASE_NS}73-d4", "predicate": f"{PHASE_NS}preserves-blockers", "object": "No API endpoint"},
+            {"subject": f"{PHASE_NS}73-d4", "predicate": f"{PHASE_NS}preserves-root_blocker", "object": "No API endpoint: blocks core functionality"},
         ]
 
         result = group_upstream_facts(raw_facts)
 
         assert result == {
-            "d1": {"tools_found": 12, "mcp_servers_found": 4},
-            "d2": {"persona_count": 3},
-            "d3": {"total_value_score": 8.5, "quadrant": "top-right"},
-            "d4": {"gaps_found": 6, "p0_gaps": 2},
+            "d1": {"key_capabilities": [], "ecosystem_context": "core platform", "reuse_opportunities": "existing MCP tools"},
+            "d2": {"personas": [], "primary_persona_jtbd": "When I build, I want speed"},
+            "d3": {"quadrant": "top-right", "verdict": "P1-High | Strong ROI | High confidence"},
+            "d4": {"blockers": "No API endpoint", "root_blocker": "No API endpoint: blocks core functionality"},
         }
 
 

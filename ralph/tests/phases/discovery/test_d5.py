@@ -67,6 +67,7 @@ SAMPLE_RESEARCH_BRIEF = """\
 ## Discovery Summary
 
 ### What We Learned
+- **What**: Automated data pipeline tool with CLI interface and REST API endpoint
 - **Users**: Data-Driven Developer needing automation
 - **Value**: High strategic alignment (45/60)
 - **Gaps**: Missing API endpoint, auth layer
@@ -80,6 +81,11 @@ From D3 value mapping: 45/60 - P1-High
 1. **RQ**: How should the API authenticate?
    **Business rationale**: Security is a blocker
    **Success criteria**: Auth pattern selected
+
+## Mandatory Features
+- CLI interface for pipeline management
+- REST API endpoint for automation
+- OAuth2 authentication layer
 
 ## Constraints for Research
 - **User constraints**: Must be simple CLI-first
@@ -135,6 +141,49 @@ implement
 """
 
 
+# ---------------------------------------------------------------------------
+# Sample D1-D4 upstream triples for upstream-facts tests
+# ---------------------------------------------------------------------------
+
+SAMPLE_D1_D4_TRIPLES = [
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d1",
+        "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+        "object": "[]",
+    },
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d1",
+        "predicate": "http://impl-ralph.io/phase#preserves-ecosystem_context",
+        "object": "Core MCP platform",
+    },
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d2",
+        "predicate": "http://impl-ralph.io/phase#preserves-primary_persona_jtbd",
+        "object": "When I build, I want speed",
+    },
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d3",
+        "predicate": "http://impl-ralph.io/phase#preserves-verdict",
+        "object": "P1-High | Strong ROI | High confidence",
+    },
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d3",
+        "predicate": "http://impl-ralph.io/phase#preserves-quadrant",
+        "object": "Major Project",
+    },
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d4",
+        "predicate": "http://impl-ralph.io/phase#preserves-blockers",
+        "object": "No API endpoint blocks core functionality",
+    },
+    {
+        "subject": "http://impl-ralph.io/phase#idea-42-d4",
+        "predicate": "http://impl-ralph.io/phase#preserves-root_blocker",
+        "object": "No API endpoint: blocks core functionality",
+    },
+]
+
+
 # ===================================================================
 # build_prompt – upstream mode
 # ===================================================================
@@ -170,6 +219,19 @@ class TestBuildPromptUpstream:
         assert "d3-value-mapping.md" in prompt
         assert "d4-gap-analysis.md" in prompt
 
+    def test_northstar_template_includes_what(
+        self, phase: D5Phase, ctx_upstream: PhaseContext
+    ) -> None:
+        prompt = phase.build_prompt(ctx_upstream)
+        assert "**What**:" in prompt
+
+    def test_includes_mandatory_features_section(
+        self, phase: D5Phase, ctx_upstream: PhaseContext
+    ) -> None:
+        prompt = phase.build_prompt(ctx_upstream)
+        assert "## Mandatory Features" in prompt
+        assert "do NOT merge" in prompt or "do NOT summarise" in prompt
+
 
 # ===================================================================
 # build_prompt – downstream mode
@@ -190,6 +252,103 @@ class TestBuildPromptDownstream:
     ) -> None:
         prompt = phase.build_prompt(ctx_downstream)
         assert "DOWNSTREAM" in prompt
+
+
+# ===================================================================
+# build_prompt – upstream facts wiring (both modes)
+# ===================================================================
+
+
+class TestBuildPromptUpstreamFacts:
+    """D5Phase.build_prompt() upstream facts injection for both modes."""
+
+    def test_upstream_mode_includes_facts(
+        self, phase: D5Phase, tmp_path: Path
+    ) -> None:
+        """Upstream mode prompt contains grouped D1-D4 facts."""
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"mode": "upstream", "upstream_facts": SAMPLE_D1_D4_TRIPLES},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d5"),
+        )
+        prompt = phase.build_prompt(ctx)
+        assert "## Upstream Facts" in prompt
+        assert "key_capabilities" in prompt
+        assert "ecosystem_context" in prompt
+        assert "primary_persona_jtbd" in prompt
+        assert "verdict" in prompt
+        assert "quadrant" in prompt
+        assert "blockers" in prompt
+        assert "root_blocker" in prompt
+
+    def test_downstream_mode_includes_facts(
+        self, phase: D5Phase, tmp_path: Path
+    ) -> None:
+        """Downstream mode prompt contains grouped D1-D4 facts."""
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"mode": "downstream", "upstream_facts": SAMPLE_D1_D4_TRIPLES},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d5"),
+        )
+        prompt = phase.build_prompt(ctx)
+        assert "## Upstream Facts" in prompt
+        assert "key_capabilities" in prompt
+        assert "ecosystem_context" in prompt
+        assert "primary_persona_jtbd" in prompt
+        assert "verdict" in prompt
+        assert "quadrant" in prompt
+        assert "blockers" in prompt
+        assert "root_blocker" in prompt
+
+    def test_upstream_facts_before_goal_upstream_mode(
+        self, phase: D5Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts section appears before ## Goal in upstream mode."""
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"mode": "upstream", "upstream_facts": SAMPLE_D1_D4_TRIPLES},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d5"),
+        )
+        prompt = phase.build_prompt(ctx)
+        facts_pos = prompt.index("## Upstream Facts")
+        goal_pos = prompt.index("## Goal")
+        assert facts_pos < goal_pos
+
+    def test_upstream_facts_before_goal_downstream_mode(
+        self, phase: D5Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts section appears before ## Goal in downstream mode."""
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"mode": "downstream", "upstream_facts": SAMPLE_D1_D4_TRIPLES},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d5"),
+        )
+        prompt = phase.build_prompt(ctx)
+        facts_pos = prompt.index("## Upstream Facts")
+        goal_pos = prompt.index("## Goal")
+        assert facts_pos < goal_pos
+
+    def test_no_upstream_facts_when_empty(
+        self, phase: D5Phase, ctx_upstream: PhaseContext
+    ) -> None:
+        """No upstream facts section when config has no upstream_facts."""
+        prompt = phase.build_prompt(ctx_upstream)
+        assert "## Upstream Facts" not in prompt
+
+    def test_no_upstream_facts_downstream_when_empty(
+        self, phase: D5Phase, ctx_downstream: PhaseContext
+    ) -> None:
+        """No upstream facts section in downstream mode when config has no upstream_facts."""
+        prompt = phase.build_prompt(ctx_downstream)
+        assert "## Upstream Facts" not in prompt
 
 
 # ===================================================================
@@ -296,6 +455,32 @@ class TestParseOutputUpstream:
         assert result.output_file == brief_file
         assert result.mode == "upstream"
         assert result.recommendation == "research"
+
+    def test_northstar_includes_what_bullet(
+        self, phase: D5Phase, ctx_upstream: PhaseContext
+    ) -> None:
+        brief_file = ctx_upstream.work_dir / "d5-research-brief.md"
+        brief_file.write_text(SAMPLE_RESEARCH_BRIEF, encoding="utf-8")
+
+        result = phase.parse_output(ctx_upstream, raw="raw")
+
+        assert "**What**:" in result.northstar
+        assert "data pipeline" in result.northstar.lower()
+
+    def test_mandatory_features_from_dedicated_section(
+        self, phase: D5Phase, ctx_upstream: PhaseContext
+    ) -> None:
+        brief_file = ctx_upstream.work_dir / "d5-research-brief.md"
+        brief_file.write_text(SAMPLE_RESEARCH_BRIEF, encoding="utf-8")
+
+        result = phase.parse_output(ctx_upstream, raw="raw")
+
+        import json
+        features = json.loads(result.mandatory_features)
+        assert len(features) == 3
+        assert any("CLI" in f for f in features)
+        assert any("API" in f for f in features)
+        assert any("auth" in f.lower() or "OAuth" in f for f in features)
 
 
 # ===================================================================

@@ -218,8 +218,7 @@ class OntologyMCPAdapter(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        ont = ontology or self._PHASE_ONTOLOGY
-        return self._post(f"/ontologies/{ont}/triples", {
+        return self._post("/abox/triples", {
             "subject": subject,
             "predicate": predicate,
             "object": object,
@@ -232,8 +231,7 @@ class OntologyMCPAdapter(OntologyPort):
         *,
         ontology: str | None = None,
     ) -> int:
-        ont = ontology or self._PHASE_ONTOLOGY
-        resp = self._post(f"/ontologies/{ont}/triples/remove", {
+        resp = self._post("/abox/triples/remove", {
             "subject": subject,
         })
         return resp.get("removed", 0)
@@ -249,7 +247,7 @@ class OntologyMCPAdapter(OntologyPort):
         validate: bool = True,
     ) -> dict[str, Any]:
         qs = urlencode({"query": query})
-        url = f"{self._base_url}/sparql?{qs}"
+        url = f"{self._base_url}/kg/sparql?{qs}"
         req = Request(url, data=b"", headers=self._headers(), method="POST")
         return self._do(req)
 

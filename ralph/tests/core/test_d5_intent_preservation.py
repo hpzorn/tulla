@@ -314,11 +314,12 @@ class TestD5IntentPreservation:
         assert len(mode_triples) == 1
         assert mode_triples[0]["object"] == "downstream"
 
-    def test_d5output_intent_fields_are_exactly_mode_and_recommendation(
+    def test_d5output_intent_fields_are_exactly_expected(
         self,
     ) -> None:
-        """D5Output has exactly two IntentField annotations: mode and
-        recommendation.  output_file must NOT be an intent field."""
+        """D5Output has exactly 5 IntentField annotations: mode, recommendation,
+        northstar, mandatory_features, key_constraints.  output_file must NOT
+        be an intent field."""
         d5 = D5Output(
             output_file=Path("/tmp/test.md"),
             mode="upstream",
@@ -326,9 +327,11 @@ class TestD5IntentPreservation:
         )
         intent_fields = extract_intent_fields(d5)
 
-        assert set(intent_fields.keys()) == {"mode", "recommendation"}, (
-            f"Expected intent fields {{'mode', 'recommendation'}}, "
-            f"got {set(intent_fields.keys())}"
+        assert set(intent_fields.keys()) == {
+            "mode", "recommendation", "northstar",
+            "mandatory_features", "key_constraints",
+        }, (
+            f"Expected 5 intent fields, got {set(intent_fields.keys())}"
         )
         # output_file must NOT leak into intent fields
         assert "output_file" not in intent_fields

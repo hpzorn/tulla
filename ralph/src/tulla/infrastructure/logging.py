@@ -52,9 +52,16 @@ def configure_logging(
     root_logger.handlers.clear()
     root_logger.setLevel(logging.DEBUG)  # handlers filter individually
 
+    # Processors applied to stdlib LogRecords (non-structlog callers) so
+    # that ``extra={}`` dicts surface in the final output.
+    foreign_pre_chain: list[structlog.types.Processor] = [
+        structlog.stdlib.ExtraAdder(),
+    ]
+
     # -- Console handler (human-readable, stderr) ----------------------------
     console_formatter = structlog.stdlib.ProcessorFormatter(
         processor=structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty()),
+        foreign_pre_chain=foreign_pre_chain,
     )
     console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setLevel(console_level)
@@ -66,6 +73,7 @@ def configure_logging(
         work_dir.mkdir(parents=True, exist_ok=True)
         json_formatter = structlog.stdlib.ProcessorFormatter(
             processor=structlog.processors.JSONRenderer(),
+            foreign_pre_chain=foreign_pre_chain,
         )
         file_handler = logging.FileHandler(
             work_dir / log_filename,

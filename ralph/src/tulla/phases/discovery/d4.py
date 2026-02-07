@@ -8,10 +8,13 @@ optionally incorporates iSAQB architecture schema context.
 from __future__ import annotations
 
 import json
-import re
 from datetime import date
 from typing import Any
 
+from tulla.core.markdown_extract import (
+    extract_section,
+    trim_text,
+)
 from tulla.core.phase import ParseError, Phase, PhaseContext
 from tulla.core.phase_facts import group_upstream_facts
 
@@ -161,8 +164,9 @@ class D4Phase(Phase[D4Output]):
     def parse_output(self, ctx: PhaseContext, raw: Any) -> D4Output:
         """Parse D4 output by reading ``d4-gap-analysis.md`` from *work_dir*.
 
-        Extracts total gap count and P0 gap count from the Priority Matrix
-        table.  Raises :class:`ParseError` if the gap analysis file is missing.
+        Extracts semantic fields: blockers, root_blocker, and
+        recommended_next_steps.  Raises :class:`ParseError` if the gap
+        analysis file is missing.
         """
         gap_analysis_file = ctx.work_dir / "d4-gap-analysis.md"
 
@@ -175,17 +179,29 @@ class D4Phase(Phase[D4Output]):
 
         content = gap_analysis_file.read_text(encoding="utf-8")
 
-        # Count gaps from "Priority Matrix" table rows.
-        priority_section = _extract_section(content, "Priority Matrix")
-        gaps_found = _count_table_rows(priority_section)
+        # Extract blockers narrative
+        blockers_section = extract_section(content, "Blockers")
+        blockers = trim_text(blockers_section) if blockers_section else ""
 
-        # Count P0 gaps in the Priority Matrix.
-        p0_gaps = len(re.findall(r"\|\s*P0\s*\|", priority_section))
+        # Extract root blocker: first item from Blockers section
+        root_blocker = ""
+        if blockers_section:
+            from tulla.core.markdown_extract import extract_bullet_items
+            blocker_items = extract_bullet_items(blockers_section)
+            if blocker_items:
+                root_blocker = blocker_items[0]
+
+        # Extract recommended next steps
+        next_steps_section = extract_section(content, "Recommended Next Steps")
+        recommended_next_steps = (
+            trim_text(next_steps_section) if next_steps_section else ""
+        )
 
         return D4Output(
             gap_analysis_file=gap_analysis_file,
-            gaps_found=gaps_found,
-            p0_gaps=p0_gaps,
+            blockers=blockers,
+            root_blocker=root_blocker,
+            recommended_next_steps=recommended_next_steps,
         )
 
     def get_timeout_seconds(self) -> float:
@@ -193,30 +209,3 @@ class D4Phase(Phase[D4Output]):
         return self.timeout_s
 
 
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-
-
-def _extract_section(content: str, heading: str) -> str:
-    """Extract content under a markdown ``## heading`` until the next heading."""
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
-
-
-def _count_table_rows(section: str) -> int:
-    """Count markdown table data rows (excludes header and separator rows)."""
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        # Skip header separator rows like |---|---|---|
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        # Count lines that look like table rows: | content | ... |
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    # Subtract 1 for the header row if we counted any rows
-    return max(0, rows - 1) if rows > 0 else 0

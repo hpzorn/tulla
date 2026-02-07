@@ -157,10 +157,13 @@ class TestParseOutputSuccess:
         result = phase.parse_output(ctx, raw="raw")
 
         assert result.inventory_file == inventory_file
-        assert result.tools_found == 3
-        assert result.mcp_servers_found == 1  # ontology-server
+        import json
+        capabilities = json.loads(result.key_capabilities)
+        assert len(capabilities) == 3
+        assert result.ecosystem_context == "Fits into the Tulla pipeline."
+        assert result.reuse_opportunities == "Some prior work was done."
 
-    def test_zero_tools_when_table_empty(
+    def test_empty_capabilities_when_table_empty(
         self, phase: D1Phase, ctx: PhaseContext
     ) -> None:
         minimal = (
@@ -173,7 +176,8 @@ class TestParseOutputSuccess:
         inventory_file.write_text(minimal, encoding="utf-8")
 
         result = phase.parse_output(ctx, raw="raw")
-        assert result.tools_found == 0
+        import json
+        assert json.loads(result.key_capabilities) == []
 
 
 # ===================================================================
@@ -206,7 +210,8 @@ class TestExecuteWithMock:
         assert result.status is PhaseStatus.SUCCESS
         assert result.data is not None
         assert result.data.inventory_file == ctx.work_dir / "d1-inventory.md"
-        assert result.data.tools_found == 3
-        assert result.data.mcp_servers_found == 1  # ontology-server
+        import json
+        assert len(json.loads(result.data.key_capabilities)) == 3
+        assert result.data.ecosystem_context == "Fits into the Tulla pipeline."
         assert result.error is None
         assert result.duration_s > 0

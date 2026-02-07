@@ -132,6 +132,9 @@ class D5Phase(Phase[D5Output]):
             "## Discovery Summary\n"
             "\n"
             "### What We Learned\n"
+            "- **What**: [What the idea delivers — name every distinct capability, "
+            "mode, protocol, or workflow. Do NOT summarise; preserve the idea's own "
+            "language and structure.]\n"
             "- **Users**: [Primary persona and their core need]\n"
             "- **Value**: [Key value proposition]\n"
             "- **Gaps**: [Critical gaps identified]\n"
@@ -151,6 +154,18 @@ class D5Phase(Phase[D5Output]):
             "\n"
             "### Low Priority (Nice to know)\n"
             "3. **RQ**: [Question]\n"
+            "\n"
+            "## Mandatory Features\n"
+            "\n"
+            "List EVERY distinct feature, capability, mode, phase, or protocol "
+            "described in the idea.\n"
+            "Use the idea's own names and structure — do NOT merge, summarise, "
+            "or reword.\n"
+            "This list is the contract that planning must preserve.\n"
+            "\n"
+            "- [Feature/capability 1 — exactly as described in the idea]\n"
+            "- [Feature/capability 2]\n"
+            "- ...\n"
             "\n"
             "## Constraints for Research\n"
             "- **User constraints**: [From D2]\n"
@@ -284,7 +299,7 @@ class D5Phase(Phase[D5Output]):
             if not northstar_section:
                 northstar_section = extract_section(content, "Discovery Summary")
             features_section = extract_section(
-                content, "High Priority", level=3,
+                content, "Mandatory Features",
             )
             features = (
                 extract_bullet_items(features_section)

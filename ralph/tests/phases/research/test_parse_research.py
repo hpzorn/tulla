@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tulla.core.phase import PhaseContext
+from tulla.core.phase import EarlyTermination, PhaseContext
 from tulla.phases.research.r1 import R1Phase
 from tulla.phases.research.r2 import R2Phase
 from tulla.phases.research.r3 import R3Phase
@@ -80,6 +80,103 @@ class TestR1ParseOutput:
         result = R1Phase().parse_output(_ctx(tmp_path), "")
         assert result.questions_refined == 0
         assert json.loads(result.research_questions) == []
+
+
+# ---------------------------------------------------------------------------
+# R1 early termination (groundwork + derivative verdict)
+# ---------------------------------------------------------------------------
+
+
+R1_DERIVATIVE_MARKDOWN = """\
+# R1: Research Question Refinement
+**Idea**: 42
+**Date**: 2026-02-07
+**Mode**: Groundwork Research
+
+## Capability Decomposition
+
+| # | Capability | Description |
+|---|------------|-------------|
+| 1 | CLI wrapper | Thin shell around existing tool |
+| 2 | Config reader | Reads YAML config files |
+
+## Per-Capability Novelty Assessment
+
+| # | Capability | Novelty | Source / Evidence |
+|---|------------|---------|-------------------|
+| 1 | CLI wrapper | Derivative | Click, Typer |
+| 2 | Config reader | Commoditized | PyYAML |
+
+## Novelty Assessment
+
+**Verdict**: Derivative
+
+All capabilities are derivative or commoditized. No novel research needed.
+
+## Research Plan
+N/A — early termination recommended.
+"""
+
+
+class TestR1EarlyTermination:
+    def test_derivative_verdict_raises_early_termination(self, tmp_path: Path) -> None:
+        """Groundwork mode + Verdict: Derivative → EarlyTermination raised."""
+        (tmp_path / "r1-question-refinement.md").write_text(R1_DERIVATIVE_MARKDOWN)
+        ctx = _ctx(tmp_path)  # config={} → groundwork mode
+
+        with pytest.raises(EarlyTermination, match="derivative") as exc_info:
+            R1Phase().parse_output(ctx, "")
+
+        assert exc_info.value.r1_output is not None
+        assert exc_info.value.r1_output.questions_refined == 0
+
+    def test_derivative_verdict_writes_r6_synthesis(self, tmp_path: Path) -> None:
+        """Early termination writes r6-research-synthesis.md."""
+        (tmp_path / "r1-question-refinement.md").write_text(R1_DERIVATIVE_MARKDOWN)
+        ctx = _ctx(tmp_path)
+
+        with pytest.raises(EarlyTermination):
+            R1Phase().parse_output(ctx, "")
+
+        r6_file = tmp_path / "r6-research-synthesis.md"
+        assert r6_file.exists()
+        r6_content = r6_file.read_text()
+        assert "Early Termination" in r6_content
+        assert "Do not proceed to discovery" in r6_content
+        assert "Derivative" in r6_content or "derivative" in r6_content
+
+    def test_derivative_verdict_ignored_in_spike_mode(self, tmp_path: Path) -> None:
+        """Spike mode (planning_dir set) does NOT trigger early termination."""
+        import logging
+
+        (tmp_path / "r1-question-refinement.md").write_text(R1_DERIVATIVE_MARKDOWN)
+        ctx = PhaseContext(
+            idea_id="42",
+            work_dir=tmp_path,
+            config={"planning_dir": "/some/planning/dir"},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.parse"),
+        )
+
+        # Should NOT raise — returns R1Output normally
+        result = R1Phase().parse_output(ctx, "")
+        assert result.questions_refined == 0
+
+    def test_derivative_verdict_ignored_in_discovery_mode(self, tmp_path: Path) -> None:
+        """Discovery-fed mode (discovery_dir set) does NOT trigger early termination."""
+        import logging
+
+        (tmp_path / "r1-question-refinement.md").write_text(R1_DERIVATIVE_MARKDOWN)
+        ctx = PhaseContext(
+            idea_id="42",
+            work_dir=tmp_path,
+            config={"discovery_dir": "/some/discovery/dir"},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.parse"),
+        )
+
+        result = R1Phase().parse_output(ctx, "")
+        assert result.questions_refined == 0
 
 
 # ---------------------------------------------------------------------------

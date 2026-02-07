@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -266,6 +267,44 @@ class TestTimeoutHandling:
 # ===================================================================
 # Full run() integration (mocked subprocess)
 # ===================================================================
+
+
+class TestCwd:
+    """Tests for cwd passthrough to subprocess."""
+
+    @patch("tulla.adapters.claude_cli.subprocess.run")
+    def test_cwd_passed_to_subprocess(
+        self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["claude"],
+            returncode=0,
+            stdout="{}",
+            stderr="",
+        )
+        req = ClaudeRequest(prompt="test", cwd=Path("/tmp/work"))
+
+        adapter.run(req)
+
+        _, kwargs = mock_run.call_args
+        assert kwargs["cwd"] == "/tmp/work"
+
+    @patch("tulla.adapters.claude_cli.subprocess.run")
+    def test_cwd_none_by_default(
+        self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
+    ) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["claude"],
+            returncode=0,
+            stdout="{}",
+            stderr="",
+        )
+        req = ClaudeRequest(prompt="test")
+
+        adapter.run(req)
+
+        _, kwargs = mock_run.call_args
+        assert kwargs["cwd"] is None
 
 
 class TestRun:

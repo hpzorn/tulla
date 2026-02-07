@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -36,6 +37,7 @@ class ClaudeRequest:
     budget_usd: float = 0.0
     timeout_seconds: float = 0.0
     permission_mode: str = "bypassPermissions"
+    cwd: Path | None = None
 
 
 @dataclass

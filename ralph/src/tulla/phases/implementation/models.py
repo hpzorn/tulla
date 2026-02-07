@@ -4,10 +4,10 @@ Unlike the linear pipeline phases (Discovery, Planning, Research), the
 Implementation phase uses a Find-Implement-Commit-Verify-Status loop.
 These models represent the inputs and outputs of each loop step.
 
-# @pattern:Plugin -- IterationFactRecord is a self-describing plugin; adding IntentField annotations registers new facts without modifying PhaseFactPersister
-# @pattern:Blackboard -- IterationFactRecord fields form a shared fact blackboard persisted after Status; downstream phases read these slots via extract_intent_fields
+# @pattern:PipesAndFilters -- Find→Implement→Commit→Verify→Status steps form a typed pipeline; IterationFactRecord captures the pipeline's intent-carrying output after the final filter
+# @pattern:Plugin -- IterationFactRecord is a self-describing plugin; adding IntentField annotations registers new iteration facts without modifying PhaseFactPersister
 # @principle:SingleResponsibility -- Each step model (FindOutput, CommitOutput, etc.) owns exactly one step's schema; IterationFactRecord owns only the persisted fact subset
-# @principle:SeparationOfConcerns -- Step-level models carry operational fields (cost_usd, duration_s) while IterationFactRecord carries only intent-preserving decision fields
+# @principle:DependencyInversion -- IterationFactRecord depends on the abstract IntentField marker, not on concrete PhaseFactPersister; persistence discovers fields at runtime via extract_intent_fields
 # @principle:OpenClosedPrinciple -- New iteration facts extend IterationFactRecord via IntentField annotation; extract_intent_fields discovers them without core code changes
 """
 

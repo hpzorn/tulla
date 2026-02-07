@@ -27,7 +27,7 @@ class R2Phase(Phase[R2Output]):
     """
 
     phase_id: str = "r2"
-    timeout_s: float = 1200.0  # 20 minutes
+    timeout_s: float = 2700.0  # 45 minutes
 
     # ------------------------------------------------------------------
     # Template hooks

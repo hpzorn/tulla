@@ -126,6 +126,70 @@ class TestBuildPrompt:
         assert "d1-inventory.md" in prompt
         assert "d2-personas.md" in prompt
 
+    def test_upstream_facts_included_when_present(
+        self, phase: D3Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts from D1 and D2 are grouped and rendered in the prompt."""
+        sample_triples = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "[]",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-ecosystem_context",
+                "object": "Core MCP platform",
+            },
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d2",
+                "predicate": "http://impl-ralph.io/phase#preserves-primary_persona_jtbd",
+                "object": "When I build, I want speed",
+            },
+        ]
+        ctx_with_facts = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"upstream_facts": sample_triples},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d3"),
+        )
+        prompt = phase.build_prompt(ctx_with_facts)
+        assert "## Upstream Facts" in prompt
+        assert "key_capabilities" in prompt
+        assert "ecosystem_context" in prompt
+        assert "primary_persona_jtbd" in prompt
+
+    def test_upstream_facts_omitted_when_empty(
+        self, phase: D3Phase, ctx: PhaseContext
+    ) -> None:
+        """No upstream facts section when config has no upstream_facts."""
+        prompt = phase.build_prompt(ctx)
+        assert "## Upstream Facts" not in prompt
+
+    def test_upstream_facts_before_goal(
+        self, phase: D3Phase, tmp_path: Path
+    ) -> None:
+        """Upstream facts section appears before ## Goal."""
+        sample_triples = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "[]",
+            },
+        ]
+        ctx_with_facts = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"upstream_facts": sample_triples},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.d3"),
+        )
+        prompt = phase.build_prompt(ctx_with_facts)
+        facts_pos = prompt.index("## Upstream Facts")
+        goal_pos = prompt.index("## Goal")
+        assert facts_pos < goal_pos
+
 
 # ===================================================================
 # get_tools
@@ -190,10 +254,10 @@ class TestParseOutputSuccess:
         result = phase.parse_output(ctx, raw="raw")
 
         assert result.value_mapping_file == value_file
-        assert result.total_value_score == 45
         assert result.quadrant == "Major Project"
+        assert result.verdict == "P1-High | Strong ROI | High confidence"
 
-    def test_zero_score_when_missing(
+    def test_empty_verdict_when_missing(
         self, phase: D3Phase, ctx: PhaseContext
     ) -> None:
         minimal = (
@@ -205,7 +269,7 @@ class TestParseOutputSuccess:
         value_file.write_text(minimal, encoding="utf-8")
 
         result = phase.parse_output(ctx, raw="raw")
-        assert result.total_value_score == 0
+        assert result.verdict == ""
         assert result.quadrant == "Unknown"
 
 
@@ -239,7 +303,7 @@ class TestExecuteWithMock:
         assert result.status is PhaseStatus.SUCCESS
         assert result.data is not None
         assert result.data.value_mapping_file == ctx.work_dir / "d3-value-mapping.md"
-        assert result.data.total_value_score == 45
         assert result.data.quadrant == "Major Project"
+        assert result.data.verdict == "P1-High | Strong ROI | High confidence"
         assert result.error is None
         assert result.duration_s > 0

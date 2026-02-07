@@ -65,6 +65,14 @@ class P3Output(BaseModel):
     dependency_graph_file: Path
     total_dependencies: int = IntentField(description="Total number of requirement dependencies")
     circular_dependencies: int = IntentField(description="Number of circular dependencies detected")
+    architecture_decisions: str = IntentField(
+        default="[]",
+        description="JSON list of {title, decision, rationale} from ADRs",
+    )
+    quality_goals: str = IntentField(
+        default="[]",
+        description="JSON list of {attribute, priority} from quality goals",
+    )
 
 
 class P4Input(BaseModel):

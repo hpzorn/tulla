@@ -272,7 +272,7 @@ class TestEndpointMapping:
         adapter.sparql_query("SELECT ?s WHERE { ?s ?p ?o }", validate=False)
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url.startswith("http://localhost:3000/sparql?query=")
+        assert req.full_url.startswith("http://localhost:3000/kg/sparql?query=")
         assert req.get_method() == "POST"
         assert "SELECT" in req.full_url
 
@@ -457,7 +457,7 @@ class TestAddTriple:
         adapter.add_triple("http://s", "http://p", "http://o")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/ontologies/phase-ontology/triples"
+        assert req.full_url == "http://localhost:3000/abox/triples"
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_sends_spo_payload(
@@ -476,14 +476,15 @@ class TestAddTriple:
         }
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_custom_ontology(
+    def test_ontology_param_ignored(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
+        """ontology param is ignored — all triples go to A-Box."""
         mock_urlopen.return_value = _mock_urlopen({"status": "added"})
         adapter.add_triple("http://s", "http://p", "http://o", ontology="custom-onto")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/ontologies/custom-onto/triples"
+        assert req.full_url == "http://localhost:3000/abox/triples"
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_returns_response(
@@ -521,7 +522,7 @@ class TestRemoveTriplesBySubject:
         adapter.remove_triples_by_subject("http://example/s1")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/ontologies/phase-ontology/triples/remove"
+        assert req.full_url == "http://localhost:3000/abox/triples/remove"
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
     def test_sends_subject_in_payload(
@@ -551,11 +552,12 @@ class TestRemoveTriplesBySubject:
         assert count == 0
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_custom_ontology(
+    def test_ontology_param_ignored(
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
+        """ontology param is ignored — all removals go to A-Box."""
         mock_urlopen.return_value = _mock_urlopen({"removed": 1})
         adapter.remove_triples_by_subject("http://s", ontology="custom-onto")
 
         req = mock_urlopen.call_args[0][0]
-        assert req.full_url == "http://localhost:3000/ontologies/custom-onto/triples/remove"
+        assert req.full_url == "http://localhost:3000/abox/triples/remove"
