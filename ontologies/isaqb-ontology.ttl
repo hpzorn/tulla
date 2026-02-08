@@ -1183,6 +1183,13 @@ isaqb:supersedes a rdf:Property,
     rdfs:domain isaqb:ArchitectureDecision ;
     rdfs:range isaqb:ArchitectureDecision .
 
+isaqb:refinesDecision a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "refines decision" ;
+    rdfs:comment "Links a feature-scoped ADR to the project-scoped ADR it refines. Distinct from isaqb:refines (domain: QualityScenario, range: QualityAttribute); this property has domain and range ArchitectureDecision. The presence of this link suppresses ADRScopeCoherenceShape warnings for the source decision." ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:ArchitectureDecision .
+
 isaqb:supportedBy a rdf:Property,
         owl:ObjectProperty ;
     rdfs:label "supported by" ;
