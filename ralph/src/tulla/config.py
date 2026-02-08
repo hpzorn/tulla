@@ -109,6 +109,16 @@ class TullaConfig(BaseSettings):
         description="Path to LLM CLI binary (empty = use default name).",
     )
 
+    # Project identity for architectural governance
+    project_id: str = Field(
+        default="ralph",
+        description=(
+            "Project identifier used for architectural governance URI "
+            "construction (arch:project-{id}) and context strings "
+            "(arch-project-{id})."
+        ),
+    )
+
     @model_validator(mode="after")
     def _resolve_paths(self) -> TullaConfig:
         """Resolve relative paths to absolute at creation time.

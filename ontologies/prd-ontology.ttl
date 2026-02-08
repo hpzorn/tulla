@@ -1,4 +1,5 @@
 @prefix code: <http://impl-ralph.io/code#> .
+@prefix isaqb: <http://impl-ralph.io/isaqb#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prd: <http://impl-ralph.io/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -12,6 +13,11 @@ prd:AcceptanceCriteria a rdfs:Class,
     rdfs:label "Acceptance Criteria" ;
     rdfs:comment "A specific success condition for requirement verification" .
 
+prd:Project a rdfs:Class,
+        owl:Class ;
+    rdfs:label "Project" ;
+    rdfs:comment "A project grouping requirements, ADRs, quality goals, and constraints" .
+
 prd:Requirement a rdfs:Class,
         owl:Class ;
     rdfs:label "Requirement" ;
@@ -21,6 +27,73 @@ prd:Requirement a rdfs:Class,
     rdfs:label "PRD Ontology" ;
     rdfs:comment "Requirements ontology for Implementation-Ralph" ;
     owl:versionInfo "1.0.0" .
+
+prd:ProjectShape a sh:NodeShape ;
+    sh:targetClass prd:Project ;
+    sh:property [ sh:path rdfs:label ;
+            sh:minCount 1 ;
+            sh:datatype xsd:string ;
+            sh:severity sh:Violation ;
+            sh:message "Project must have a label" ],
+        [ sh:path prd:projectId ;
+            sh:minCount 1 ;
+            sh:maxCount 1 ;
+            sh:datatype xsd:string ;
+            sh:severity sh:Violation ;
+            sh:message "Project must have exactly one projectId" ],
+        [ sh:path prd:hasADR ;
+            sh:minCount 1 ;
+            sh:severity sh:Warning ;
+            sh:message "Project should have at least one ADR" ],
+        [ sh:path prd:hasQualityGoal ;
+            sh:minCount 1 ;
+            sh:severity sh:Warning ;
+            sh:message "Project should have at least one quality goal" ] .
+
+prd:hasCrossCuttingConcern a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "has cross-cutting concern" ;
+    rdfs:comment "Cross-cutting concern applicable across the project (P2+ stub)" ;
+    rdfs:domain prd:Project ;
+    rdfs:range xsd:string .
+
+prd:hasADR a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has ADR" ;
+    rdfs:comment "Links a project to an architecture decision record" ;
+    rdfs:domain prd:Project ;
+    rdfs:range isaqb:ArchitectureDecision .
+
+prd:hasConstraint a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has constraint" ;
+    rdfs:comment "Links a project to an architectural constraint" ;
+    rdfs:domain prd:Project ;
+    rdfs:range isaqb:Constraint .
+
+prd:hasQualityGoal a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "has quality goal" ;
+    rdfs:comment "Links a project to a quality goal" ;
+    rdfs:domain prd:Project ;
+    rdfs:range isaqb:QualityGoal .
+
+prd:projectADR a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "project ADR" ;
+    rdfs:comment "Links a requirement to a project-level ADR (used by P6)" .
+
+prd:projectId a rdf:Property,
+        owl:DatatypeProperty ;
+    rdfs:label "project ID" ;
+    rdfs:comment "Unique identifier for the project" ;
+    rdfs:domain prd:Project ;
+    rdfs:range xsd:string .
+
+prd:promotedFrom a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "promoted from" ;
+    rdfs:comment "Links to the source entity this was promoted from (idea-to-epic linking)" .
 
 prd:Blocked a prd:Status ;
     rdfs:label "Blocked" ;

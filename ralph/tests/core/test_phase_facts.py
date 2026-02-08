@@ -20,12 +20,13 @@ from tulla.core.phase import PhaseResult, PhaseStatus
 from tulla.core.phase_facts import (
     PersistResult,
     PhaseFactPersister,
+    collect_project_decisions,
     collect_upstream_facts,
     group_upstream_facts,
     traverse_chain,
     _try_coerce,
 )
-from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.namespaces import ARCH_NS, PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.ports.ontology import OntologyPort
 
 
@@ -978,3 +979,201 @@ class TestTraverseChain:
         """Default max_depth is 20."""
         from tulla.core.phase_facts import _TRAVERSE_MAX_DEPTH
         assert _TRAVERSE_MAX_DEPTH == 20
+
+
+# ===================================================================
+# collect_project_decisions — SPARQL-based (req-69-1-5)
+# ===================================================================
+
+
+class TestCollectProjectDecisions:
+    """Tests for the SPARQL-based collect_project_decisions function.
+
+    Uses _MockOntologyPort with predetermined sparql_results to verify:
+    - Empty results
+    - Single result with quality attributes
+    - Multiple results
+    - Graceful failure on exception
+    """
+
+    def test_empty_results(self, mock_port: _MockOntologyPort) -> None:
+        """Empty SPARQL bindings yield empty list."""
+        mock_port.sparql_results = []
+
+        result = collect_project_decisions(mock_port, "69")
+
+        assert result == []
+
+    def test_single_result(self, mock_port: _MockOntologyPort) -> None:
+        """Single ADR with all fields populated."""
+        mock_port.sparql_results = [
+            {
+                "adr": f"{ARCH_NS}adr-69-1",
+                "title": "ADR-69-1: Use Composition Over Invention",
+                "context": "Need to reuse existing infrastructure",
+                "status": "isaqb:StatusAccepted",
+                "consequences": "(+) Minimal new code. (-) Learning curve.",
+                "quality_attributes": "isaqb:Maintainability, isaqb:Modifiability",
+            },
+        ]
+
+        result = collect_project_decisions(mock_port, "69")
+
+        assert len(result) == 1
+        adr = result[0]
+        assert adr["id"] == "adr-69-1"
+        assert adr["title"] == "ADR-69-1: Use Composition Over Invention"
+        assert adr["decision"] == "(+) Minimal new code. (-) Learning curve."
+        assert adr["quality_attributes"] == [
+            "isaqb:Maintainability",
+            "isaqb:Modifiability",
+        ]
+        assert adr["scope"] == "project"
+        assert adr["status"] == "isaqb:StatusAccepted"
+
+    def test_multiple_results(self, mock_port: _MockOntologyPort) -> None:
+        """Multiple ADRs returned in order."""
+        mock_port.sparql_results = [
+            {
+                "adr": f"{ARCH_NS}adr-69-1",
+                "title": "ADR-69-1: Composition",
+                "context": "Reuse existing infra",
+                "status": "isaqb:StatusAccepted",
+                "consequences": "(+) Less code",
+                "quality_attributes": "isaqb:Maintainability",
+            },
+            {
+                "adr": f"{ARCH_NS}adr-69-2",
+                "title": "ADR-69-2: Progressive Governance",
+                "context": "SHACL should advise not block",
+                "status": "isaqb:StatusProposed",
+                "consequences": "(+) Never blocks architect",
+                "quality_attributes": "",
+            },
+        ]
+
+        result = collect_project_decisions(mock_port, "69")
+
+        assert len(result) == 2
+        assert result[0]["id"] == "adr-69-1"
+        assert result[0]["quality_attributes"] == ["isaqb:Maintainability"]
+        assert result[1]["id"] == "adr-69-2"
+        assert result[1]["quality_attributes"] == []
+
+    def test_missing_optional_fields(self, mock_port: _MockOntologyPort) -> None:
+        """ADR with missing optional fields returns empty strings."""
+        mock_port.sparql_results = [
+            {
+                "adr": f"{ARCH_NS}adr-69-3",
+                "title": "ADR-69-3: Minimal",
+                # context, status, consequences, quality_attributes all missing
+            },
+        ]
+
+        result = collect_project_decisions(mock_port, "69")
+
+        assert len(result) == 1
+        adr = result[0]
+        assert adr["id"] == "adr-69-3"
+        assert adr["title"] == "ADR-69-3: Minimal"
+        assert adr["decision"] == ""
+        assert adr["quality_attributes"] == []
+        assert adr["status"] == ""
+
+    def test_graceful_failure_on_exception(
+        self, mock_port: _MockOntologyPort
+    ) -> None:
+        """SPARQL exception returns empty list (matches collect_upstream_facts pattern)."""
+
+        class _FailingPort(type(mock_port)):
+            def sparql_query(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+                raise ConnectionError("ontology-server unreachable")
+
+        failing = _FailingPort()
+
+        result = collect_project_decisions(failing, "69")
+
+        assert result == []
+
+    def test_result_dict_keys(self, mock_port: _MockOntologyPort) -> None:
+        """Every result dict has exactly the 6 expected keys."""
+        mock_port.sparql_results = [
+            {
+                "adr": f"{ARCH_NS}adr-69-1",
+                "title": "Test ADR",
+                "context": "ctx",
+                "status": "isaqb:StatusAccepted",
+                "consequences": "cons",
+                "quality_attributes": "isaqb:Reliability",
+            },
+        ]
+
+        result = collect_project_decisions(mock_port, "69")
+
+        expected_keys = {"id", "title", "decision", "quality_attributes", "scope", "status"}
+        assert set(result[0].keys()) == expected_keys
+
+    def test_group_concat_multiple_quality_attributes(
+        self, mock_port: _MockOntologyPort
+    ) -> None:
+        """GROUP_CONCAT with multiple quality attributes splits correctly (req-69-6-3c)."""
+        mock_port.sparql_results = [
+            {
+                "adr": f"{ARCH_NS}adr-69-5",
+                "title": "ADR-69-5: Multi-QA",
+                "context": "Multiple quality concerns",
+                "status": "isaqb:StatusAccepted",
+                "consequences": "(+) Addresses several qualities",
+                "quality_attributes": "isaqb:Maintainability, isaqb:Testability, isaqb:Reliability",
+            },
+        ]
+
+        result = collect_project_decisions(mock_port, "69")
+
+        assert len(result) == 1
+        assert result[0]["quality_attributes"] == [
+            "isaqb:Maintainability",
+            "isaqb:Testability",
+            "isaqb:Reliability",
+        ]
+
+    def test_dual_filtering_scope_and_uri_pattern(
+        self, mock_port: _MockOntologyPort
+    ) -> None:
+        """Dual filtering: both scope-annotated and URI-pattern ADRs returned (req-69-6-3e).
+
+        The SPARQL UNION matches ADRs via either `isaqb:scope "project"` or
+        `STRSTARTS(STR(?adr), arch:adr-{project_id}-)`.  Both paths produce
+        identically structured result dicts.
+        """
+        mock_port.sparql_results = [
+            {
+                # Matched via isaqb:scope "project" annotation
+                "adr": f"{ARCH_NS}adr-69-10",
+                "title": "ADR-69-10: Scope Annotated",
+                "context": "Matched by scope annotation",
+                "status": "isaqb:StatusAccepted",
+                "consequences": "(+) Scope path works",
+                "quality_attributes": "isaqb:Modifiability",
+            },
+            {
+                # Matched via STRSTARTS URI pattern (arch:adr-69-*)
+                "adr": f"{ARCH_NS}adr-69-11",
+                "title": "ADR-69-11: URI Pattern",
+                "context": "Matched by URI prefix",
+                "status": "isaqb:StatusProposed",
+                "consequences": "(+) URI pattern path works",
+                "quality_attributes": "isaqb:Testability, isaqb:Maintainability",
+            },
+        ]
+
+        result = collect_project_decisions(mock_port, "69")
+
+        assert len(result) == 2
+        # Both ADRs have correct structure
+        assert result[0]["id"] == "adr-69-10"
+        assert result[0]["scope"] == "project"
+        assert result[0]["quality_attributes"] == ["isaqb:Modifiability"]
+        assert result[1]["id"] == "adr-69-11"
+        assert result[1]["scope"] == "project"
+        assert result[1]["quality_attributes"] == ["isaqb:Testability", "isaqb:Maintainability"]

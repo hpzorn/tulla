@@ -11,6 +11,7 @@ PRD_NS = "http://impl-ralph.io/prd#"
 TRACE_NS = "http://impl-ralph.io/trace#"
 ISAQB_NS = "http://impl-ralph.io/isaqb#"
 PHASE_NS = "http://impl-ralph.io/phase#"
+ARCH_NS = "http://impl-ralph.io/arch#"
 
 # Well-known URIs
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
@@ -22,6 +23,7 @@ PREFIXES: dict[str, str] = {
     TRACE_NS: "trace:",
     ISAQB_NS: "isaqb:",
     PHASE_NS: "phase:",
+    ARCH_NS: "arch:",
     "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:",
     "http://www.w3.org/2000/01/rdf-schema#": "rdfs:",
     "http://www.w3.org/2001/XMLSchema#": "xsd:",

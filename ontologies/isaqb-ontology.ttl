@@ -197,6 +197,71 @@ isaqb:TradeoffPoint a rdfs:Class,
         "ADR-58-4: Discovery Pipeline Unconditionally Includes R-Phase Prior Phases",
         "ADR-58-4: Lifecycle Transitions in CLI Post-Hook, Not Pipeline Engine" .
 
+<arch:adr-78-1> ns3:addresses "isaqb:Simplicity" ;
+    ns3:consequences "(+) Zero framework learning curve, experiments directly portable. (+) Fastest path to playable prototype. (-) Limited UI capabilities, manual tooltip/panel implementation. (-) Not production-viable, will need framework migration. (~) Hex rendering from scratch using Red Blob Games reference." ;
+    ns3:context "Greenfield project, all prior code is Python. Need fastest path to playable prototype to validate existential game-feel risk. Alternatives: Godot (GDScript learning curve), web/Phaser (JS port needed), Pygame (direct Python code reuse from 5 experiments)." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-78-1: Pygame as Prototype Framework" .
+
+<arch:adr-78-2> ns3:addresses "isaqb:Testability" ;
+    ns3:consequences "(+) SDT engine fully testable with pytest, no Pygame needed. (+) Framework migration only affects Presentation layer. (+) Headless simulation for automated balancing. (-) More files than monolithic approach. (~) Command pattern adds indirection but enables replay." ;
+    ns3:context "Game has mathematically complex SDT engine that must be independently testable, game logic orchestrating turns/commands, and Pygame visual layer. Merging layers makes testing impossible without Pygame and prevents framework migration." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-78-2: Three-Layer Architecture (Engine / Logic / Presentation)" .
+
+<arch:adr-78-4> ns3:addresses "isaqb:Modifiability" ;
+    ns3:consequences "(+) Designer tunes 9 SDT params without code changes. (+) F5 hot-reload enables rapid playtesting iteration. (+) YAML supports inline comments for parameter documentation. (-) Adds PyYAML as dependency. (~) Manual schema validation without extra libraries." ;
+    ns3:context "9 tunable SDT parameters plus terrain, progression, UI thresholds, economics must be adjustable during playtesting without code changes. Experiments used hardcoded Python arrays. YAML chosen over JSON (no comments) and TOML (limited nesting)." ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-78-4: YAML Config with Hot-Reload for All Game Parameters" .
+
+<arch:adr-78-5> ns3:addresses "isaqb:Usability" ;
+    ns3:consequences "(+) Qualitative display is pure presentation, no engine changes. (+) d' boost invisible to all UI tiers including Tier 3. (-) Analytical players could detect boost statistically over many games. (~) Boost magnitude and threshold are config-tunable." ;
+    ns3:context "Research (RQ2, R6) shows raw probabilities trigger gambler's fallacy (XCOM lesson). Two complementary mechanisms: qualitative labels in UI (Weak/Moderate/Strong Signal) and hidden +0.3 d' boost in engine after 3 consecutive errors. Question: which layer owns anti-frustration?" ;
+    ns3:decisionStatus "isaqb:StatusProposed" ;
+    ns1:type "isaqb:ArchitectureDecision" ;
+    ns2:label "ADR-78-5: Qualitative Display as Primary Anti-Frustration Mechanism" .
+
+<http://impl-ralph.io/arch#adr-69-1> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-69-1: Separate collect_project_decisions from get_adrs" ;
+    isaqb:addresses isaqb:Maintainability ;
+    isaqb:consequences "(+) Single responsibility per function, optimized SPARQL. (-) Mild duplication querying same entity type. (~) Can extract shared base query later if needed." ;
+    isaqb:context "Both functions query isaqb:ArchitectureDecision via SPARQL but serve different consumers: get_adrs returns idea-level ADRs for display, collect_project_decisions returns project-level ADRs for prompt injection. Different filters, different return schemas." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://impl-ralph.io/arch#adr-69-2> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-69-2: Delta-prompt with dual positive+negative framing for P3" ;
+    isaqb:consequences "(+) Zero regenerated project ADRs in experiments. (+) SHACL safety net for LLM non-compliance. (-) Depends on LLM instruction-following. (~) Prompt template becomes maintained artifact." ;
+    isaqb:context "P3 must generate only feature-delta ADRs when project ADRs exist. Risk: LLM restates project decisions. R5 Exp 3 validated dual framing: 0 regenerated project ADRs, correct supersedes links, 9/9 scope annotations correct." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://impl-ralph.io/arch#adr-69-3> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-69-3: Zero-shot CLAUDE.md extraction with interactive confirmation" ;
+    isaqb:consequences "(+) Simple, no example curation. (+) Human review catches overlaps. (-) Requires 2 min user review time. (~) Few-shot can be added later if needed." ;
+    isaqb:context "Project-init must extract ADRs from CLAUDE.md. R5 Exp 4: zero-shot produced 6 ADRs, all SHACL-valid, 0 hallucinated. Overlapping extractions caught by interactive review." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://impl-ralph.io/arch#adr-69-4> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-69-4: sh:Warning severity for governance shapes" ;
+    isaqb:consequences "(+) Pipeline never blocked by governance. (+) Consistent with existing codebase. (-) Silent contradictions produce warnings only. (~) Severity can be tightened per-project later." ;
+    isaqb:context "Governance shapes detect alignment issues, not structural breakage. Solo Architect needs override flexibility. Using Violation for governance makes Tulla a straitjacket. Matches existing ADRShapeStrict pattern." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://impl-ralph.io/arch#adr-69-5> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-69-5: Manual-only ADR promotion for MVP" ;
+    isaqb:consequences "(+) Simple, predictable. (+) No false positives. (+) Future auto-detection needs zero schema migration. (-) Relies on architect awareness." ;
+    isaqb:context "Auto-detection of promotion candidates cannot be validated with only 4 ADRs. GOV.UK ADR Framework validates impact-based scope escalation. Manual promotion is predictable and avoids false positives." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://impl-ralph.io/arch#adr-69-6> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-69-6: One new file only (workflows/project_init.py)" ;
+    isaqb:consequences "(+) Single new file, minimal bloat. (+) All project governance logic in one place. (-) File may grow with more governance features. (~) Can split later if needed." ;
+    isaqb:context "Project-init workflow, migration function, and promote-adr logic need a home. Options: one module, three modules, or inline in cli.py. One module follows existing pattern where cli.py is a thin router." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
 <http://impl-ralph.io/isaqb> a owl:Ontology ;
     rdfs:label "iSAQB Architecture Knowledge Ontology" ;
     rdfs:comment "Formal representation of iSAQB CPSA-FL/AL body of knowledge for architecture-aware planning and implementation" ;
@@ -1505,6 +1570,14 @@ isaqb:InformationHiding a isaqb:DesignPrinciple ;
     isaqb:level isaqb:Foundation ;
     rdfs:comment "Keep design decisions hidden that are likely to change (Parnas)" .
 
+isaqb:OpenClosedPrinciple a isaqb:DesignPrinciple ;
+    rdfs:label "Open/Closed Principle" ;
+    isaqb:alias "OCP" ;
+    isaqb:category isaqb:ModularizationPrinciples ;
+    isaqb:learningGoal "LG 03-04" ;
+    isaqb:level isaqb:Foundation ;
+    rdfs:comment "Open for extension, closed for modification" .
+
 isaqb:Maintainability a isaqb:QualityAttribute ;
     rdfs:label "Maintainability" ;
     isaqb:category isaqb:ProductQuality ;
@@ -1518,14 +1591,6 @@ isaqb:Maintainability a isaqb:QualityAttribute ;
     isaqb:supportedBy isaqb:Flexibility,
         isaqb:Reliability ;
     rdfs:comment "Degree of effectiveness and efficiency with which a product or system can be modified by the intended maintainers. Modifications include corrections, improvements, or adaptation to changes in environment and requirements (ISO/IEC 25010:2023)." .
-
-isaqb:OpenClosedPrinciple a isaqb:DesignPrinciple ;
-    rdfs:label "Open/Closed Principle" ;
-    isaqb:alias "OCP" ;
-    isaqb:category isaqb:ModularizationPrinciples ;
-    isaqb:learningGoal "LG 03-04" ;
-    isaqb:level isaqb:Foundation ;
-    rdfs:comment "Open for extension, closed for modification" .
 
 isaqb:Operability a isaqb:QualityAttribute ;
     rdfs:label "Operability" ;

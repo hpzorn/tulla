@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from tulla.namespaces import (
+    ARCH_NS,
     ISAQB_NS,
     PRD_NS,
     PREFIXES,
@@ -24,6 +25,9 @@ class TestNamespaceConstants:
     def test_isaqb_ns(self) -> None:
         assert ISAQB_NS == "http://impl-ralph.io/isaqb#"
 
+    def test_arch_ns(self) -> None:
+        assert ARCH_NS == "http://impl-ralph.io/arch#"
+
 
 class TestPrefixes:
     """PREFIXES maps full URIs to compact prefixes."""
@@ -37,6 +41,9 @@ class TestPrefixes:
     def test_isaqb_mapping(self) -> None:
         assert PREFIXES[ISAQB_NS] == "isaqb:"
 
+    def test_arch_mapping(self) -> None:
+        assert PREFIXES[ARCH_NS] == "arch:"
+
     def test_rdf_mapping(self) -> None:
         assert PREFIXES["http://www.w3.org/1999/02/22-rdf-syntax-ns#"] == "rdf:"
 
@@ -46,8 +53,8 @@ class TestPrefixes:
     def test_xsd_mapping(self) -> None:
         assert PREFIXES["http://www.w3.org/2001/XMLSchema#"] == "xsd:"
 
-    def test_seven_prefixes(self) -> None:
-        assert len(PREFIXES) == 7
+    def test_eight_prefixes(self) -> None:
+        assert len(PREFIXES) == 8
 
 
 class TestReversePrefixes:
@@ -56,6 +63,9 @@ class TestReversePrefixes:
     def test_roundtrip(self) -> None:
         for full, compact in PREFIXES.items():
             assert REVERSE_PREFIXES[compact] == full
+
+    def test_arch_reverse(self) -> None:
+        assert REVERSE_PREFIXES["arch:"] == ARCH_NS
 
     def test_same_length(self) -> None:
         assert len(REVERSE_PREFIXES) == len(PREFIXES)
@@ -81,6 +91,9 @@ class TestCompactUri:
 
     def test_isaqb_namespace(self) -> None:
         assert compact_uri("http://impl-ralph.io/isaqb#Maintainability") == "isaqb:Maintainability"
+
+    def test_arch_namespace(self) -> None:
+        assert compact_uri("http://impl-ralph.io/arch#project-ralph") == "arch:project-ralph"
 
     def test_already_compact(self) -> None:
         assert compact_uri("prd:Requirement") == "prd:Requirement"

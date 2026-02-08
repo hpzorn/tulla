@@ -6,10 +6,12 @@ communicate what happened during a persist-validate-rollback cycle — and
 validation, and optional rollback of intent-annotated phase output fields.
 
 Also provides :func:`collect_upstream_facts` for SPARQL-based collection of
-prior-phase facts, :func:`group_upstream_facts` for transforming flat SPO
-triples into grouped ``{phase_id: {field: typed_value}}`` dicts
-(arch:adr-73-1), and :func:`traverse_chain` for SPARQL property-path
-traversal of ``trace:tracesTo`` chains (arch:adr-67-4).
+prior-phase facts, :func:`collect_project_decisions` for SPARQL-based
+collection of project-scoped architecture decisions (req-69-1-5),
+:func:`group_upstream_facts` for transforming flat SPO triples into grouped
+``{phase_id: {field: typed_value}}`` dicts (arch:adr-73-1), and
+:func:`traverse_chain` for SPARQL property-path traversal of
+``trace:tracesTo`` chains (arch:adr-67-4).
 
 Architecture decisions: arch:adr-67-1, arch:adr-67-2, arch:adr-67-4, arch:adr-73-1, arch:adr-73-5
 """
@@ -23,7 +25,7 @@ from typing import Any
 
 from tulla.core.intent import extract_intent_fields
 from tulla.core.phase import PhaseResult
-from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.namespaces import ARCH_NS, ISAQB_NS, PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.ports.ontology import OntologyPort
 
 logger = logging.getLogger(__name__)
@@ -263,6 +265,92 @@ def collect_upstream_facts(
                 })
 
     return all_facts
+
+
+# ---------------------------------------------------------------------------
+# Project-scoped decision collection (req-69-1-5)
+# ---------------------------------------------------------------------------
+
+
+def collect_project_decisions(
+    ontology_port: OntologyPort,
+    project_id: str,
+) -> list[dict[str, Any]]:
+    """Collect project-scoped architecture decisions via SPARQL.
+
+    Executes a SPARQL query with dual filtering — scope-based
+    (``isaqb:scope "project"``) UNION URI-based (``STRSTARTS``) — for
+    robustness against missing scope annotations.
+
+    The query selects ``?adr``, ``?title``, ``?context``, ``?status``,
+    ``?consequences``, and ``GROUP_CONCAT`` of ``isaqb:addresses`` quality
+    attributes.
+
+    Parameters:
+        ontology_port: The ontology port to query.
+        project_id: The project identifier (used for URI prefix matching).
+
+    Returns:
+        A list of dicts with keys: ``id``, ``title``, ``decision``,
+        ``quality_attributes``, ``scope``, ``status``.
+        On query failure, returns an empty list with a log warning —
+        matching the error handling pattern of :func:`collect_upstream_facts`.
+    """
+    query = f"""\
+PREFIX isaqb: <{ISAQB_NS}>
+PREFIX arch: <{ARCH_NS}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?adr ?title ?context ?status ?consequences
+       (GROUP_CONCAT(DISTINCT ?qa; SEPARATOR=", ") AS ?quality_attributes)
+WHERE {{
+  {{
+    ?adr a isaqb:ArchitectureDecision .
+    ?adr isaqb:scope "project" .
+  }}
+  UNION
+  {{
+    ?adr a isaqb:ArchitectureDecision .
+    FILTER(STRSTARTS(STR(?adr), "{ARCH_NS}adr-{project_id}-"))
+  }}
+  ?adr rdfs:label ?title .
+  OPTIONAL {{ ?adr isaqb:context ?context }}
+  OPTIONAL {{ ?adr isaqb:decisionStatus ?status }}
+  OPTIONAL {{ ?adr isaqb:consequences ?consequences }}
+  OPTIONAL {{ ?adr isaqb:addresses ?qa }}
+}}
+GROUP BY ?adr ?title ?context ?status ?consequences"""
+
+    try:
+        result = ontology_port.sparql_query(query)
+    except Exception as exc:
+        logger.warning("SPARQL query for project decisions failed: %s", exc)
+        return []
+
+    bindings = result.get("results", [])
+    decisions: list[dict[str, Any]] = []
+
+    for row in bindings:
+        adr_uri = row.get("adr", "")
+        adr_id = adr_uri.split("#")[-1] if "#" in adr_uri else adr_uri
+
+        qa_raw = row.get("quality_attributes", "")
+        qa_list = [q.strip() for q in qa_raw.split(",") if q.strip()] if qa_raw else []
+
+        # Determine scope: if the URI matches project pattern, it's "project";
+        # otherwise rely on the scope annotation.
+        scope = "project"
+
+        decisions.append({
+            "id": adr_id,
+            "title": row.get("title", ""),
+            "decision": row.get("consequences", ""),
+            "quality_attributes": qa_list,
+            "scope": scope,
+            "status": row.get("status", ""),
+        })
+
+    return decisions
 
 
 # ---------------------------------------------------------------------------

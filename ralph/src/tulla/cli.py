@@ -244,6 +244,7 @@ def _run_implementation(
         config=config,
         max_retries=config.implementation.max_retries,
         total_budget_usd=config.implementation.budget_usd,
+        project_id=config.project_id,
     )
 
     if dry_run:
@@ -555,6 +556,141 @@ def run(
     exit_code = _report_result(result)
     if exit_code != EXIT_SUCCESS:
         sys.exit(exit_code)
+
+
+@main.command("project-init")
+@click.option(
+    "--project-id",
+    type=str,
+    default=None,
+    help="Project identifier (default: from config).",
+)
+@click.option(
+    "--claude-md",
+    type=click.Path(exists=True),
+    default="./CLAUDE.md",
+    help="Path to the CLAUDE.md file (default: ./CLAUDE.md).",
+)
+@click.pass_context
+def project_init(ctx: click.Context, project_id: str | None, claude_md: str) -> None:
+    """Bootstrap a project from a CLAUDE.md file.
+
+    Creates a project entity in the ontology and extracts architectural
+    decisions (ADRs) from the CLAUDE.md instructions using an LLM.
+    """
+    from tulla.workflows.project_init import init_project
+
+    config: TullaConfig = ctx.obj["config"]
+    effective_project_id = project_id if project_id else config.project_id
+
+    ontology_port = OntologyMCPAdapter()
+    claude_port = config.create_llm_adapter()
+
+    result = init_project(
+        ontology_port=ontology_port,
+        claude_port=claude_port,
+        project_id=effective_project_id,
+        claude_md_path=Path(claude_md).resolve(),
+    )
+
+    if not result.project_uri:
+        click.echo("Project initialisation failed.", err=True)
+        sys.exit(EXIT_FAILURE)
+
+    click.echo(f"Project:  {result.project_uri}")
+    click.echo(f"ADRs:     {result.adr_count}")
+    for candidate in result.candidates:
+        marker = "+" if candidate.confirmed else "-"
+        click.echo(f"  [{marker}] {candidate.title}")
+
+
+@main.command("promote-adr")
+@click.argument("adr_id", required=False, default=None)
+@click.option(
+    "--project-id",
+    type=str,
+    default=None,
+    help="Project identifier (default: from config).",
+)
+@click.pass_context
+def promote_adr_cmd(
+    ctx: click.Context,
+    adr_id: str | None,
+    project_id: str | None,
+) -> None:
+    """Promote an idea-scope ADR to project scope.
+
+    Accepts an ADR identifier as a full URI or short form (e.g. adr-58-1).
+    If no identifier is given, lists available idea-scope ADRs for selection.
+    """
+    from tulla.namespaces import ARCH_NS, ISAQB_NS, PRD_NS
+    from tulla.workflows.project_init import promote_adr
+
+    config: TullaConfig = ctx.obj["config"]
+    ontology_port = OntologyMCPAdapter()
+    effective_project_id = project_id if project_id else config.project_id
+    project_uri = f"{PRD_NS}project-{effective_project_id}"
+
+    if adr_id is None:
+        # List idea-scope ADRs via SPARQL
+        query = f"""\
+PREFIX isaqb: <{ISAQB_NS}>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?adr ?label WHERE {{
+  ?adr a isaqb:ArchitectureDecision .
+  ?adr isaqb:scope "idea" .
+  OPTIONAL {{ ?adr rdfs:label ?label }}
+}}
+ORDER BY ?adr"""
+
+        try:
+            result = ontology_port.sparql_query(query)
+        except Exception as exc:
+            click.echo(f"Error querying ADRs: {exc}", err=True)
+            sys.exit(EXIT_FAILURE)
+
+        bindings = result.get("results", [])
+        if not bindings:
+            click.echo("No idea-scope ADRs found.")
+            sys.exit(EXIT_SUCCESS)
+
+        click.echo("Idea-scope ADRs available for promotion:\n")
+        for idx, binding in enumerate(bindings, start=1):
+            uri = binding.get("adr", "")
+            label = binding.get("label", uri)
+            click.echo(f"  [{idx}] {label}  ({uri})")
+
+        click.echo()
+        choice = click.prompt(
+            "Select ADR number to promote",
+            type=click.IntRange(1, len(bindings)),
+        )
+        adr_uri = bindings[choice - 1].get("adr", "")
+    else:
+        # Resolve short form (e.g. "adr-58-1") to full URI
+        if adr_id.startswith("http://") or adr_id.startswith("https://"):
+            adr_uri = adr_id
+        else:
+            adr_uri = f"{ARCH_NS}{adr_id}"
+
+    if not adr_uri:
+        click.echo("Could not resolve ADR identifier.", err=True)
+        sys.exit(EXIT_FAILURE)
+
+    try:
+        promote_adr(
+            ontology_port=ontology_port,
+            adr_uri=adr_uri,
+            project_uri=project_uri,
+        )
+    except Exception as exc:
+        click.echo(f"Promotion failed: {exc}", err=True)
+        sys.exit(EXIT_FAILURE)
+
+    click.echo(f"Promoted {adr_uri}")
+    click.echo(f"  isaqb:scope  -> \"project\"")
+    click.echo(f"  prd:hasADR   -> {project_uri}")
 
 
 @main.command()
