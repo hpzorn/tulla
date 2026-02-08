@@ -360,10 +360,14 @@ def promote_adr(
         adr_uri: Full URI of the ADR to promote.
         project_uri: Full URI of the project to link to.
     """
-    # Remove old scope triple via SPARQL UPDATE
+    # Remove old scope triple via SPARQL UPDATE.
+    # add_triple stores in the phases named graph, so DELETE must target it.
+    _PHASES_GRAPH = "http://semantic-tool-use.org/graphs/phases"
     _REMOVE_SCOPE_QUERY = f"""\
 DELETE WHERE {{
-  <{adr_uri}> isaqb:scope ?old_scope .
+  GRAPH <{_PHASES_GRAPH}> {{
+    <{adr_uri}> isaqb:scope ?old_scope .
+  }}
 }}"""
 
     try:
