@@ -75,6 +75,7 @@ def planning_pipeline(
         work_dir=work_dir,
         idea_id=idea_id,
         config={
+            "project_id": config.project_id,
             "discovery_dir": discovery_dir,
             "research_dir": research_dir,
             "permission_mode": config.planning.permission_mode,

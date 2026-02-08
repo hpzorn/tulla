@@ -481,6 +481,264 @@ class TestLoopLoadArchAndLessons:
 
 
 # ===================================================================
+# Loop: _load_architecture_and_lessons — project ADRs (req-69-5-2)
+# ===================================================================
+
+
+class TestLoopProjectAdrs:
+    """_load_architecture_and_lessons() wires project ADRs via collect_project_decisions."""
+
+    def test_project_adrs_loaded_and_formatted(self) -> None:
+        """Mock OntologyPort returns 2 project ADRs; verify architecture_context."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+
+        # collect_project_decisions uses sparql_query with 'isaqb:scope "project"'
+        sparql_results = {
+            'isaqb:scope "project"': {
+                "results": [
+                    {
+                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "title": "Additive-Only Changes",
+                        "consequences": "Never remove existing fields or phases",
+                        "status": "accepted",
+                        "quality_attributes": "Maintainability, Compatibility",
+                    },
+                    {
+                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-2",
+                        "title": "Composition Over Invention",
+                        "consequences": "Compose existing infrastructure",
+                        "status": "accepted",
+                        "quality_attributes": "Simplicity",
+                    },
+                ],
+            },
+        }
+        ontology = StubOntology(sparql_results=sparql_results)
+
+        config = MagicMock()
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            project_id="ralph",
+        )
+        loop._load_architecture_and_lessons()
+
+        assert loop._architecture_context is not None
+        # project_adrs is a raw list of 2 dicts
+        assert len(loop._architecture_context["project_adrs"]) == 2
+        assert loop._architecture_context["project_adrs"][0]["title"] == "Additive-Only Changes"
+        assert loop._architecture_context["project_adrs"][1]["title"] == "Composition Over Invention"
+
+        # project_adr_summary is a formatted string with both ADRs
+        summary = loop._architecture_context["project_adr_summary"]
+        assert isinstance(summary, str)
+        assert "Additive-Only Changes" in summary
+        assert "Never remove existing fields" in summary
+        assert "Composition Over Invention" in summary
+        assert "Compose existing infrastructure" in summary
+
+    def test_no_project_adrs_yields_empty(self) -> None:
+        """When no project ADRs exist, project_adrs is empty list."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+
+        # Provide idea-level ADRs so architecture_context is not None
+        ontology = StubOntology(
+            facts_by_key={
+                "context=arch-idea-42|predicate=arch:qualityGoal": [
+                    {"subject": "arch:idea-42", "object": "Testability"},
+                ],
+            },
+        )
+
+        config = MagicMock()
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+        )
+        loop._load_architecture_and_lessons()
+
+        assert loop._architecture_context is not None
+        assert loop._architecture_context["project_adrs"] == []
+        assert loop._architecture_context["project_adr_summary"] == ""
+
+
+# ===================================================================
+# Loop: _load_architecture_and_lessons — project ADR loading (req-69-6-7)
+# ===================================================================
+
+
+class TestLoopProjectAdrLoading:
+    """_load_architecture_and_lessons() project ADR population & formatting.
+
+    Covers:
+      (a) project_adrs populated when project ADRs exist
+      (b) project_adr_summary formatted correctly
+      (c) project ADR loading does not interfere with idea-level ADR loading
+      (d) empty project ADRs with no other context → no project_adrs key
+    """
+
+    def test_project_adrs_populated_when_exist(self) -> None:
+        """(a) architecture_context['project_adrs'] is populated with correct entries."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+
+        sparql_results = {
+            'isaqb:scope "project"': {
+                "results": [
+                    {
+                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "title": "Additive-Only Changes",
+                        "consequences": "Never remove existing fields",
+                        "status": "accepted",
+                        "quality_attributes": "Maintainability",
+                    },
+                ],
+            },
+        }
+        ontology = StubOntology(sparql_results=sparql_results)
+        config = MagicMock()
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            project_id="ralph",
+        )
+        loop._load_architecture_and_lessons()
+
+        assert loop._architecture_context is not None
+        padrs = loop._architecture_context["project_adrs"]
+        assert len(padrs) == 1
+        assert padrs[0]["title"] == "Additive-Only Changes"
+        assert padrs[0]["decision"] == "Never remove existing fields"
+        assert padrs[0]["scope"] == "project"
+
+    def test_project_adr_summary_format(self) -> None:
+        """(b) project_adr_summary uses '- Title: decision' format, one per line."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+
+        sparql_results = {
+            'isaqb:scope "project"': {
+                "results": [
+                    {
+                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "title": "Additive-Only Changes",
+                        "consequences": "Never remove existing fields",
+                        "status": "accepted",
+                        "quality_attributes": "",
+                    },
+                    {
+                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-2",
+                        "title": "Composition Over Invention",
+                        "consequences": "Compose existing infrastructure",
+                        "status": "accepted",
+                        "quality_attributes": "",
+                    },
+                ],
+            },
+        }
+        ontology = StubOntology(sparql_results=sparql_results)
+        config = MagicMock()
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            project_id="ralph",
+        )
+        loop._load_architecture_and_lessons()
+
+        assert loop._architecture_context is not None
+        summary = loop._architecture_context["project_adr_summary"]
+        lines = summary.strip().split("\n")
+        assert len(lines) == 2
+        assert lines[0] == "- Additive-Only Changes: Never remove existing fields"
+        assert lines[1] == "- Composition Over Invention: Compose existing infrastructure"
+
+    def test_project_adrs_coexist_with_idea_level_adrs(self) -> None:
+        """(c) Project ADRs do not interfere with idea-level ADR loading."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+
+        # Idea-level ADRs via legacy recall_facts fallback (arch:decision)
+        facts = {
+            "context=arch-idea-42|predicate=arch:qualityGoal": [
+                {"subject": "arch:idea-42", "object": "Testability: high coverage"},
+            ],
+            "context=arch-idea-42|predicate=arch:designPrinciple": [
+                {"subject": "arch:idea-42", "object": "SoC: modules independent"},
+            ],
+            "context=arch-idea-42|predicate=arch:decision": [
+                {"subject": "arch:adr-42-1", "object": "Template Method for phases"},
+            ],
+        }
+        # Project-level ADRs via SPARQL
+        sparql_results = {
+            'isaqb:scope "project"': {
+                "results": [
+                    {
+                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "title": "Composition Over Invention",
+                        "consequences": "Compose existing infrastructure",
+                        "status": "accepted",
+                        "quality_attributes": "",
+                    },
+                ],
+            },
+        }
+        ontology = StubOntology(facts_by_key=facts, sparql_results=sparql_results)
+        config = MagicMock()
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+            project_id="ralph",
+        )
+        loop._load_architecture_and_lessons()
+
+        ctx = loop._architecture_context
+        assert ctx is not None
+
+        # Idea-level data is intact
+        assert ctx["quality_goals"] == ["Testability: high coverage"]
+        assert ctx["design_principles"] == ["SoC: modules independent"]
+        assert "arch:adr-42-1" in ctx["adrs"]
+        assert "Template Method" in ctx["adrs"]["arch:adr-42-1"]
+
+        # Project-level data is also present
+        assert len(ctx["project_adrs"]) == 1
+        assert ctx["project_adrs"][0]["title"] == "Composition Over Invention"
+        assert "Composition Over Invention" in ctx["project_adr_summary"]
+
+    def test_empty_project_adrs_no_key_when_no_other_context(self) -> None:
+        """(d) Empty project ADRs with no other context → architecture_context is None."""
+        from tulla.phases.implementation.loop import ImplementationLoop
+
+        # No facts, no SPARQL results → everything empty
+        ontology = StubOntology()
+        config = MagicMock()
+        loop = ImplementationLoop(
+            claude_port=MagicMock(),
+            ontology_port=ontology,
+            project_root=Path("/tmp"),
+            prd_context="prd-idea-42",
+            config=config,
+        )
+        loop._load_architecture_and_lessons()
+
+        # architecture_context is None, so "project_adrs" key does not exist
+        assert loop._architecture_context is None
+
+
+# ===================================================================
 # Loop: _store_lesson
 # ===================================================================
 

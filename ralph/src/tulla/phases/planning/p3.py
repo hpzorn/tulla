@@ -17,7 +17,7 @@ from tulla.core.markdown_extract import (
     extract_table_rows,
 )
 from tulla.core.phase import ParseError, Phase, PhaseContext
-from tulla.core.phase_facts import group_upstream_facts
+from tulla.core.phase_facts import collect_project_decisions, group_upstream_facts
 from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
 from .models import P3Output
@@ -40,6 +40,74 @@ class P3Phase(Phase[P3Output]):
     timeout_s: float = 900.0  # 15 minutes
 
     # ------------------------------------------------------------------
+    # Prompt section builders
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_project_adr_section(decisions: list[dict[str, Any]]) -> str:
+        """Build a prompt section listing project ADRs in effect.
+
+        Constructs a ``## Project ADRs in Effect`` section that lists each
+        project ADR with its title, decision text, and quality attributes,
+        then provides instructions for feature ADR generation using dual
+        positive+negative framing.
+
+        Returns an empty string when *decisions* is empty.
+        """
+        if not decisions:
+            return ""
+
+        lines: list[str] = ["## Project ADRs in Effect", ""]
+        lines.append(
+            "The following project-level ADRs establish architectural authority. "
+            "Feature ADRs operate within this governance context."
+        )
+        lines.append("")
+
+        for adr in decisions:
+            title = adr.get("title", "Untitled")
+            decision = adr.get("decision", "")
+            quality_attributes = adr.get("quality_attributes", "")
+            lines.append(f"- **{title}**")
+            if decision:
+                lines.append(f"  Decision: {decision}")
+            if quality_attributes:
+                lines.append(f"  Quality Attributes: {quality_attributes}")
+        lines.append("")
+
+        # Dual positive+negative instruction blocks
+        lines.append(
+            "**DO NOT** restate or re-derive the project ADRs above. "
+            "They are already accepted and in effect."
+        )
+        lines.append("")
+        lines.append(
+            "**DO** generate ONLY feature-specific architectural choices "
+            "that operate within the boundaries set by project ADRs."
+        )
+        lines.append("")
+        lines.append(
+            "**IF** a feature decision must override a project ADR, use "
+            "`isaqb:supersedes` or `isaqb:refinesDecision` to declare the "
+            "relationship explicitly and justify the deviation."
+        )
+        lines.append("")
+        lines.append(
+            "**ALIGN** each feature ADR with the project quality goals. "
+            "Every decision must reference which project quality attribute "
+            "it supports or trades off against."
+        )
+        lines.append("")
+        lines.append(
+            "**Scope annotation**: Tag each feature ADR with "
+            '`isaqb:decisionScope "feature"` to distinguish it from '
+            "project-level decisions."
+        )
+        lines.append("")
+
+        return "\n".join(lines)
+
+    # ------------------------------------------------------------------
     # Template hooks
     # ------------------------------------------------------------------
 
@@ -49,6 +117,15 @@ class P3Phase(Phase[P3Output]):
         p1_file = ctx.work_dir / "p1-discovery-context.md"
         p2_file = ctx.work_dir / "p2-codebase-analysis.md"
         planning_date = date.today().isoformat()
+
+        # Populate project decisions from ontology if not already present
+        if "project_decisions" not in ctx.config:
+            ontology_port = ctx.config.get("ontology_port")
+            project_id = ctx.config.get("project_id", "")
+            if ontology_port and project_id:
+                ctx.config["project_decisions"] = collect_project_decisions(
+                    ontology_port, project_id
+                )
 
         raw_facts = ctx.config.get("upstream_facts", [])
         grouped = group_upstream_facts(raw_facts)
@@ -60,6 +137,10 @@ class P3Phase(Phase[P3Output]):
                 f"{json.dumps(grouped, indent=2)}\n"
                 "\n"
             )
+
+        # Build project ADR section from project decisions
+        project_decisions = ctx.config.get("project_decisions", [])
+        project_adr_section = self._build_project_adr_section(project_decisions)
 
         schema_context = ctx.config.get("schema_context", "")
         schema_block = ""
@@ -80,6 +161,7 @@ class P3Phase(Phase[P3Output]):
             "\n"
             f"{northstar_section}"
             f"{upstream_section}"
+            f"{project_adr_section}"
             "## Goal\n"
             "Design how existing components will be connected to achieve the goal.\n"
             "Minimize new code; maximize reuse of existing capabilities.\n"
@@ -363,9 +445,11 @@ def _extract_adrs(content: str) -> list[dict[str, str]]:
                 decision = re.sub(r"^\*\*[Dd]ecision\*\*:\s*", "", stripped)
             elif stripped.lower().startswith("**rationale**"):
                 rationale = re.sub(r"^\*\*[Rr]ationale\*\*:\s*", "", stripped)
-        adrs.append({
+        adr = {
             "title": title,
             "decision": decision,
             "rationale": rationale,
-        })
+        }
+        adr["scope"] = "idea"
+        adrs.append(adr)
     return adrs

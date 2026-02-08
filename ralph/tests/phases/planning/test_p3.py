@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
-from tulla.phases.planning.p3 import P3Phase
+from tulla.phases.planning.p3 import P3Phase, _extract_adrs
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -171,6 +171,135 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert "iSAQB Architecture Schema" not in prompt
 
+    def test_project_adr_section_with_decisions(
+        self, phase: P3Phase, tmp_path: Path
+    ) -> None:
+        decisions = [
+            {
+                "title": "ADR-P-1: Use Event Sourcing",
+                "decision": "All state changes persisted as immutable events.",
+                "quality_attributes": "Reliability, Auditability",
+            },
+            {
+                "title": "ADR-P-2: GraphQL Gateway",
+                "decision": "Single GraphQL gateway for all client queries.",
+                "quality_attributes": "Maintainability",
+            },
+        ]
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"project_decisions": decisions},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.p3"),
+        )
+        prompt = phase.build_prompt(ctx)
+
+        # Section must be present
+        assert "## Project ADRs in Effect" in prompt
+
+        # Both ADR titles present
+        assert "ADR-P-1: Use Event Sourcing" in prompt
+        assert "ADR-P-2: GraphQL Gateway" in prompt
+
+        # Correct ordering: section appears between upstream area and ## Goal
+        adr_pos = prompt.index("## Project ADRs in Effect")
+        goal_pos = prompt.index("## Goal")
+        assert adr_pos < goal_pos
+
+    def test_project_adr_section_between_upstream_facts_and_goal(
+        self, phase: P3Phase, tmp_path: Path
+    ) -> None:
+        """Project ADR section appears between upstream facts and ## Goal."""
+        decisions = [
+            {
+                "title": "ADR-P-1: Use Event Sourcing",
+                "decision": "All state changes persisted as immutable events.",
+                "quality_attributes": "Reliability",
+            },
+        ]
+        upstream_facts = [
+            {
+                "subject": "http://impl-ralph.io/phase#idea-42-d1",
+                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "object": "Graph traversal engine",
+            },
+        ]
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={
+                "project_decisions": decisions,
+                "upstream_facts": upstream_facts,
+            },
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.p3"),
+        )
+        prompt = phase.build_prompt(ctx)
+
+        upstream_pos = prompt.index("## Upstream Facts")
+        adr_pos = prompt.index("## Project ADRs in Effect")
+        goal_pos = prompt.index("## Goal")
+        assert upstream_pos < adr_pos < goal_pos
+
+    def test_project_adr_section_omitted_when_empty(
+        self, phase: P3Phase, tmp_path: Path
+    ) -> None:
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={"project_decisions": []},
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.p3"),
+        )
+        prompt = phase.build_prompt(ctx)
+        assert "## Project ADRs in Effect" not in prompt
+
+    def test_project_adr_section_omitted_when_key_absent(
+        self, phase: P3Phase, ctx: PhaseContext
+    ) -> None:
+        prompt = phase.build_prompt(ctx)
+        assert "## Project ADRs in Effect" not in prompt
+
+    def test_collect_project_decisions_called_when_not_present(
+        self, phase: P3Phase, tmp_path: Path
+    ) -> None:
+        """When ontology_port and project_id are set but project_decisions
+        is absent, build_prompt populates it via collect_project_decisions."""
+
+        class _MockOntologyPort:
+            def sparql_query(self, query: str) -> dict:
+                return {
+                    "results": [
+                        {
+                            "adr": "http://example.org#adr-proj-1",
+                            "title": "ADR-Mock: Test Decision",
+                            "consequences": "Mock consequence text.",
+                            "quality_attributes": "Testability",
+                            "status": "isaqb:StatusAccepted",
+                        },
+                    ]
+                }
+
+        ctx = PhaseContext(
+            idea_id="idea-42",
+            work_dir=tmp_path,
+            config={
+                "ontology_port": _MockOntologyPort(),
+                "project_id": "proj",
+            },
+            budget_remaining_usd=5.0,
+            logger=logging.getLogger("test.p3"),
+        )
+        prompt = phase.build_prompt(ctx)
+
+        # Should have auto-collected and inserted
+        assert "## Project ADRs in Effect" in prompt
+        assert "ADR-Mock: Test Decision" in prompt
+        # project_decisions should now be populated in config
+        assert "project_decisions" in ctx.config
+        assert len(ctx.config["project_decisions"]) == 1
+
 
 # ===================================================================
 # get_tools includes ontology-server tools
@@ -276,6 +405,82 @@ class _MockP3Phase(P3Phase):
         return "mock-raw-output"
 
 
+# ===================================================================
+# _build_project_adr_section
+# ===================================================================
+
+
+class TestBuildProjectAdrSection:
+    """P3Phase._build_project_adr_section() tests."""
+
+    SAMPLE_DECISIONS: list[dict[str, Any]] = [
+        {
+            "title": "ADR-P-1: Use Event Sourcing",
+            "decision": "All state changes persisted as immutable events.",
+            "quality_attributes": "Reliability, Auditability",
+        },
+        {
+            "title": "ADR-P-2: GraphQL Gateway",
+            "decision": "Single GraphQL gateway for all client queries.",
+            "quality_attributes": "Maintainability",
+        },
+        {
+            "title": "ADR-P-3: SHACL Validation",
+            "decision": "SHACL shapes enforce data governance at ingest.",
+            "quality_attributes": "FunctionalCorrectness, Interoperability",
+        },
+    ]
+
+    def test_contains_all_adr_titles(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        for adr in self.SAMPLE_DECISIONS:
+            assert adr["title"] in result
+
+    def test_contains_decision_text(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        for adr in self.SAMPLE_DECISIONS:
+            assert adr["decision"] in result
+
+    def test_contains_quality_attributes(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        for adr in self.SAMPLE_DECISIONS:
+            assert adr["quality_attributes"] in result
+
+    def test_contains_do_not_instruction(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        assert "DO NOT" in result
+        assert "restate" in result.lower()
+
+    def test_contains_do_instruction(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        assert "**DO**" in result
+        assert "feature-specific" in result
+
+    def test_contains_if_override_instruction(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        assert "**IF**" in result
+        assert "isaqb:supersedes" in result
+        assert "isaqb:refinesDecision" in result
+
+    def test_contains_align_instruction(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        assert "**ALIGN**" in result
+        assert "quality" in result.lower()
+
+    def test_contains_scope_annotation_notice(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        assert "isaqb:decisionScope" in result
+        assert "feature" in result
+
+    def test_section_heading(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section(self.SAMPLE_DECISIONS)
+        assert "## Project ADRs in Effect" in result
+
+    def test_empty_decisions_returns_empty_string(self, phase: P3Phase) -> None:
+        result = phase._build_project_adr_section([])
+        assert result == ""
+
+
 class TestExecuteWithMock:
     """P3Phase.execute() end-to-end with a mocked Claude adapter."""
 
@@ -290,3 +495,54 @@ class TestExecuteWithMock:
         assert result.data.circular_dependencies == 1
         assert result.error is None
         assert result.duration_s > 0
+
+
+# ===================================================================
+# _extract_adrs scope annotation
+# ===================================================================
+
+
+class TestExtractAdrsScope:
+    """_extract_adrs() annotates each ADR with scope='idea'."""
+
+    TWO_ADR_MARKDOWN = (
+        "## Architecture Decisions (ADRs)\n\n"
+        "### ADR-1: Use Template Method\n"
+        "**Status**: Proposed\n"
+        "**Decision**: Template Method for phases\n"
+        "**Rationale**: Uniform phase structure\n\n"
+        "### ADR-2: Event-Driven Pipeline\n"
+        "**Status**: Proposed\n"
+        "**Decision**: Events for inter-phase communication\n"
+        "**Rationale**: Loose coupling\n"
+    )
+
+    THREE_ADR_MARKDOWN = (
+        "## Architecture Decisions (ADRs)\n\n"
+        "### ADR-1: Use Template Method\n"
+        "**Status**: Proposed\n"
+        "**Decision**: Template Method for phases\n"
+        "**Rationale**: Uniform phase structure\n\n"
+        "### ADR-2: Event-Driven Pipeline\n"
+        "**Status**: Proposed\n"
+        "**Decision**: Events for inter-phase communication\n"
+        "**Rationale**: Loose coupling\n\n"
+        "### ADR-3: SHACL Validation Layer\n"
+        "**Status**: Proposed\n"
+        "**Decision**: SHACL shapes enforce data governance\n"
+        "**Rationale**: Catches structural errors early\n"
+    )
+
+    def test_each_adr_has_scope_idea(self) -> None:
+        adrs = _extract_adrs(self.TWO_ADR_MARKDOWN)
+        assert len(adrs) == 2
+        for adr in adrs:
+            assert adr["scope"] == "idea"
+
+    def test_three_adrs_all_have_scope_idea(self) -> None:
+        adrs = _extract_adrs(self.THREE_ADR_MARKDOWN)
+        assert len(adrs) == 3
+        for adr in adrs:
+            assert isinstance(adr, dict)
+            assert "scope" in adr
+            assert adr["scope"] == "idea"

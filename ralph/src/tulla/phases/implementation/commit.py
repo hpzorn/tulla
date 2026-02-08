@@ -44,8 +44,16 @@ class CommitPhase:
 
         try:
             # Stage relevant files
+            root_name = project_root.name
             for file_path in requirement.files:
                 resolved = project_root / file_path
+                if not resolved.exists():
+                    # LLM sometimes returns paths prefixed with the project
+                    # dir name (e.g. "ralph/src/..." when project_root is
+                    # already .../ralph), causing doubled paths. Strip it.
+                    p = Path(file_path)
+                    if p.parts and p.parts[0] == root_name:
+                        resolved = project_root / Path(*p.parts[1:])
                 if resolved.exists():
                     subprocess.run(
                         ["git", "add", str(resolved)],

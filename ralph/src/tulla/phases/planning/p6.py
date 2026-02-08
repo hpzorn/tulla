@@ -444,6 +444,13 @@ class P6Phase(Phase[P6Output]):
             "prd:Requirement."
         )
 
+        # Append project export instructions if project decisions exist
+        project_decisions = ctx.config.get("project_decisions", [])
+        if project_decisions:
+            prompt += self._build_project_export_instructions(
+                project_decisions, idea_id
+            )
+
         # Append granularity feedback if present (set by execute() retry loop)
         feedback = ctx.config.get("granularity_feedback")
         if feedback:
@@ -647,6 +654,58 @@ class P6Phase(Phase[P6Output]):
         )
 
         return header + "\n".join(sections)
+
+    def _build_project_export_instructions(
+        self, project_decisions: list[dict[str, Any]], project_id: str
+    ) -> str:
+        """Build prompt instructions for emitting prd:projectADR linkage triples.
+
+        When project-level ADRs are in effect, requirements that are governed
+        by those ADRs should emit ``prd:projectADR`` triples linking each
+        requirement to its governing project ADR.
+
+        The project instance already exists in the A-box — only the linkage
+        triples need to be emitted in the Turtle output.
+
+        Returns an empty string when *project_decisions* is empty.
+        """
+        if not project_decisions:
+            return ""
+
+        lines: list[str] = [
+            "",
+            "",
+            "## Project ADR Linkage",
+            "",
+            "The following project-level ADRs are in effect for this idea. "
+            "The project instance already exists in the A-box — do NOT "
+            "re-emit the project or ADR instances.",
+            "",
+        ]
+
+        for adr in project_decisions:
+            adr_id = adr.get("id", "unknown")
+            title = adr.get("title", "Untitled")
+            lines.append(f"- **{adr_id}**: {title}")
+
+        lines.append("")
+        lines.append(
+            "For each requirement that is governed by a project ADR above, "
+            "add a `prd:projectADR` triple in the Turtle output. Example:"
+        )
+        lines.append("")
+        lines.append("```turtle")
+        lines.append(
+            f"prd:req-{project_id}-1-1 prd:projectADR <arch:adr-project-{project_id}-1> ."
+        )
+        lines.append("```")
+        lines.append("")
+        lines.append(
+            "Only emit `prd:projectADR` linkage triples — the project ADR "
+            "instances are already stored."
+        )
+
+        return "\n".join(lines)
 
     def _extract_files_for_requirement(
         self, req_id: str, result: PhaseResult[P6Output]

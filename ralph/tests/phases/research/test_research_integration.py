@@ -526,9 +526,9 @@ class TestGroundworkEarlyTermination:
 
 
 class TestShapeRegistryWired:
-    """research_pipeline() config contains shape_registry with all R-phase entries."""
+    """research_pipeline() shape_registry is disabled until A-Box/SHACL gap is fixed."""
 
-    def test_shape_registry_contains_r_phases(self, tmp_work_dir: Path) -> None:
+    def test_shape_registry_disabled(self, tmp_work_dir: Path) -> None:
         config = _test_config()
         mock = MockClaudeAdapter()
 
@@ -541,12 +541,9 @@ class TestShapeRegistryWired:
 
         shape_registry = pipeline._config.get("shape_registry", {})
 
-        # All 6 R-phase entries must be present
-        for phase_id in ("r1", "r2", "r3", "r4", "r5", "r6"):
-            assert phase_id in shape_registry, (
-                f"Missing shape_registry entry for {phase_id}"
-            )
-            assert shape_registry[phase_id] == PHASE_SHAPES[phase_id]
+        # shape_registry disabled: ontology-server validate_instance
+        # cannot see triples stored via add_triple (A-Box/SHACL gap).
+        assert shape_registry == {}
 
 
 # ===================================================================
@@ -555,9 +552,9 @@ class TestShapeRegistryWired:
 
 
 class TestShaclValidationFires:
-    """Pipeline with ontology_port calls validate_instance with correct shape URIs."""
+    """Pipeline with ontology_port skips validate_instance (shape_registry disabled)."""
 
-    def test_validate_instance_called_with_shape_uris(self, tmp_work_dir: Path) -> None:
+    def test_validate_instance_not_called_when_registry_disabled(self, tmp_work_dir: Path) -> None:
         idea_id = "test-47"
         ontology = _MockOntologyPort()
 
@@ -582,15 +579,9 @@ class TestShaclValidationFires:
 
         result = pipeline.run()
 
-        # Pipeline should succeed (validate_instance returns conforms=True)
+        # Pipeline should succeed (no SHACL validation to fail)
         assert result.final_status == PhaseStatus.SUCCESS
 
-        # validate_instance must have been called for each successful phase
-        # with the correct shape URIs from PHASE_SHAPES
-        validated_shapes = {shape for _, shape in ontology.validate_calls}
-        for phase_id in ("r1", "r2", "r3", "r4", "r5", "r6"):
-            expected_shape = PHASE_SHAPES[phase_id]
-            assert expected_shape in validated_shapes, (
-                f"validate_instance not called with shape {expected_shape} "
-                f"for phase {phase_id}"
-            )
+        # shape_registry is disabled, so validate_instance should NOT be called
+        # (A-Box/SHACL integration gap — re-enable when fixed)
+        assert len(ontology.validate_calls) == 0

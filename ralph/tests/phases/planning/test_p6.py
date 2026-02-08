@@ -132,6 +132,54 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert "Granularity Feedback" not in prompt
 
+    # -- project export instructions (prd:req-69-6-6) --------------------
+
+    def test_project_export_included_when_decisions_present(
+        self, phase: P6Phase, ctx: PhaseContext
+    ) -> None:
+        """build_prompt() includes project export instructions when project_decisions config is non-empty."""
+        ctx.config["project_decisions"] = [
+            {
+                "id": "arch:adr-project-42-1",
+                "title": "Use Python for all new code",
+                "decision": "All new modules must be Python 3.11+",
+                "quality_attributes": "Maintainability",
+            },
+        ]
+        prompt = phase.build_prompt(ctx)
+
+        assert "## Project ADR Linkage" in prompt
+        assert "arch:adr-project-42-1" in prompt
+        assert "Use Python for all new code" in prompt
+
+    def test_project_export_references_projectadr_link_pattern(
+        self, phase: P6Phase, ctx: PhaseContext
+    ) -> None:
+        """Instructions reference prd:projectADR link pattern with correct idea id."""
+        ctx.config["project_decisions"] = [
+            {
+                "id": "arch:adr-project-42-1",
+                "title": "Use Python",
+                "decision": "Python 3.11+",
+                "quality_attributes": "Maintainability",
+            },
+        ]
+        prompt = phase.build_prompt(ctx)
+
+        assert "prd:projectADR" in prompt
+        # Template example uses the idea_id (42)
+        assert "prd:req-42-1-1 prd:projectADR <arch:adr-project-42-1>" in prompt
+
+    def test_project_export_omitted_when_decisions_empty(
+        self, phase: P6Phase, ctx: PhaseContext
+    ) -> None:
+        """Section omitted when project_decisions is empty."""
+        ctx.config["project_decisions"] = []
+        prompt = phase.build_prompt(ctx)
+
+        assert "## Project ADR Linkage" not in prompt
+        assert "prd:projectADR" not in prompt
+
 
 # ===================================================================
 # get_tools

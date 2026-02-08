@@ -93,7 +93,20 @@ class TestPlanningPipelineBudget:
 
 
 class TestPlanningPipelineConfig:
-    """planning_pipeline() forwards the discovery_dir parameter."""
+    """planning_pipeline() forwards config parameters."""
+
+    def test_project_id_forwarded(self, pipeline: Pipeline) -> None:
+        assert pipeline._config["project_id"] == "ralph"
+
+    def test_custom_project_id(self, tmp_path: Path) -> None:
+        config = TullaConfig(project_id="my-project")
+        p = planning_pipeline(
+            claude_port=StubClaudePort(),
+            work_dir=tmp_path,
+            idea_id="idea-102",
+            config=config,
+        )
+        assert p._config["project_id"] == "my-project"
 
     def test_default_discovery_dir_empty(self, pipeline: Pipeline) -> None:
         assert pipeline._config["discovery_dir"] == ""
