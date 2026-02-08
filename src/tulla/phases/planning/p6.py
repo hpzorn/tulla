@@ -23,7 +23,7 @@ from typing import Any
 import click
 
 from tulla.core.phase import ParseError, Phase, PhaseContext, PhaseResult, PhaseStatus
-from tulla.core.phase_facts import group_upstream_facts
+from tulla.core.phase_facts import collect_project_decisions, group_upstream_facts
 from tulla.namespaces import ISAQB_NS, PRD_NS, TRACE_NS, compact_uri
 from tulla.phases.planning import PLANNING_IDENTITY, build_northstar_section
 
@@ -443,6 +443,15 @@ class P6Phase(Phase[P6Output]):
             "Be precise with RDF syntax. Each task from P4 becomes exactly one "
             "prd:Requirement."
         )
+
+        # Populate project decisions from ontology if not already present
+        if "project_decisions" not in ctx.config:
+            ontology_port = ctx.config.get("ontology_port")
+            project_id = ctx.config.get("project_id", "ralph")
+            if ontology_port and project_id:
+                ctx.config["project_decisions"] = collect_project_decisions(
+                    ontology_port, project_id
+                )
 
         # Append project export instructions if project decisions exist
         project_decisions = ctx.config.get("project_decisions", [])

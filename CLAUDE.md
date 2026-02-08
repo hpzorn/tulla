@@ -20,5 +20,7 @@ This ensures consistency with existing infrastructure (ontology-server, MCP tool
 ## File Locations
 
 - Ideas: `~/.claude/ideas/`
-- Ontologies: Managed by ontology-server
+- Tulla source: `src/tulla/`
+- Tulla tests: `tests/`
+- Ontologies (canonical): `ontologies/` (symlinked into ontology-server)
 - Work directories: `./work/idea-{N}-{timestamp}/`
