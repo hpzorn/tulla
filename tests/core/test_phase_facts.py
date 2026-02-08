@@ -112,6 +112,9 @@ class _MockOntologyPort(OntologyPort):
     def sparql_query(self, query: str, *, validate: bool = True) -> dict[str, Any]:
         return {"results": self.sparql_results}
 
+    def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        return {"status": "ok"}
+
     def update_idea(self, idea_id: str, **kwargs: Any) -> dict[str, Any]:
         return {}
 

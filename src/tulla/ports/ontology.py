@@ -74,7 +74,16 @@ class OntologyPort(ABC):
         *,
         validate: bool = True,
     ) -> dict[str, Any]:
-        """Execute a SPARQL query across the knowledge graph."""
+        """Execute a SPARQL SELECT/ASK query across the knowledge graph."""
+
+    @abstractmethod
+    def sparql_update(
+        self,
+        query: str,
+        *,
+        validate: bool = True,
+    ) -> dict[str, Any]:
+        """Execute a SPARQL UPDATE (INSERT/DELETE) against the knowledge graph."""
 
     @abstractmethod
     def update_idea(
@@ -146,10 +155,6 @@ class OntologyPort(ABC):
         """
         # Default implementation uses SPARQL — subclasses can override
         query = f'''
-            PREFIX isaqb: <http://impl-ralph.io/isaqb#>
-            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-            PREFIX arch: <http://impl-ralph.io/arch#>
-
             SELECT ?adr ?title ?context ?status ?consequences WHERE {{
                 ?adr a isaqb:ArchitectureDecision .
                 ?adr rdfs:label ?title .

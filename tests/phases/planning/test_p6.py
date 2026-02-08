@@ -1161,6 +1161,9 @@ class _MockOntologyPort(OntologyPort):
     def sparql_query(self, query, *, validate=True):
         return {"bindings": []}
 
+    def sparql_update(self, query, *, validate=True):
+        return {"status": "ok"}
+
     def update_idea(self, idea_id, *, title=None, description=None, content=None, lifecycle=None, tags=None):
         return {}
 

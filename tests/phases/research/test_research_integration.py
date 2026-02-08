@@ -305,6 +305,9 @@ class _MockOntologyPort(OntologyPort):
         self.sparql_calls.append(query)
         return {"results": []}
 
+    def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        return {"status": "ok"}
+
     def update_idea(self, idea_id: str, **kw: Any) -> dict[str, Any]:
         return {}
 
@@ -526,9 +529,9 @@ class TestGroundworkEarlyTermination:
 
 
 class TestShapeRegistryWired:
-    """research_pipeline() shape_registry is disabled until A-Box/SHACL gap is fixed."""
+    """research_pipeline() shape_registry is enabled with PHASE_SHAPES."""
 
-    def test_shape_registry_disabled(self, tmp_work_dir: Path) -> None:
+    def test_shape_registry_enabled(self, tmp_work_dir: Path) -> None:
         config = _test_config()
         mock = MockClaudeAdapter()
 
@@ -541,9 +544,9 @@ class TestShapeRegistryWired:
 
         shape_registry = pipeline._config.get("shape_registry", {})
 
-        # shape_registry disabled: ontology-server validate_instance
-        # cannot see triples stored via add_triple (A-Box/SHACL gap).
-        assert shape_registry == {}
+        # shape_registry enabled now that ontology-server A-Box/SHACL gap is fixed.
+        assert "r1" in shape_registry
+        assert "r6" in shape_registry
 
 
 # ===================================================================
@@ -552,9 +555,9 @@ class TestShapeRegistryWired:
 
 
 class TestShaclValidationFires:
-    """Pipeline with ontology_port skips validate_instance (shape_registry disabled)."""
+    """Pipeline with ontology_port calls validate_instance (shape_registry enabled)."""
 
-    def test_validate_instance_not_called_when_registry_disabled(self, tmp_work_dir: Path) -> None:
+    def test_validate_instance_called_when_registry_enabled(self, tmp_work_dir: Path) -> None:
         idea_id = "test-47"
         ontology = _MockOntologyPort()
 
@@ -582,6 +585,6 @@ class TestShaclValidationFires:
         # Pipeline should succeed (no SHACL validation to fail)
         assert result.final_status == PhaseStatus.SUCCESS
 
-        # shape_registry is disabled, so validate_instance should NOT be called
-        # (A-Box/SHACL integration gap — re-enable when fixed)
-        assert len(ontology.validate_calls) == 0
+        # shape_registry is enabled — validate_instance should be called for
+        # phases that have SHACL shapes registered.
+        assert len(ontology.validate_calls) >= 1

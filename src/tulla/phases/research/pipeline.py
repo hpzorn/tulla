@@ -98,10 +98,7 @@ def research_pipeline(
             "permission_mode": config.research.permission_mode,
             "phase_timeouts": config.research.phase_timeouts,
             "ontology_port": ontology_port,
-            # shape_registry disabled: ontology-server validate_instance
-            # cannot see triples stored via add_triple (A-Box/SHACL gap).
-            # Re-enable when validate_instance queries the A-Box graph.
-            # "shape_registry": PHASE_SHAPES,
+            "shape_registry": PHASE_SHAPES,
         },
         total_budget_usd=config.research.budget_usd,
         prior_phases=prior_phases,

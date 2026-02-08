@@ -172,7 +172,6 @@ class FindPhase:
 
         # -- Query 1: quality → architectural patterns (arch:adr-65-2) --
         q1 = (
-            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\n"
             "SELECT DISTINCT ?pattern ?quality WHERE {\n"
             "  {\n"
             f"    ?pattern isaqb:addresses <{full_uri}> .\n"
@@ -207,7 +206,6 @@ class FindPhase:
         # -- Query 2: patterns → principles (arch:adr-65-2) --
         values_patterns = " ".join(f"<{self._expand_uri(p)}>" for p in patterns)
         q2 = (
-            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\n"
             "SELECT DISTINCT ?principle ?pattern WHERE {\n"
             f"  VALUES ?pattern {{ {values_patterns} }}\n"
             "  ?pattern isaqb:embodies ?principle .\n"
@@ -234,7 +232,6 @@ class FindPhase:
         # -- Query 3: principles → design patterns (arch:adr-65-2) --
         values_principles = " ".join(f"<{self._expand_uri(p)}>" for p in principles)
         q3 = (
-            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\n"
             "SELECT DISTINCT ?designPattern ?principle WHERE {\n"
             f"  VALUES ?principle {{ {values_principles} }}\n"
             "  ?designPattern isaqb:embodies ?principle .\n"

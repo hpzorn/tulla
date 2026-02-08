@@ -251,6 +251,14 @@ class OntologyMCPAdapter(OntologyPort):
         req = Request(url, data=b"", headers=self._headers(), method="POST")
         return self._do(req)
 
+    def sparql_update(
+        self,
+        query: str,
+        *,
+        validate: bool = True,
+    ) -> dict[str, Any]:
+        return self._post("/kg/update", {"query": query})
+
     # ------------------------------------------------------------------
     # OntologyPort interface — SHACL Validation
     # ------------------------------------------------------------------

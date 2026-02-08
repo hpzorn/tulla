@@ -212,6 +212,9 @@ class _MockOntologyPort(OntologyPort):
             current = next_uri
         return ancestors
 
+    def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        return {"status": "ok"}
+
     # -- unused stubs (satisfy ABC) ------------------------------------------
 
     def query_ideas(self, **kwargs: Any) -> dict[str, Any]:

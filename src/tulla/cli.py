@@ -705,7 +705,7 @@ def promote_adr_cmd(
     Accepts an ADR identifier as a full URI or short form (e.g. adr-58-1).
     If no identifier is given, lists available idea-scope ADRs for selection.
     """
-    from tulla.namespaces import ARCH_NS, ISAQB_NS, PRD_NS
+    from tulla.namespaces import ARCH_NS, PRD_NS
     from tulla.workflows.project_init import promote_adr
 
     config: TullaConfig = ctx.obj["config"]
@@ -716,9 +716,6 @@ def promote_adr_cmd(
     if adr_id is None:
         # List idea-scope ADRs via SPARQL
         query = f"""\
-PREFIX isaqb: <{ISAQB_NS}>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
 SELECT ?adr ?label WHERE {{
   ?adr a isaqb:ArchitectureDecision .
   ?adr isaqb:scope "idea" .

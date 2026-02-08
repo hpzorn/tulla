@@ -25,7 +25,7 @@ from typing import Any
 
 from tulla.core.intent import extract_intent_fields
 from tulla.core.phase import PhaseResult
-from tulla.namespaces import ARCH_NS, ISAQB_NS, PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.namespaces import ARCH_NS, PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.ports.ontology import OntologyPort
 
 logger = logging.getLogger(__name__)
@@ -232,7 +232,6 @@ def collect_upstream_facts(
     # Phase facts are stored in the phases named graph, not the default graph.
     phases_graph = "http://semantic-tool-use.org/graphs/phases"
     query = (
-        f'PREFIX phase: <{PHASE_NS}>\n'
         f'SELECT ?s ?p ?o WHERE {{\n'
         f'  GRAPH <{phases_graph}> {{\n'
         f'    ?s phase:forRequirement "{idea_id}" .\n'
@@ -297,10 +296,6 @@ def collect_project_decisions(
         matching the error handling pattern of :func:`collect_upstream_facts`.
     """
     query = f"""\
-PREFIX isaqb: <{ISAQB_NS}>
-PREFIX arch: <{ARCH_NS}>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
 SELECT ?adr ?title ?context ?status ?consequences
        (GROUP_CONCAT(DISTINCT ?qa; SEPARATOR=", ") AS ?quality_attributes)
 WHERE {{
@@ -489,8 +484,6 @@ def traverse_chain(
     # Step 1: Find all ancestors via property path
     path_expr = f"trace:tracesTo{{1,{max_depth}}}" if max_depth != _TRAVERSE_MAX_DEPTH else "trace:tracesTo+"
     ancestor_query = (
-        f"PREFIX trace: <{TRACE_NS}>\n"
-        f"PREFIX phase: <{PHASE_NS}>\n"
         f"SELECT ?ancestor WHERE {{\n"
         f"  <{subject}> {path_expr} ?ancestor .\n"
         f"}}"

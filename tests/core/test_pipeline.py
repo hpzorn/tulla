@@ -420,6 +420,11 @@ class MockOntologyPort(OntologyPort):
         self.sparql_query_calls.append(query)
         return {"results": []}
 
+    def sparql_update(
+        self, query: str, *, validate: bool = True,
+    ) -> dict[str, Any]:
+        return {"status": "ok"}
+
     def update_idea(self, idea_id: str, **kwargs: Any) -> dict[str, Any]:
         return {}
 

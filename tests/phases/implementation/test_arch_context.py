@@ -89,6 +89,9 @@ class StubOntology(OntologyPort):
                 return result
         return {}
 
+    def sparql_update(self, query: str, **kw: Any) -> dict[str, Any]:
+        return {"status": "ok"}
+
     def update_idea(self, idea_id: str, **kw: Any) -> dict[str, Any]:
         return {}
 

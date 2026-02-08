@@ -68,6 +68,9 @@ class SparqlStubOntology(OntologyPort):
             return resp
         return {"results": []}
 
+    def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        return {"status": "ok"}
+
     # -- abstract method stubs --
     def query_ideas(self, **kw: Any) -> dict[str, Any]:
         return {}

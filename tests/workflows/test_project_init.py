@@ -91,6 +91,9 @@ class _MockOntologyPort(OntologyPort):
             }
         return {"results": []}
 
+    def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        return {"status": "ok"}
+
     # -- convenience stubs not needed by this test --------------------------
 
     def query_ideas(self, **kw: Any) -> dict[str, Any]:
@@ -437,19 +440,19 @@ class TestPromoteAdr:
         assert len(link_calls) == 1
 
     def test_sparql_delete_attempted(self) -> None:
-        """Verify SPARQL DELETE is attempted to remove old scope."""
-        sparql_calls: list[str] = []
+        """Verify SPARQL UPDATE DELETE is attempted to remove old scope."""
+        update_calls: list[str] = []
 
-        class _TrackingSparqlPort(_MockOntologyPort):
-            def sparql_query(self, query: str, *, validate: bool = True) -> dict[str, Any]:
-                sparql_calls.append(query)
-                return {"results": []}
+        class _TrackingUpdatePort(_MockOntologyPort):
+            def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+                update_calls.append(query)
+                return {"status": "ok"}
 
-        port = _TrackingSparqlPort(adrs=[])
+        port = _TrackingUpdatePort(adrs=[])
         promote_adr(port, f"{ARCH_NS}adr-99-1", f"{PRD_NS}project-x")
 
-        # At least one SPARQL call with DELETE
-        assert any("DELETE" in q for q in sparql_calls)
+        # At least one SPARQL UPDATE call with DELETE
+        assert any("DELETE" in q for q in update_calls)
 
 
 # ---------------------------------------------------------------------------
@@ -713,34 +716,34 @@ class TestPromoteAdrReq69_6_9:
         assert link[0]["is_literal"] is False
 
     def test_sparql_delete_removes_old_scope(self) -> None:
-        """promote_adr issues a SPARQL DELETE to remove any existing scope."""
-        sparql_queries: list[str] = []
+        """promote_adr issues a SPARQL UPDATE DELETE to remove any existing scope."""
+        update_queries: list[str] = []
 
-        class _SparqlTracker(_MockOntologyPort):
-            def sparql_query(self, query: str, *, validate: bool = True) -> dict[str, Any]:
-                sparql_queries.append(query)
-                return {"results": []}
+        class _UpdateTracker(_MockOntologyPort):
+            def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+                update_queries.append(query)
+                return {"status": "ok"}
 
-        port = _SparqlTracker(adrs=[])
+        port = _UpdateTracker(adrs=[])
         adr_uri = f"{ARCH_NS}adr-old-scope-1"
 
         promote_adr(port, adr_uri, f"{PRD_NS}project-del")
 
         # A DELETE query targeting the specific ADR URI must be issued
-        delete_queries = [q for q in sparql_queries if "DELETE" in q]
+        delete_queries = [q for q in update_queries if "DELETE" in q]
         assert len(delete_queries) >= 1
         assert adr_uri in delete_queries[0]
 
     def test_sparql_delete_failure_non_fatal(self) -> None:
-        """If SPARQL DELETE fails, promote_adr still adds new scope and link."""
+        """If SPARQL UPDATE DELETE fails, promote_adr still adds new scope and link."""
 
-        class _FailingSparql(_MockOntologyPort):
-            def sparql_query(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        class _FailingUpdate(_MockOntologyPort):
+            def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
                 if "DELETE" in query:
                     raise RuntimeError("SPARQL endpoint unavailable")
-                return {"results": []}
+                return {"status": "ok"}
 
-        port = _FailingSparql(adrs=[])
+        port = _FailingUpdate(adrs=[])
         adr_uri = f"{ARCH_NS}adr-fail-del"
         project_uri = f"{PRD_NS}project-fail"
 
@@ -870,11 +873,11 @@ class _InMemoryOntologyPort(OntologyPort):
                 results.append(row)
             return {"results": results}
 
-        # Pattern 3: DELETE queries (promote_adr) — no-op
-        if "DELETE" in query:
-            return {"results": []}
-
         return {"results": []}
+
+    def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
+        """Handle SPARQL UPDATE operations (DELETE WHERE from promote_adr)."""
+        return {"status": "ok"}
 
     # -- convenience stubs not needed by integration test -------------------
 

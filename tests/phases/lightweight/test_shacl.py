@@ -382,6 +382,10 @@ class TestLiveSHACLValidation:
                              *, validate: bool = True) -> dict[str, Any]:
                 return self._delegate.sparql_query(query, validate=validate)
 
+            def sparql_update(self, query: str,
+                              *, validate: bool = True) -> dict[str, Any]:
+                return self._delegate.sparql_update(query, validate=validate)
+
             def update_idea(self, idea_id: str, **kw: Any) -> dict[str, Any]:
                 return self._delegate.update_idea(idea_id, **kw)
 

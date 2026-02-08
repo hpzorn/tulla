@@ -25,8 +25,6 @@ RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
 # SPARQL: find ADRs that have no isaqb:scope annotation yet
 # ---------------------------------------------------------------------------
 _UNSCOPED_ADRS_QUERY = f"""\
-PREFIX isaqb: <{ISAQB_NS}>
-
 SELECT ?adr WHERE {{
   ?adr a isaqb:ArchitectureDecision .
   FILTER NOT EXISTS {{ ?adr isaqb:scope ?s }}
@@ -362,16 +360,14 @@ def promote_adr(
         adr_uri: Full URI of the ADR to promote.
         project_uri: Full URI of the project to link to.
     """
-    # Remove old scope triple
+    # Remove old scope triple via SPARQL UPDATE
     _REMOVE_SCOPE_QUERY = f"""\
-PREFIX isaqb: <{ISAQB_NS}>
-
 DELETE WHERE {{
   <{adr_uri}> isaqb:scope ?old_scope .
 }}"""
 
     try:
-        ontology_port.sparql_query(_REMOVE_SCOPE_QUERY)
+        ontology_port.sparql_update(_REMOVE_SCOPE_QUERY)
     except Exception as exc:
         logger.debug(
             "SPARQL DELETE for old scope failed (may not exist): %s", exc,
