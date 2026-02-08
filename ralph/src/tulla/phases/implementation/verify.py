@@ -203,6 +203,13 @@ class VerifyPhase:
             return []
 
         lines: list[str] = ["## Architecture Compliance", ""]
+
+        # Northstar alignment check
+        northstar = architecture_context.get("northstar", "")
+        if northstar:
+            lines.append(f"**Northstar (must align)**: {northstar}")
+            lines.append("")
+
         lines.append(
             "In addition to functional correctness, verify that the "
             "implementation conforms to these architecture decisions:"

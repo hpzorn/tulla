@@ -204,6 +204,23 @@ class ImplementPhase:
 
         lines: list[str] = ["## Architecture Context", ""]
 
+        # Northstar (big-picture context, before per-requirement details)
+        northstar = architecture_context.get("northstar", "")
+        if northstar:
+            lines.append(f"**Northstar**: {northstar}")
+            lines.append("")
+
+        # Key constraints
+        key_constraints = architecture_context.get("key_constraints", "")
+        if key_constraints:
+            lines.append("**Key Constraints**:")
+            if isinstance(key_constraints, list):
+                for c in key_constraints:
+                    lines.append(f"- {c}")
+            else:
+                lines.append(f"- {key_constraints}")
+            lines.append("")
+
         # Quality focus for this specific requirement
         if requirement.quality_focus:
             lines.append(

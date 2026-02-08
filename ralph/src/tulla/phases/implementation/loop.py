@@ -22,7 +22,12 @@ import click
 
 from tulla.config import TullaConfig
 from tulla.core.phase import PhaseResult, PhaseStatus
-from tulla.core.phase_facts import PhaseFactPersister
+from tulla.core.phase_facts import (
+    PhaseFactPersister,
+    collect_project_decisions,
+    collect_upstream_facts,
+    group_upstream_facts,
+)
 from tulla.ports.claude import ClaudePort
 from tulla.ports.ontology import OntologyPort
 
@@ -40,6 +45,49 @@ from .status import StatusPhase
 from .verify import VerifyPhase
 
 logger = logging.getLogger(__name__)
+
+
+def _reconstruct_adrs_from_facts(
+    facts: list[dict[str, str]],
+    idea_id: str,
+) -> list[dict[str, str]]:
+    """Reconstruct ADR dicts from P6 prd-context facts.
+
+    P6 stores ADRs via ``store_fact()`` in the ``prd-idea-{id}`` context.
+    This helper filters and groups those facts to produce a list compatible
+    with ``OntologyPort.get_adrs()`` output format.
+
+    Parameters:
+        facts: Raw fact list from ``recall_facts(context="prd-idea-{id}")``.
+        idea_id: The idea identifier (used to match ADR subjects).
+
+    Returns:
+        List of ``{"id": ..., "title": ..., "consequences": ...}`` dicts.
+    """
+    adr_prefix = f"arch:adr-{idea_id}-"
+    # Group facts by subject
+    grouped: dict[str, dict[str, str]] = {}
+    for fact in facts:
+        subj = fact.get("subject", "")
+        if not subj.startswith(adr_prefix):
+            continue
+        if subj not in grouped:
+            grouped[subj] = {}
+        pred = fact.get("predicate", "")
+        obj = fact.get("object", "")
+        grouped[subj][pred] = obj
+
+    adrs: list[dict[str, str]] = []
+    for subj, fields in grouped.items():
+        title = fields.get("rdfs:label", "")
+        consequences = fields.get("isaqb:consequences", "")
+        if title or consequences:
+            adrs.append({
+                "id": subj,
+                "title": title,
+                "consequences": consequences,
+            })
+    return adrs
 
 
 def _extract_verdict(feedback: str) -> str:
@@ -70,6 +118,8 @@ class ImplementationLoop:
             iteration facts to the A-Box after each Status step.
         bootstrap_predecessor: Phase id used as the predecessor for
             the first iteration (default ``"p6"``).
+        project_id: Project identifier used for querying project-level
+            ADRs (default ``"ralph"``).
     """
 
     # Step instances (shared across iterations)
@@ -90,6 +140,7 @@ class ImplementationLoop:
         total_budget_usd: float = 10.0,
         persister: PhaseFactPersister | None = None,
         bootstrap_predecessor: str = "p6",
+        project_id: str = "ralph",
     ) -> None:
         self._claude = claude_port
         self._ontology = ontology_port
@@ -100,6 +151,7 @@ class ImplementationLoop:
         self._total_budget_usd = total_budget_usd
         self._persister = persister
         self._bootstrap_predecessor = bootstrap_predecessor
+        self._project_id = project_id
 
         # Instantiate loop steps with config-driven thresholds
         impl_cfg = config.implementation
@@ -202,8 +254,21 @@ class ImplementationLoop:
             if f.get("object")
         ]
 
-        # --- ADRs (structured or legacy) ---
+        # --- ADRs (structured or legacy, with prd-context fallback) ---
         adr_list = self._ontology.get_adrs(idea_id)
+        if not adr_list:
+            prd_facts = self._ontology.recall_facts(
+                context=self._prd_context,
+            )
+            adr_list = _reconstruct_adrs_from_facts(
+                prd_facts.get("result", []), idea_id,
+            )
+            if adr_list:
+                logger.info(
+                    "Reconstructed %d ADRs from prd context %s",
+                    len(adr_list),
+                    self._prd_context,
+                )
         adrs: dict[str, str] = {}
         for adr in adr_list:
             adr_id = adr.get("id", "")
@@ -214,20 +279,75 @@ class ImplementationLoop:
             if adr_id and summary:
                 adrs[adr_id] = summary
 
-        if quality_goals or design_principles or adrs:
+        # --- Project-scoped ADRs ---
+        project_adrs = collect_project_decisions(self._ontology, self._project_id)
+        project_adr_summary = ""
+        if project_adrs:
+            lines = []
+            for adr in project_adrs:
+                title = adr.get("title", "")
+                decision = adr.get("decision", "")
+                lines.append(f"- {title}: {decision}" if decision else f"- {title}")
+            project_adr_summary = "\n".join(lines)
+
+        if quality_goals or design_principles or adrs or project_adrs:
             self._architecture_context = {
                 "quality_goals": quality_goals,
                 "design_principles": design_principles,
                 "adrs": adrs,
+                "project_adrs": project_adrs,
+                "project_adr_summary": project_adr_summary,
             }
             logger.info(
-                "Loaded architecture context: %d goals, %d principles, %d ADRs",
+                "Loaded architecture context: %d goals, %d principles, %d ADRs, %d project ADRs",
                 len(quality_goals),
                 len(design_principles),
                 len(adrs),
+                len(project_adrs),
             )
         else:
             logger.info("No architecture context found in %s", arch_context)
+
+        # --- Upstream discovery facts (northstar, constraints) ---
+        discovery_phases = ["d1", "d2", "d3", "d4", "d5"]
+        research_phases = ["r1", "r2", "r3", "r4", "r5", "r6"]
+        try:
+            raw = collect_upstream_facts(
+                self._ontology, idea_id,
+                discovery_phases + research_phases + ["impl"],
+                "impl",
+            )
+            grouped = group_upstream_facts(raw)
+        except Exception:
+            logger.warning(
+                "Failed to collect upstream facts for idea %s", idea_id,
+                exc_info=True,
+            )
+            grouped = {}
+
+        d5 = grouped.get("d5", {})
+        northstar = d5.get("northstar", "")
+        mandatory_features = d5.get("mandatory_features", "")
+        key_constraints = d5.get("key_constraints", "")
+
+        if northstar or mandatory_features or key_constraints:
+            if self._architecture_context is None:
+                self._architecture_context = {
+                    "quality_goals": [],
+                    "design_principles": [],
+                    "adrs": {},
+                    "project_adrs": [],
+                    "project_adr_summary": "",
+                }
+            self._architecture_context["northstar"] = northstar
+            self._architecture_context["mandatory_features"] = mandatory_features
+            self._architecture_context["key_constraints"] = key_constraints
+
+        logger.info(
+            "Loaded upstream facts: %d phases, northstar=%s",
+            len(grouped),
+            bool(northstar),
+        )
 
         # --- Lessons ---
         self._lessons = self._find.load_lessons(self._ontology, lesson_context)
@@ -258,7 +378,8 @@ class ImplementationLoop:
             self._log(
                 f"Architecture: {len(arch['quality_goals'])} goals, "
                 f"{len(arch['design_principles'])} principles, "
-                f"{len(arch['adrs'])} ADRs"
+                f"{len(arch['adrs'])} ADRs, "
+                f"{len(arch.get('project_adrs', []))} project ADRs"
             )
         if self._lessons:
             self._log(f"Lessons loaded: {len(self._lessons)}")
