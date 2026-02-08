@@ -37,6 +37,79 @@ EXIT_FAILURE = 1
 EXIT_INCOMPLETE = 2
 EXIT_TIMEOUT = 124
 
+# Lifecycle transitions: agent -> (on_start, on_success)
+# Agents not listed here don't trigger lifecycle changes.
+_LIFECYCLE_TRANSITIONS: dict[str, tuple[str, str]] = {
+    "discovery": ("researching", "researching"),   # stays researching; research agent finishes it
+    "research": ("researching", "researched"),
+    "planning": ("decomposing", "scoped"),
+    "implementation": ("implementing", "completed"),
+}
+
+# Prerequisite chains: target_state -> list of states to walk through in order.
+# Used when the idea is in an early state and needs to reach the agent's start
+# state.  Mirrors LIFECYCLE_TRANSITIONS in the ontology-server.
+_LIFECYCLE_PREREQUISITES: dict[str, list[str]] = {
+    "researching":  ["backlog", "researching"],
+    "decomposing":  ["backlog", "researching", "researched", "decomposing"],
+    "implementing": ["backlog", "researching", "researched", "scoped", "implementing"],
+}
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle helpers
+# ---------------------------------------------------------------------------
+
+
+def _push_lifecycle(
+    config: TullaConfig,
+    idea_id: int,
+    agent: str,
+    phase: str,
+) -> None:
+    """Push an idea's lifecycle forward if the agent has a transition.
+
+    *phase* is ``"start"`` or ``"success"``.  Silently does nothing for
+    agents without lifecycle mappings or on communication errors (the
+    pipeline run is more important than the lifecycle bookkeeping).
+
+    On *start*, if the idea is in an early state (e.g. ``seed``) the
+    helper walks through prerequisite states so that the ontology-server's
+    transition validation is satisfied.
+    """
+    log = logging.getLogger(__name__)
+    transitions = _LIFECYCLE_TRANSITIONS.get(agent)
+    if not transitions:
+        return
+
+    new_state = transitions[0] if phase == "start" else transitions[1]
+    reason = f"tulla {agent} agent {phase}"
+
+    try:
+        ontology = OntologyMCPAdapter(base_url=config.ontology_server_url)
+
+        if phase == "start":
+            # Walk prerequisite chain so early-state ideas reach the target.
+            chain = _LIFECYCLE_PREREQUISITES.get(new_state, [new_state])
+            for step in chain:
+                resp = ontology.set_lifecycle(str(idea_id), step, reason=reason)
+                if resp.get("error"):
+                    # Transition not valid from current state — skip ahead.
+                    continue
+                log.info("Lifecycle idea-%d → %s (%s %s)", idea_id, step, agent, phase)
+        else:
+            resp = ontology.set_lifecycle(str(idea_id), new_state, reason=reason)
+            if resp.get("error"):
+                log.warning(
+                    "Lifecycle idea-%d: cannot reach '%s': %s",
+                    idea_id, new_state, resp["error"],
+                )
+            else:
+                log.info("Lifecycle idea-%d → %s (%s %s)", idea_id, new_state, agent, phase)
+
+    except Exception as exc:
+        log.warning("Could not update lifecycle for idea-%d: %s", idea_id, exc)
+
 
 # ---------------------------------------------------------------------------
 # Work-dir resolution helpers
@@ -272,6 +345,7 @@ def _run_implementation(
     click.echo()
 
     if result.all_complete:
+        _push_lifecycle(config, idea_id, "implementation", "success")
         click.echo("All requirements implemented successfully.")
     elif result.requirements_blocked > 0:
         click.echo("Some requirements are blocked.")
@@ -506,6 +580,10 @@ def run(
         idea_id=idea,
     )
 
+    # Push lifecycle forward on start (skip for dry-run)
+    if not dry_run:
+        _push_lifecycle(config, idea, agent, "start")
+
     # Implementation uses a loop-based orchestrator, not a linear pipeline
     if agent == "implementation":
         _run_implementation(
@@ -551,6 +629,10 @@ def run(
             reason = early if isinstance(early, str) else "phase requested early stop"
             click.echo(f"\nEarly termination: {reason}")
             sys.exit(EXIT_SUCCESS)
+
+    # Push lifecycle forward on success
+    if result.final_status == PhaseStatus.SUCCESS:
+        _push_lifecycle(config, idea, agent, "success")
 
     # Report results and exit with appropriate code
     exit_code = _report_result(result)
