@@ -306,6 +306,31 @@ isaqb:ADRShapeStrict a sh:NodeShape ;
             sh:severity sh:Warning ] ;
     sh:targetClass isaqb:ArchitectureDecision .
 
+isaqb:ADRScopeCoherenceShape a sh:NodeShape ;
+    rdfs:label "ADR Scope Coherence Shape" ;
+    rdfs:comment "Warns when an idea-scope ADR addresses the same quality attribute as a project-scope ADR without an explicit refinesDecision or supersedes link." ;
+    sh:severity sh:Warning ;
+    sh:targetClass isaqb:ArchitectureDecision ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+        sh:message "Idea-scope ADR addresses same quality attribute as project-scope ADR '{?projectTitle}' without refinesDecision or supersedes link" ;
+        sh:prefixes [ sh:declare [ sh:prefix "isaqb" ;
+                    sh:namespace "http://impl-ralph.io/isaqb#"^^xsd:anyURI ],
+                [ sh:prefix "rdfs" ;
+                    sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ] ] ;
+        sh:select """
+            SELECT $this ?projectTitle
+            WHERE {
+                $this isaqb:scope "idea" .
+                $this isaqb:addresses ?qa .
+                ?projectADR a isaqb:ArchitectureDecision .
+                ?projectADR isaqb:scope "project" .
+                ?projectADR isaqb:addresses ?qa .
+                ?projectADR rdfs:label ?projectTitle .
+                FILTER NOT EXISTS { $this isaqb:refinesDecision ?projectADR }
+                FILTER NOT EXISTS { $this isaqb:supersedes ?projectADR }
+            }
+        """ ] .
+
 isaqb:ATAM a isaqb:EvaluationMethod ;
     rdfs:label "ATAM" ;
     isaqb:appliesView isaqb:BuildingBlockView,
