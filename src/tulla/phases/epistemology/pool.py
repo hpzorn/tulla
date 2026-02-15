@@ -1,157 +1,101 @@
-"""Epistemology Pool mode — idea-pool health assessment.
+"""Epistemology Pool mode — pool-driven idea generation.
 
-Analyses the entire idea pool for epistemic hygiene: stale assumptions,
-missing evidence, circular reasoning, and knowledge gaps.
+Analyses the idea pool for gaps, clusters, and combination opportunities,
+selects the most promising idea as generative root, and generates new ideas
+using Gap Analysis, Conceptual Combination, and Assumption Inversion.
 """
 
 from __future__ import annotations
 
-import re
 from datetime import date
 from typing import Any
 
-from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import Phase, PhaseContext
 
-from .models import PoolOutput
+from ._helpers import parse_epistemology_output
+from .models import EpistemologyOutput
+
+_FRAMEWORKS = ["Gap Analysis", "Conceptual Combination", "Assumption Inversion"]
+_OUTPUT_FILE = "ep-pool-ideas.md"
 
 
-class PoolPhase(Phase[PoolOutput]):
-    """Epistemology pool mode: assess epistemic health of the idea pool."""
+class PoolPhase(Phase[EpistemologyOutput]):
+    """Epistemology pool mode: generate ideas from pool-level analysis."""
 
     phase_id: str = "ep-pool"
-    timeout_s: float = 900.0  # 15 minutes
-
-    # ------------------------------------------------------------------
-    # Template hooks
-    # ------------------------------------------------------------------
+    timeout_s: float = 900.0
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the pool-level epistemology prompt."""
-        output_file = ctx.work_dir / "ep-pool-health.md"
+        output_file = ctx.work_dir / _OUTPUT_FILE
         run_date = date.today().isoformat()
 
         return (
-            f"You are conducting Epistemology — Pool Health Assessment for idea {ctx.idea_id}.\n"
+            f"You are Epistemology Ralph — Pool Mode, generating new ideas for idea {ctx.idea_id}.\n"
             "\n"
             "## Goal\n"
-            "Assess the epistemic health of the idea pool: identify stale assumptions, "
-            "missing evidence, circular reasoning, and knowledge gaps across ideas.\n"
+            "Analyse the idea pool for gaps, clusters, and combination opportunities. "
+            "Select the most promising idea as the generative root. "
+            "Generate 3 new ideas using philosophical protocols.\n"
             "\n"
             "## Instructions\n"
             "\n"
             f"1. Read the target idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
-            "2. Query related ideas: mcp__ontology-server__query_ideas\n"
-            "3. For each idea in the neighbourhood, assess:\n"
-            "   - Are assumptions still valid?\n"
-            "   - Is there evidence backing key claims?\n"
-            "   - Are there circular dependencies between ideas?\n"
-            "   - What knowledge gaps exist?\n"
+            "2. Query the pool: mcp__ontology-server__query_ideas to survey all ideas\n"
+            "3. Analyse the pool:\n"
+            "   - Identify idea clusters and gaps between them\n"
+            "   - Find combination opportunities across domains\n"
+            "   - Note shared assumptions that could be challenged\n"
+            "4. **Select the most promising idea** as the generative root — the idea\n"
+            "   with the highest potential for spawning novel descendants.\n"
             "\n"
-            f"4. Write findings to: {output_file}\n"
+            "5. Generate exactly 3 new ideas, one per protocol:\n"
             "\n"
-            "   Structure:\n"
+            "   **Gap Analysis**: Fill a missing connection between idea clusters.\n"
+            "   What topic or link is conspicuously absent from the pool?\n"
             "\n"
-            "   # Epistemology: Pool Health\n"
-            f"   **Idea context**: {ctx.idea_id}\n"
+            "   **Conceptual Combination**: Merge ideas from different domains.\n"
+            "   Take two ideas that seem unrelated and find their hidden intersection.\n"
+            "\n"
+            "   **Assumption Inversion**: Challenge a shared assumption across multiple ideas.\n"
+            "   What if the opposite were true? What idea emerges?\n"
+            "\n"
+            "6. For each generated idea, save it to the pool:\n"
+            '   mcp__ontology-server__create_idea with author "AI",\n'
+            '   tags ["epi-ralph", "pool", "<protocol-name-lowercase>"]\n'
+            "\n"
+            f"7. Write the full report to: {output_file}\n"
+            "\n"
+            "   Use this format:\n"
+            "\n"
+            "   # Generated Ideas — Pool Mode\n"
+            f"   **Root Idea**: {ctx.idea_id}\n"
             f"   **Date**: {run_date}\n"
+            f"   **Frameworks**: {', '.join(_FRAMEWORKS)}\n"
             "\n"
-            "   ## Ideas Analysed\n"
-            "   | ID | Title | Epistemic Status | Issues |\n"
-            "   |----|-------|-----------------|--------|\n"
+            "   ## Idea 1: {Title}\n"
+            "   **Protocol**: Gap Analysis\n"
+            "   **Source Ideas**: {which existing ideas inspired this}\n"
+            "   **Description**: {2-3 sentences}\n"
+            "   **Novelty**: {why this is distinct from existing ideas}\n"
             "\n"
-            "   ## Stale Assumptions\n"
-            "   [Assumptions that may no longer hold]\n"
+            "   ## Idea 2: {Title}\n"
+            "   **Protocol**: Conceptual Combination\n"
+            "   ...\n"
             "\n"
-            "   ## Missing Evidence\n"
-            "   [Claims lacking supporting evidence]\n"
-            "\n"
-            "   ## Circular Dependencies\n"
-            "   [Ideas that circularly depend on each other's assumptions]\n"
-            "\n"
-            "   ## Knowledge Gaps\n"
-            "   [Areas where the pool lacks coverage]\n"
-            "\n"
-            "   ## Recommendations\n"
-            "   [Prioritised actions to improve pool health]\n"
-            "\n"
-            "Be thorough and evidence-based in your assessment."
+            "   ## Idea 3: {Title}\n"
+            "   **Protocol**: Assumption Inversion\n"
+            "   ...\n"
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
-        """Return tool definitions available during pool mode."""
         return [
             {"name": "mcp__ontology-server__get_idea"},
             {"name": "mcp__ontology-server__query_ideas"},
-            {"name": "mcp__ontology-server__recall_facts"},
-            {"name": "mcp__ontology-server__query_ontology"},
-            {"name": "Read"},
+            {"name": "mcp__ontology-server__create_idea"},
             {"name": "Write"},
-            {"name": "Glob"},
-            {"name": "Grep"},
         ]
 
-    def parse_output(self, ctx: PhaseContext, raw: Any) -> PoolOutput:
-        """Parse pool mode output from ``ep-pool-health.md``."""
-        output_file = ctx.work_dir / "ep-pool-health.md"
-
-        if not output_file.exists():
-            raise ParseError(
-                f"ep-pool-health.md not found in {ctx.work_dir}",
-                raw_output=raw,
-                context={"work_dir": str(ctx.work_dir)},
-            )
-
-        content = output_file.read_text(encoding="utf-8")
-
-        # Count ideas analysed from the table
-        ideas_section = _extract_section(content, "Ideas Analysed")
-        ideas_analysed = _count_table_rows(ideas_section)
-
-        # Count issues across all issue sections
-        issues_found = 0
-        for heading in ("Stale Assumptions", "Missing Evidence",
-                        "Circular Dependencies", "Knowledge Gaps"):
-            section = _extract_section(content, heading)
-            issues_found += _count_bullet_items(section)
-
-        return PoolOutput(
-            output_file=output_file,
-            ideas_analysed=ideas_analysed,
-            issues_found=issues_found,
+    def parse_output(self, ctx: PhaseContext, raw: Any) -> EpistemologyOutput:
+        return parse_epistemology_output(
+            self.phase_id, "pool", ctx, raw, _OUTPUT_FILE, _FRAMEWORKS,
         )
-
-
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-
-
-def _extract_section(content: str, heading: str) -> str:
-    """Extract content under a markdown heading until the next heading."""
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
-
-
-def _count_table_rows(section: str) -> int:
-    """Count markdown table data rows (excludes header and separator)."""
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    return max(0, rows - 1) if rows > 0 else 0
-
-
-def _count_bullet_items(section: str) -> int:
-    """Count markdown bullet items (lines starting with - or *)."""
-    count = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if stripped.startswith("- ") or stripped.startswith("* "):
-            count += 1
-    return count

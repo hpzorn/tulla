@@ -1,139 +1,103 @@
-"""Epistemology Idea mode — single-idea epistemic review.
+"""Epistemology Idea mode — idea-focused expansion protocols.
 
-Deep-dives into one idea's epistemic foundations: checks claims,
-validates assumptions, and identifies reasoning gaps.
+Reads the source idea and related ideas, then generates new ideas using
+Extension, Lateral Transfer, Assumption Inversion, Decomposition, and
+Synthesis protocols.
 """
 
 from __future__ import annotations
 
-import re
 from datetime import date
 from typing import Any
 
-from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import Phase, PhaseContext
 
-from .models import IdeaOutput
+from ._helpers import parse_epistemology_output
+from .models import EpistemologyOutput
+
+_FRAMEWORKS = [
+    "Extension",
+    "Lateral Transfer",
+    "Assumption Inversion",
+    "Decomposition",
+    "Synthesis",
+]
+_OUTPUT_FILE = "ep-idea-ideas.md"
 
 
-class IdeaPhase(Phase[IdeaOutput]):
-    """Epistemology idea mode: review epistemic foundations of a single idea."""
+class IdeaPhase(Phase[EpistemologyOutput]):
+    """Epistemology idea mode: expand an idea via philosophical protocols."""
 
     phase_id: str = "ep-idea"
     timeout_s: float = 900.0
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        """Build the single-idea epistemology prompt."""
-        output_file = ctx.work_dir / "ep-idea-review.md"
+        output_file = ctx.work_dir / _OUTPUT_FILE
         run_date = date.today().isoformat()
 
         return (
-            f"You are conducting Epistemology — Idea Review for idea {ctx.idea_id}.\n"
+            f"You are Epistemology Ralph — Idea Mode, expanding idea {ctx.idea_id}.\n"
             "\n"
             "## Goal\n"
-            "Deep-dive into this idea's epistemic foundations: check claims, "
-            "validate assumptions, and identify reasoning gaps.\n"
+            "Read the source idea and its neighbours, then generate new ideas "
+            "using philosophical expansion protocols.\n"
             "\n"
             "## Instructions\n"
             "\n"
             f"1. Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
-            "2. Recall any stored facts: mcp__ontology-server__recall_facts\n"
-            "3. For each claim or assumption in the idea:\n"
-            "   - Is it supported by evidence?\n"
-            "   - Is the reasoning valid (no logical fallacies)?\n"
-            "   - Are there hidden assumptions?\n"
-            "   - What would falsify this claim?\n"
+            "2. Find related ideas: mcp__ontology-server__query_ideas\n"
+            "3. Get direct neighbours: mcp__ontology-server__get_related_ideas\n"
             "\n"
-            f"4. Write findings to: {output_file}\n"
+            "4. Generate exactly 3 new ideas. Choose the 3 most fitting protocols from:\n"
             "\n"
-            "   Structure:\n"
+            "   **Extension**: Push the idea further in its natural direction.\n"
+            "   What is the logical next step if we take this idea seriously?\n"
             "\n"
-            "   # Epistemology: Idea Review\n"
-            f"   **Idea**: {ctx.idea_id}\n"
+            "   **Lateral Transfer**: Apply the core insight to a completely different domain.\n"
+            "   Where else could this principle create value?\n"
+            "\n"
+            "   **Assumption Inversion**: Reverse a key assumption of the idea.\n"
+            "   What if the opposite assumption were true? What new idea emerges?\n"
+            "\n"
+            "   **Decomposition**: Break the idea into standalone sub-ideas.\n"
+            "   Which component could be an independent, valuable idea on its own?\n"
+            "\n"
+            "   **Synthesis**: Combine with a related idea from the pool.\n"
+            "   What higher-order idea emerges from merging these two?\n"
+            "\n"
+            "5. For each generated idea, save it to the pool:\n"
+            f'   mcp__ontology-server__create_idea with author "AI", parent {ctx.idea_id},\n'
+            '   tags ["epi-ralph", "idea", "<protocol-name-lowercase>"]\n'
+            "\n"
+            f"6. Write the full report to: {output_file}\n"
+            "\n"
+            "   Use this format:\n"
+            "\n"
+            "   # Generated Ideas — Idea Mode\n"
+            f"   **Root Idea**: {ctx.idea_id}\n"
             f"   **Date**: {run_date}\n"
+            "   **Frameworks**: {comma-separated list of chosen protocols}\n"
             "\n"
-            "   ## Claims Inventory\n"
-            "   | # | Claim | Evidence | Status |\n"
-            "   |---|-------|----------|--------|\n"
+            "   ## Idea 1: {Title}\n"
+            "   **Protocol**: {protocol name}\n"
+            "   **Source Ideas**: {which existing ideas inspired this}\n"
+            "   **Description**: {2-3 sentences}\n"
+            "   **Novelty**: {why this is distinct from existing ideas}\n"
             "\n"
-            "   ## Assumption Audit\n"
-            "   [Hidden or explicit assumptions and their validity]\n"
-            "\n"
-            "   ## Reasoning Gaps\n"
-            "   [Logical gaps, fallacies, or unsupported leaps]\n"
-            "\n"
-            "   ## Falsifiability\n"
-            "   [What evidence would disprove key claims]\n"
-            "\n"
-            "   ## Recommendations\n"
-            "   [Actions to strengthen epistemic foundations]\n"
+            "   ## Idea 2: ...\n"
+            "   ## Idea 3: ...\n"
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return [
             {"name": "mcp__ontology-server__get_idea"},
-            {"name": "mcp__ontology-server__recall_facts"},
-            {"name": "mcp__ontology-server__query_ontology"},
-            {"name": "Read"},
+            {"name": "mcp__ontology-server__query_ideas"},
+            {"name": "mcp__ontology-server__get_related_ideas"},
+            {"name": "mcp__ontology-server__create_idea"},
             {"name": "Write"},
-            {"name": "Glob"},
-            {"name": "Grep"},
         ]
 
-    def parse_output(self, ctx: PhaseContext, raw: Any) -> IdeaOutput:
-        output_file = ctx.work_dir / "ep-idea-review.md"
-
-        if not output_file.exists():
-            raise ParseError(
-                f"ep-idea-review.md not found in {ctx.work_dir}",
-                raw_output=raw,
-                context={"work_dir": str(ctx.work_dir)},
-            )
-
-        content = output_file.read_text(encoding="utf-8")
-
-        claims_section = _extract_section(content, "Claims Inventory")
-        claims_checked = _count_table_rows(claims_section)
-
-        issues_found = 0
-        for heading in ("Assumption Audit", "Reasoning Gaps"):
-            section = _extract_section(content, heading)
-            issues_found += _count_bullet_items(section)
-
-        return IdeaOutput(
-            output_file=output_file,
-            claims_checked=claims_checked,
-            issues_found=issues_found,
+    def parse_output(self, ctx: PhaseContext, raw: Any) -> EpistemologyOutput:
+        return parse_epistemology_output(
+            self.phase_id, "idea", ctx, raw, _OUTPUT_FILE, _FRAMEWORKS,
         )
-
-
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-
-
-def _extract_section(content: str, heading: str) -> str:
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
-
-
-def _count_table_rows(section: str) -> int:
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    return max(0, rows - 1) if rows > 0 else 0
-
-
-def _count_bullet_items(section: str) -> int:
-    count = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if stripped.startswith("- ") or stripped.startswith("* "):
-            count += 1
-    return count

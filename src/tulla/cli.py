@@ -229,6 +229,7 @@ def _build_pipeline(
         )
 
     if agent == "epistemology":
+        from tulla.phases.epistemology.auto import AutoPhase
         from tulla.phases.epistemology.contradiction import ContradictionPhase
         from tulla.phases.epistemology.domain import DomainPhase
         from tulla.phases.epistemology.idea import IdeaPhase
@@ -237,6 +238,7 @@ def _build_pipeline(
         from tulla.phases.epistemology.signal import SignalPhase
 
         ep_modes: dict[str, tuple[str, Any]] = {
+            "auto": ("ep-auto", AutoPhase()),
             "pool": ("ep-pool", PoolPhase()),
             "idea": ("ep-idea", IdeaPhase()),
             "domain": ("ep-domain", DomainPhase()),
@@ -245,7 +247,7 @@ def _build_pipeline(
             "signal": ("ep-signal", SignalPhase()),
         }
 
-        effective_mode = mode if mode else "pool"
+        effective_mode = mode if mode else "auto"
         if effective_mode not in ep_modes:
             raise click.ClickException(
                 f"Unknown epistemology mode '{effective_mode}'. "

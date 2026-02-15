@@ -1,135 +1,100 @@
-"""Epistemology Problem mode — problem-framing review.
+"""Epistemology Problem mode — multi-approach problem solving.
 
-Examines whether the problem an idea addresses is correctly framed,
-well-scoped, and not a symptom of a deeper issue.
+Extracts the core problem from an idea, searches for prior solutions,
+and generates solution ideas via Direct approach, Analogical Transfer,
+Assumption Inversion, and Decomposition.
 """
 
 from __future__ import annotations
 
-import re
 from datetime import date
 from typing import Any
 
-from tulla.core.phase import ParseError, Phase, PhaseContext
+from tulla.core.phase import Phase, PhaseContext
 
-from .models import ProblemOutput
+from ._helpers import parse_epistemology_output
+from .models import EpistemologyOutput
+
+_FRAMEWORKS = [
+    "Direct Approach",
+    "Analogical Transfer",
+    "Assumption Inversion",
+    "Decomposition",
+]
+_OUTPUT_FILE = "ep-problem-ideas.md"
 
 
-class ProblemPhase(Phase[ProblemOutput]):
-    """Epistemology problem mode: review problem framing and scoping."""
+class ProblemPhase(Phase[EpistemologyOutput]):
+    """Epistemology problem mode: generate solution ideas from multiple angles."""
 
     phase_id: str = "ep-problem"
     timeout_s: float = 900.0
 
     def build_prompt(self, ctx: PhaseContext) -> str:
-        output_file = ctx.work_dir / "ep-problem-framing.md"
+        output_file = ctx.work_dir / _OUTPUT_FILE
         run_date = date.today().isoformat()
 
         return (
-            f"You are conducting Epistemology — Problem Framing for idea {ctx.idea_id}.\n"
+            f"You are Epistemology Ralph — Problem Mode, solving the problem in idea {ctx.idea_id}.\n"
             "\n"
             "## Goal\n"
-            "Examine whether the problem this idea addresses is correctly framed, "
-            "well-scoped, and not merely a symptom of a deeper issue.\n"
+            "Extract the core problem from the idea, search for prior solutions, "
+            "and generate new solution ideas from multiple philosophical angles.\n"
             "\n"
             "## Instructions\n"
             "\n"
             f"1. Read the idea: mcp__ontology-server__get_idea with identifier {ctx.idea_id}\n"
-            "2. Recall related context: mcp__ontology-server__recall_facts\n"
-            "3. Assess the problem framing:\n"
-            "   - Is the problem statement clear and falsifiable?\n"
-            "   - Is the scope appropriate (not too broad, not too narrow)?\n"
-            "   - Could this be a symptom of a deeper root cause?\n"
-            "   - Are there alternative framings worth considering?\n"
+            "2. Extract the core problem or challenge the idea is trying to address\n"
+            "3. Search the pool: mcp__ontology-server__query_ideas for prior solutions\n"
+            "4. Use WebSearch for external prior art and approaches\n"
             "\n"
-            f"4. Write findings to: {output_file}\n"
+            "5. Generate exactly 3 new solution ideas. Choose the 3 most fitting from:\n"
             "\n"
-            "   Structure:\n"
+            "   **Direct Approach**: What is the most straightforward solution?\n"
+            "   If you had unlimited resources, what would you build?\n"
             "\n"
-            "   # Epistemology: Problem Framing\n"
-            f"   **Idea**: {ctx.idea_id}\n"
+            "   **Analogical Transfer**: How has a similar problem been solved in\n"
+            "   a completely different domain? What can we borrow?\n"
+            "\n"
+            "   **Assumption Inversion**: What if the problem's premises are wrong?\n"
+            "   What if we challenge the constraints instead of solving within them?\n"
+            "\n"
+            "   **Decomposition**: Can the problem be broken into smaller, independently\n"
+            "   solvable parts? Which sub-problem is most tractable?\n"
+            "\n"
+            "6. For each generated idea, save it to the pool:\n"
+            '   mcp__ontology-server__create_idea with author "AI",\n'
+            '   tags ["epi-ralph", "problem", "<protocol-name-lowercase>"]\n'
+            "\n"
+            f"7. Write the full report to: {output_file}\n"
+            "\n"
+            "   Use this format:\n"
+            "\n"
+            "   # Generated Ideas — Problem Mode\n"
+            f"   **Root Idea**: {ctx.idea_id}\n"
             f"   **Date**: {run_date}\n"
+            "   **Frameworks**: {comma-separated list of chosen protocols}\n"
             "\n"
-            "   ## Problems Reviewed\n"
-            "   | # | Problem Statement | Clarity | Scope | Root-Cause Risk |\n"
-            "   |---|------------------|---------|-------|----------------|\n"
+            "   ## Idea 1: {Title}\n"
+            "   **Protocol**: {protocol name}\n"
+            "   **Source Ideas**: {which existing ideas inspired this}\n"
+            "   **Description**: {2-3 sentences}\n"
+            "   **Novelty**: {why this is distinct from existing ideas}\n"
             "\n"
-            "   ## Root-Cause Analysis\n"
-            "   [Whether stated problems are symptoms of deeper issues]\n"
-            "\n"
-            "   ## Alternative Framings\n"
-            "   [Other ways to frame the problem that may be more productive]\n"
-            "\n"
-            "   ## Recommendations\n"
-            "   [Suggested reframings or scope adjustments]\n"
+            "   ## Idea 2: ...\n"
+            "   ## Idea 3: ...\n"
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return [
             {"name": "mcp__ontology-server__get_idea"},
             {"name": "mcp__ontology-server__query_ideas"},
-            {"name": "mcp__ontology-server__recall_facts"},
-            {"name": "Read"},
+            {"name": "mcp__ontology-server__create_idea"},
+            {"name": "WebSearch"},
             {"name": "Write"},
-            {"name": "Glob"},
-            {"name": "Grep"},
         ]
 
-    def parse_output(self, ctx: PhaseContext, raw: Any) -> ProblemOutput:
-        output_file = ctx.work_dir / "ep-problem-framing.md"
-
-        if not output_file.exists():
-            raise ParseError(
-                f"ep-problem-framing.md not found in {ctx.work_dir}",
-                raw_output=raw,
-                context={"work_dir": str(ctx.work_dir)},
-            )
-
-        content = output_file.read_text(encoding="utf-8")
-
-        problems_section = _extract_section(content, "Problems Reviewed")
-        problems_reviewed = _count_table_rows(problems_section)
-
-        reframings_suggested = 0
-        for heading in ("Alternative Framings", "Recommendations"):
-            section = _extract_section(content, heading)
-            reframings_suggested += _count_bullet_items(section)
-
-        return ProblemOutput(
-            output_file=output_file,
-            problems_reviewed=problems_reviewed,
-            reframings_suggested=reframings_suggested,
+    def parse_output(self, ctx: PhaseContext, raw: Any) -> EpistemologyOutput:
+        return parse_epistemology_output(
+            self.phase_id, "problem", ctx, raw, _OUTPUT_FILE, _FRAMEWORKS,
         )
-
-
-# ------------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------------
-
-
-def _extract_section(content: str, heading: str) -> str:
-    pattern = rf"##\s+{re.escape(heading)}\s*\n(.*?)(?=\n##\s|\Z)"
-    match = re.search(pattern, content, re.DOTALL)
-    return match.group(1) if match else ""
-
-
-def _count_table_rows(section: str) -> int:
-    rows = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.match(r"^\|[\s-]+\|", stripped):
-            continue
-        if stripped.startswith("|") and stripped.endswith("|"):
-            rows += 1
-    return max(0, rows - 1) if rows > 0 else 0
-
-
-def _count_bullet_items(section: str) -> int:
-    count = 0
-    for line in section.strip().splitlines():
-        stripped = line.strip()
-        if stripped.startswith("- ") or stripped.startswith("* "):
-            count += 1
-    return count

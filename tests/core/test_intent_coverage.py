@@ -48,14 +48,9 @@ _EXCEPTIONS: set[str] = {
     # and budget tracking, not persisted as A-Box facts.
     "IterationResult",
     "LoopResult",
-    # Epistemology outputs: introspective analysis results, not pipeline
+    # Epistemology outputs: generative idea creation results, not pipeline
     # decision facts.  IntentField adoption tracked separately.
-    "PoolOutput",
-    "IdeaOutput",
-    "DomainOutput",
-    "ProblemOutput",
-    "ContradictionOutput",
-    "SignalOutput",
+    "EpistemologyOutput",
     # Lightweight pipeline: operational per-step outputs; only
     # LightweightTraceResult carries IntentFields for KG persistence.
     "IntakeOutput",
