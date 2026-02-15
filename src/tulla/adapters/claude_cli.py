@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import subprocess
 import time
 from typing import Any
@@ -40,6 +41,9 @@ class ClaudeCLIAdapter(ClaudePort):
         timeout = request.timeout_seconds if request.timeout_seconds > 0 else None
         cwd = str(request.cwd) if request.cwd is not None else None
 
+        # Strip CLAUDECODE so the subprocess doesn't think it's nested.
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+
         try:
             proc = subprocess.run(
                 cmd,
@@ -47,6 +51,7 @@ class ClaudeCLIAdapter(ClaudePort):
                 text=True,
                 timeout=timeout,
                 cwd=cwd,
+                env=env,
             )
         except subprocess.TimeoutExpired:
             elapsed = time.monotonic() - start
