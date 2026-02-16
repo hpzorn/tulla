@@ -48,21 +48,21 @@ def ep_modes() -> dict[str, tuple[str, Any]]:
     from tulla.phases.epistemology.auto import AutoPhase
     from tulla.phases.epistemology.catuskoti import CatuskotiPhase
     from tulla.phases.epistemology.contradiction import ContradictionPhase
-    from tulla.phases.epistemology.domain import DomainPhase
-    from tulla.phases.epistemology.idea import IdeaPhase
-    from tulla.phases.epistemology.pool import PoolPhase
-    from tulla.phases.epistemology.problem import ProblemPhase
-    from tulla.phases.epistemology.signal import SignalPhase
+    from tulla.phases.epistemology.domain import PopperPhase
+    from tulla.phases.epistemology.idea import AristotlePhase
+    from tulla.phases.epistemology.pool import BaconPhase
+    from tulla.phases.epistemology.problem import DeweyPhase
+    from tulla.phases.epistemology.signal import PyrrhonPhase
 
     return {
         "auto": ("ep-auto", AutoPhase()),
-        "pool": ("ep-pool", PoolPhase()),
-        "idea": ("ep-idea", IdeaPhase()),
-        "domain": ("ep-domain", DomainPhase()),
-        "problem": ("ep-problem", ProblemPhase()),
-        "contradiction": ("ep-contradiction", ContradictionPhase()),
-        "signal": ("ep-signal", SignalPhase()),
+        "pyrrhon": ("ep-pyrrhon", PyrrhonPhase()),
+        "aristotle": ("ep-aristotle", AristotlePhase()),
+        "hegel": ("ep-contradiction", ContradictionPhase()),
         "abduction": ("ep-abduction", AbductionPhase()),
+        "dewey": ("ep-dewey", DeweyPhase()),
+        "popper": ("ep-popper", PopperPhase()),
+        "bacon": ("ep-bacon", BaconPhase()),
         "catuskoti": ("ep-catuskoti", CatuskotiPhase()),
     }
 
