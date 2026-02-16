@@ -1,10 +1,12 @@
-"""Baseline tests for AutoPhase (pre-rewrite).
+"""Tests for the rewritten AutoPhase with topology-grounded diagnostics.
 
-These tests capture the current behavior of ``AutoPhase`` so that the
-philosopher-grounded rewrite can be validated against a known baseline.
-No prompt may be modified until these pass.
+Verifies that ``AutoPhase.build_prompt`` uses the new philosopher-grounded
+diagnostic dimension names (Contested Claims, Unexplained Anomaly, etc.),
+includes the Peircean Abduction fallback, and enforces the Popper/Bacon
+mutual exclusion rule.  Structural tests (tools, parse, mock execute) are
+unchanged from the baseline.
 
-Requirement: prd:req-83-1-8
+Requirement: prd:req-83-4-2
 """
 
 from __future__ import annotations
@@ -18,140 +20,141 @@ from tulla.phases.epistemology.auto import AutoPhase
 from tulla.phases.epistemology.models import EpistemologyOutput
 
 # ---------------------------------------------------------------------------
-# Sample output constant — Auto mode generates 12 ideas (4 frameworks x 3)
+# Sample output constant — Auto mode generates 12 ideas (4 per mode x 3)
 # ---------------------------------------------------------------------------
 
 SAMPLE_OUTPUT = """\
 # Generated Ideas — Auto Mode
 **Root Idea**: idea-42
 **Date**: 2026-02-16
-**Frameworks**: Extension, Assumption Inversion, Gap Analysis, Conceptual Combination
+**Modes**: Peircean Abduction, Hegelian Dialectics, Popperian Falsification
 
 ## Diagnosis
-| Dimension | Assessment | Evidence |
-|-----------|-----------|----------|
-| Maturity | sapling | Has structure (5-layer encoding) but gaps in evaluation |
-| Connectivity | connected | 3 neighbours: idea-11, idea-17, idea-31 |
-| Assumption Load | heavy | Assumes single-mode runs, text-only output, human trigger |
-| Decomposability | compound | Separable into prompt engineering + evaluation + selection |
-| Domain Specificity | bridging | Touches epistemology and software engineering |
+| Diagnostic Question | Mode Indicated | Evidence | Strength |
+|---------------------|---------------|----------|----------|
+| Contested Claims | Pyrrhonian Skepticism | N/A | N/A |
+| Unexplained Anomaly | Peircean Abduction | 5-layer encoding works but no explanation for why guard removal degrades 5-6 dimensions | strong |
+| Genuine Contradiction | Hegelian Dialectics | Modes must be distinct yet share common Phase infrastructure | strong |
+| Non-Binary Tension | Catuṣkoṭi | N/A | N/A |
+| Unclear Purpose/Composition | Aristotelian Four Causes | N/A | N/A |
+| Indeterminate Situation | Deweyan Inquiry | N/A | N/A |
+| Untested Bold Claim | Popperian Falsification | Claim that topology determines distinctness has not been rigorously tested | strong |
+| Observable Pattern | Baconian Inductivism | 9 modes with rubric scores could yield inductive patterns | moderate |
 
-## Framework Prescription
-| Framework | Qualifying Rule | Diagnostic Basis |
-|-----------|----------------|------------------|
-| Extension | maturity >= sapling | Sapling with clear growth direction |
-| Assumption Inversion | assumption load >= heavy | 3 heavy assumptions identified |
-| Gap Analysis | connectivity <= connected | 3 neighbours, gaps visible |
-| Conceptual Combination | cross-domain access | Bridging two domains |
+## Mode Prescription
+| Mode | Diagnostic Basis | Selection Rationale |
+|------|-----------------|---------------------|
+| Peircean Abduction | Unexplained Anomaly — guard degradation unexplained | Cyclic hypothesis generation fits the anomaly |
+| Hegelian Dialectics | Genuine Contradiction — distinct yet shared | Thesis-antithesis-synthesis resolves the tension |
+| Popperian Falsification | Untested Bold Claim — topology claim untested | Severe testing needed for bold architectural claim |
 
-## Idea 1: Layered Prompt Compiler
-**Protocol**: Extension
-**Diagnostic Basis**: Maturity — sapling with 5-layer structure
+## Idea 1: Guard Degradation Hypothesis
+**Mode**: Peircean Abduction
+**Diagnostic Basis**: Unexplained Anomaly — anti-collapse guard removal degrades 5-6 rubric dimensions
 **Source Ideas**: idea-42
-**Description**: Push the 5-layer encoding from a manual pattern into a \
-compiled representation. A prompt compiler takes layers as structured input \
-and produces optimised single-string prompts with guaranteed guard placement.
-**Novelty**: Moves from pattern documentation to tooling.
+**Description**: Form an explanatory hypothesis for why guard removal causes such \
+broad degradation. Hypothesis: guards act as cognitive scaffolding that prevents \
+the LLM from collapsing distinct reasoning topologies into generic summarisation.
+**Novelty**: Moves from empirical observation to mechanistic explanation.
 
-## Idea 2: Adaptive Layer Weighting
-**Protocol**: Extension
-**Diagnostic Basis**: Maturity — structure exists but gaps in evaluation
+## Idea 2: Topology Preservation Theory
+**Mode**: Peircean Abduction
+**Diagnostic Basis**: Unexplained Anomaly — topology determines distinctness but mechanism unclear
 **Source Ideas**: idea-42, idea-55
-**Description**: Extend the 5-layer pattern with per-layer importance weights \
-that adjust based on evaluation feedback. Layers that correlate with higher \
-rubric scores get amplified in subsequent runs.
-**Novelty**: Makes the encoding adaptive rather than static.
+**Description**: Hypothesize that prompt topology (chain, tree, DAG, cyclic, lattice) \
+creates distinct attention patterns in the transformer. Each topology forces different \
+information flow, making collapse structurally impossible.
+**Novelty**: Connects prompt engineering to transformer attention mechanics.
 
-## Idea 3: Cross-Mode Layer Sharing
-**Protocol**: Extension
-**Diagnostic Basis**: Maturity — sapling ready for growth
-**Source Ideas**: idea-42, idea-44, idea-51
-**Description**: Enable modes to share individual layers (e.g., reuse the same \
-Anti-Collapse Guard layer across Socratic and Hegelian modes while keeping \
-distinct Persona layers). Reduces prompt maintenance burden.
-**Novelty**: Layer-level modularity rather than whole-prompt copying.
+## Idea 3: Encoding Layer Interaction Effects
+**Mode**: Peircean Abduction
+**Diagnostic Basis**: Unexplained Anomaly — 5 layers work together but interactions unknown
+**Source Ideas**: idea-42, idea-44
+**Description**: Hypothesize that the 5-layer encoding creates emergent interaction \
+effects. Persona constrains rules, rules shape phases, phases determine format, and \
+guards protect the entire stack. Test by selectively removing layer pairs.
+**Novelty**: Layer interaction analysis rather than individual layer testing.
 
-## Idea 4: Assumption-Free Epistemology
-**Protocol**: Assumption Inversion
-**Diagnostic Basis**: Assumption Load — assumes single-mode runs
+## Idea 4: Anti-Collapse Guard Taxonomy
+**Mode**: Peircean Abduction
+**Diagnostic Basis**: Unexplained Anomaly — guards work but no theory of guard types
 **Source Ideas**: idea-42
-**Description**: Invert the single-mode assumption entirely. Instead of running \
-one mode per session, run all qualifying modes in parallel and let their outputs \
-compete. The pool map becomes a tournament bracket.
-**Novelty**: Multi-mode execution as the default, not the exception.
+**Description**: Abductively derive a taxonomy of guard types from observed failures. \
+Classify guards by what they prevent (mode collapse, format drift, reasoning shortcut) \
+and predict which guard types are essential vs. redundant.
+**Novelty**: Theoretical framework for a previously ad-hoc mechanism.
 
-## Idea 5: Visual Output Epistemology
-**Protocol**: Assumption Inversion
-**Diagnostic Basis**: Assumption Load — assumes text-only output
-**Source Ideas**: idea-42, idea-28
-**Description**: Invert the text-only assumption. Each mode produces a visual \
-artefact (graph, diagram, map) as its primary output, with text as annotation. \
-The pool map becomes literally visual.
-**Novelty**: Non-textual primary outputs for epistemology modes.
+## Idea 5: Infrastructure-Creativity Synthesis
+**Mode**: Hegelian Dialectics
+**Diagnostic Basis**: Genuine Contradiction — modes must be distinct yet share Phase infrastructure
+**Source Ideas**: idea-42, idea-11
+**Description**: Thesis: modes need maximum distinctness for creative value. Antithesis: \
+modes need shared infrastructure for maintainability. Synthesis: a layered architecture \
+where the shared Phase base provides structure while the 5-layer encoding provides distinctness.
+**Novelty**: Resolves the infrastructure-creativity tension explicitly.
 
-## Idea 6: Continuous Background Epistemology
-**Protocol**: Assumption Inversion
-**Diagnostic Basis**: Assumption Load — assumes human-triggered runs
+## Idea 6: Evaluation-Generation Dialectic
+**Mode**: Hegelian Dialectics
+**Diagnostic Basis**: Genuine Contradiction — evaluation constrains but generation requires freedom
+**Source Ideas**: idea-42, idea-55
+**Description**: Thesis: rigorous evaluation (rubric, SHACL) is essential for quality. \
+Antithesis: creative generation requires unconstrained exploration. Synthesis: evaluation \
+as a post-hoc lens, not a generative constraint — modes run freely, rubric scores after.
+**Novelty**: Temporal separation as dialectical resolution.
+
+## Idea 7: Simplicity-Depth Synthesis
+**Mode**: Hegelian Dialectics
+**Diagnostic Basis**: Genuine Contradiction — user wants simplicity but system has deep philosophy
 **Source Ideas**: idea-42, idea-22
-**Description**: Invert human-triggered execution. Modes run continuously in the \
-background, watching for changes in the knowledge graph that match their trigger \
-conditions. New ideas appear autonomously when conditions are met.
-**Novelty**: Event-driven rather than request-driven epistemology.
+**Description**: Thesis: philosophical grounding must be deep (5-layer, anti-collapse). \
+Antithesis: Solo Ideator wants invisible complexity. Synthesis: mode names imply the \
+philosophy (Pyrrhon = skepticism) while the encoding does the heavy lifting silently.
+**Novelty**: User experience design as dialectical resolution.
 
-## Idea 7: Evaluation Bridge
-**Protocol**: Gap Analysis
-**Diagnostic Basis**: Connectivity — gap between evaluation and epistemology
+## Idea 8: Single-vs-Multi Mode Resolution
+**Mode**: Hegelian Dialectics
+**Diagnostic Basis**: Genuine Contradiction — each mode runs alone but auto selects three
+**Source Ideas**: idea-42, idea-44
+**Description**: Thesis: each mode is a complete epistemological framework. Antithesis: \
+real ideas need multiple perspectives. Synthesis: auto mode as meta-epistemology that \
+composes modes without mixing them — each section is pure, the composition is new.
+**Novelty**: Composition without contamination as a design principle.
+
+## Idea 9: Topology Falsification Battery
+**Mode**: Popperian Falsification
+**Diagnostic Basis**: Untested Bold Claim — topology determines distinctness
+**Source Ideas**: idea-42
+**Description**: Design a severe test: generate outputs from all 9 modes for the same \
+idea, blind-label them, and check if evaluators can correctly classify by topology. \
+If topology truly determines distinctness, classification accuracy should exceed 80%.
+**Novelty**: Empirical falsification of the core architectural claim.
+
+## Idea 10: Anti-Collapse Necessity Test
+**Mode**: Popperian Falsification
+**Diagnostic Basis**: Untested Bold Claim — guards are load-bearing
 **Source Ideas**: idea-42, idea-55
-**Description**: Bridge the gap between epistemology modes and evaluation metrics. \
-Each mode run automatically produces a self-assessment using the 6-dimension \
-rubric, stored as triples in the knowledge graph alongside the generated ideas.
-**Novelty**: Closes evaluation-epistemology gap at the mode level.
+**Description**: Test the claim that anti-collapse guards are load-bearing by running \
+each mode with and without guards on 10 ideas. Measure rubric scores. If guards are \
+truly load-bearing, the with-guard version must score higher on 4+ dimensions consistently.
+**Novelty**: Quantified necessity testing for a specific prompt component.
 
-## Idea 8: Infrastructure Feedback Loop
-**Protocol**: Gap Analysis
-**Diagnostic Basis**: Connectivity — no link from infrastructure to modes
-**Source Ideas**: idea-42, idea-11
-**Description**: Create a feedback channel from semantic infrastructure back to \
-epistemology modes. When the ontology server detects structural patterns (orphan \
-nodes, dense clusters, missing relations), it surfaces these as mode inputs.
-**Novelty**: Infrastructure becomes an active participant in ideation.
+## Idea 11: Mode Count Optimality Challenge
+**Mode**: Popperian Falsification
+**Diagnostic Basis**: Untested Bold Claim — 9 modes is the right number
+**Source Ideas**: idea-42, idea-58
+**Description**: Attempt to falsify the claim that 9 modes is optimal. Add a 10th mode \
+(e.g., Kuhnian paradigm shift) and measure whether it produces genuinely distinct output \
+or collapses into an existing mode. If it collapses, the 9-mode claim survives.
+**Novelty**: Direct falsification attempt on the mode count decision.
 
-## Idea 9: Developer Experience for Mode Authors
-**Protocol**: Gap Analysis
-**Diagnostic Basis**: Connectivity — DX cluster disconnected from modes
-**Source Ideas**: idea-42, idea-22, idea-28
-**Description**: Fill the gap between developer experience tooling and mode \
-authoring. Build a mode development kit with prompt preview, guard validation, \
-and rubric pre-scoring before deployment.
-**Novelty**: First-class authoring tools for epistemology modes.
-
-## Idea 10: Ontology-Guided Ideation
-**Protocol**: Conceptual Combination
-**Diagnostic Basis**: Domain Specificity — bridging epistemology and software
-**Source Ideas**: idea-42, idea-11
-**Description**: Combine the ontology server's structural knowledge with \
-epistemology mode selection. The auto-selector reads the knowledge graph's \
-topology to determine which mode would be most productive for a given idea, \
-replacing the current generic diagnostic dimensions.
-**Novelty**: Topology-driven mode selection grounded in actual graph structure.
-
-## Idea 11: Rubric-Driven Prompt Evolution
-**Protocol**: Conceptual Combination
-**Diagnostic Basis**: Domain Specificity — bridging evaluation and prompt design
-**Source Ideas**: idea-42, idea-55, idea-58
-**Description**: Combine rubric scoring with prompt engineering. After each mode \
-run, the 6-dimension rubric scores feed into an evolution algorithm that mutates \
-the prompt layers to maximise distinctness and quality scores.
-**Novelty**: Automated prompt improvement via evaluation feedback.
-
-## Idea 12: Cross-Domain Pattern Mining
-**Protocol**: Conceptual Combination
-**Diagnostic Basis**: Domain Specificity — bridging two domains
+## Idea 12: Philosopher Grounding Necessity Test
+**Mode**: Popperian Falsification
+**Diagnostic Basis**: Untested Bold Claim — philosopher grounding improves distinctness
 **Source Ideas**: idea-42, idea-31
-**Description**: Combine graph RAG capabilities with epistemology pattern \
-detection. Mine the knowledge graph for recurring structural patterns across \
-domains and use them as seeds for new epistemology modes.
-**Novelty**: Graph structure as epistemology mode generator.
+**Description**: Test whether philosopher grounding actually matters. Create a control \
+set of 9 modes with identical topologies but generic names (Mode A, Mode B, ...). \
+Compare rubric scores. If grounding matters, named modes must score higher.
+**Novelty**: Isolating the effect of philosophical labeling from topology.
 """
 
 
@@ -191,6 +194,99 @@ class TestBuildPrompt:
     def test_timeout_is_1200(self) -> None:
         phase = AutoPhase()
         assert phase.timeout_s == 1200.0
+
+    # -- New diagnostic dimension checks ------------------------------------
+
+    def test_prompt_contains_contested_claims_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Contested Claims" in prompt
+
+    def test_prompt_contains_unexplained_anomaly_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Unexplained Anomaly" in prompt
+
+    def test_prompt_contains_genuine_contradiction_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Genuine Contradiction" in prompt
+
+    def test_prompt_contains_non_binary_tension_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Non-Binary Tension" in prompt
+
+    def test_prompt_contains_unclear_purpose_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Unclear Purpose" in prompt
+
+    def test_prompt_contains_indeterminate_situation_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Indeterminate Situation" in prompt
+
+    def test_prompt_contains_untested_bold_claim_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Untested Bold Claim" in prompt
+
+    def test_prompt_contains_observable_pattern_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Observable Pattern" in prompt
+
+    def test_prompt_does_not_contain_old_maturity_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "| Maturity |" not in prompt
+
+    def test_prompt_does_not_contain_old_connectivity_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "| Connectivity |" not in prompt
+
+    def test_prompt_does_not_contain_old_decomposability_dimension(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "| Decomposability |" not in prompt
+
+    # -- Peircean Abduction fallback ----------------------------------------
+
+    def test_prompt_contains_peircean_abduction_fallback(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Peircean Abduction" in prompt
+        # The fallback rule must mention defaulting to Peircean Abduction
+        assert "default" in prompt.lower() and "Peircean Abduction" in prompt
+
+    # -- Popper/Bacon mutual exclusion --------------------------------------
+
+    def test_prompt_contains_popper_bacon_mutual_exclusion(
+        self, ctx: PhaseContext
+    ) -> None:
+        prompt = AutoPhase().build_prompt(ctx)
+        assert "Popper" in prompt and "Bacon" in prompt
+        # Must mention they cannot both be selected
+        prompt_lower = prompt.lower()
+        assert (
+            "mutual exclusion" in prompt_lower
+            or "may not both" in prompt_lower
+            or "cannot both" in prompt_lower
+        ), "Prompt must contain Popper/Bacon mutual exclusion rule"
 
 
 # =========================================================================
