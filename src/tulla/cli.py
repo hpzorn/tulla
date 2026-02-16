@@ -37,6 +37,36 @@ EXIT_FAILURE = 1
 EXIT_INCOMPLETE = 2
 EXIT_TIMEOUT = 124
 
+
+def ep_modes() -> dict[str, tuple[str, Any]]:
+    """Build and return the epistemology mode registry.
+
+    Imports are deferred so the epistemology package is only loaded when
+    this function is actually called.
+    """
+    from tulla.phases.epistemology.abduction import AbductionPhase
+    from tulla.phases.epistemology.auto import AutoPhase
+    from tulla.phases.epistemology.catuskoti import CatuskotiPhase
+    from tulla.phases.epistemology.contradiction import ContradictionPhase
+    from tulla.phases.epistemology.domain import DomainPhase
+    from tulla.phases.epistemology.idea import IdeaPhase
+    from tulla.phases.epistemology.pool import PoolPhase
+    from tulla.phases.epistemology.problem import ProblemPhase
+    from tulla.phases.epistemology.signal import SignalPhase
+
+    return {
+        "auto": ("ep-auto", AutoPhase()),
+        "pool": ("ep-pool", PoolPhase()),
+        "idea": ("ep-idea", IdeaPhase()),
+        "domain": ("ep-domain", DomainPhase()),
+        "problem": ("ep-problem", ProblemPhase()),
+        "contradiction": ("ep-contradiction", ContradictionPhase()),
+        "signal": ("ep-signal", SignalPhase()),
+        "abduction": ("ep-abduction", AbductionPhase()),
+        "catuskoti": ("ep-catuskoti", CatuskotiPhase()),
+    }
+
+
 # Lifecycle transitions: agent -> (on_start, on_success)
 # Agents not listed here don't trigger lifecycle changes.
 _LIFECYCLE_TRANSITIONS: dict[str, tuple[str, str]] = {
@@ -229,32 +259,16 @@ def _build_pipeline(
         )
 
     if agent == "epistemology":
-        from tulla.phases.epistemology.auto import AutoPhase
-        from tulla.phases.epistemology.contradiction import ContradictionPhase
-        from tulla.phases.epistemology.domain import DomainPhase
-        from tulla.phases.epistemology.idea import IdeaPhase
-        from tulla.phases.epistemology.pool import PoolPhase
-        from tulla.phases.epistemology.problem import ProblemPhase
-        from tulla.phases.epistemology.signal import SignalPhase
-
-        ep_modes: dict[str, tuple[str, Any]] = {
-            "auto": ("ep-auto", AutoPhase()),
-            "pool": ("ep-pool", PoolPhase()),
-            "idea": ("ep-idea", IdeaPhase()),
-            "domain": ("ep-domain", DomainPhase()),
-            "problem": ("ep-problem", ProblemPhase()),
-            "contradiction": ("ep-contradiction", ContradictionPhase()),
-            "signal": ("ep-signal", SignalPhase()),
-        }
+        modes = ep_modes()
 
         effective_mode = mode if mode else "auto"
-        if effective_mode not in ep_modes:
+        if effective_mode not in modes:
             raise click.ClickException(
                 f"Unknown epistemology mode '{effective_mode}'. "
-                f"Available: {', '.join(ep_modes)}"
+                f"Available: {', '.join(modes)}"
             )
 
-        phase_id, phase = ep_modes[effective_mode]
+        phase_id, phase = modes[effective_mode]
         return Pipeline(
             phases=[(phase_id, phase)],
             claude_port=llm_port,
