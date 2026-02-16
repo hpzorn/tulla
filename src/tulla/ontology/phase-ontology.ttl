@@ -180,3 +180,14 @@ phase:R6OutputShape a sh:NodeShape ;
             sh:path phase:preserves-recommendation ] ;
     sh:target [ a sh:SPARQLTarget ;
             sh:select "SELECT ?this WHERE { ?this <http://impl-ralph.io/phase#producedBy> \"r6\" . }" ] .
+
+phase:EpOutputShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path phase:producedBy ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-ideas_generated ],
+        [ sh:minCount 1 ;
+            sh:path phase:preserves-mode ] ;
+    sh:target [ a sh:SPARQLTarget ;
+            sh:select "SELECT ?this WHERE { ?this <http://impl-ralph.io/phase#producedBy> ?pb . FILTER(STRSTARTS(?pb, \"ep-\")) }" ] .
