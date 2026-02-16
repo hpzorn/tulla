@@ -525,6 +525,12 @@ def main(ctx: click.Context, config_path: str | None) -> None:
     help="Change description (used by the lightweight agent).",
 )
 @click.option(
+    "--directive",
+    type=str,
+    default=None,
+    help="High-priority instruction injected into every phase prompt.",
+)
+@click.option(
     "--verbose", "-v",
     is_flag=True,
     default=False,
@@ -543,6 +549,7 @@ def run(
     research_dir: str | None,
     research_mode: str | None,
     description: str,
+    directive: str | None,
     verbose: bool,
 ) -> None:
     """Run an agent pipeline for a given idea.
@@ -609,6 +616,10 @@ def run(
         description=description,
     )
 
+    # Inject user directive into pipeline config so Phase.execute() can see it
+    if directive:
+        pipeline._config["directive"] = directive
+
     # Dry-run: show plan and exit
     if dry_run:
         _show_dry_run(
@@ -640,6 +651,58 @@ def run(
     exit_code = _report_result(result)
     if exit_code != EXIT_SUCCESS:
         sys.exit(exit_code)
+
+
+# ---------------------------------------------------------------------------
+# Phase ID mappings for reset
+# ---------------------------------------------------------------------------
+
+_AGENT_PHASES: dict[str, list[str]] = {
+    "discovery": ["d1", "d2", "d3", "d4", "d5"],
+    "research": ["r1", "r2", "r3", "r4", "r5", "r6"],
+    "planning": ["p1", "p2", "p3", "p4", "p5", "p6"],
+}
+
+
+@main.command()
+@click.argument("idea", type=int)
+@click.option(
+    "--agent",
+    type=click.Choice(["discovery", "research", "planning", "all"]),
+    default="all",
+    help="Scope the reset to a specific agent's phases (default: all).",
+)
+@click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt.")
+@click.pass_context
+def reset(ctx: click.Context, idea: int, agent: str, yes: bool) -> None:
+    """Clear A-Box phase facts for an idea so re-runs start clean."""
+    from tulla.namespaces import PHASE_NS
+
+    config: TullaConfig = ctx.obj["config"]
+
+    if agent == "all":
+        phase_ids = [pid for ids in _AGENT_PHASES.values() for pid in ids]
+    else:
+        phase_ids = _AGENT_PHASES[agent]
+
+    if not yes:
+        phases_str = ", ".join(phase_ids)
+        click.confirm(
+            f"Clear phase facts for idea {idea} ({agent}): {phases_str}?",
+            abort=True,
+        )
+
+    ontology_port = OntologyMCPAdapter(base_url=config.ontology_server_url)
+    total_cleared = 0
+
+    for pid in phase_ids:
+        subject = f"{PHASE_NS}{idea}-{pid}"
+        cleared = ontology_port.remove_triples_by_subject(subject)
+        if cleared:
+            click.echo(f"  {pid}: {cleared} triples removed")
+        total_cleared += cleared
+
+    click.echo(f"Cleared {total_cleared} triples for idea {idea} ({agent}).")
 
 
 @main.command("project-init")

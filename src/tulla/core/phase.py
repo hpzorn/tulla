@@ -280,6 +280,19 @@ class Phase(ABC, Generic[T]):
         # 2 — build prompt
         try:
             prompt = self.build_prompt(ctx)
+
+            # Inject user directive if present (highest priority)
+            directive = ctx.config.get("directive")
+            if directive:
+                prompt = (
+                    "## USER DIRECTIVE (HIGHEST PRIORITY)\n"
+                    "The following instruction from the user takes precedence "
+                    "over all other guidance in this prompt. Follow it "
+                    "exactly.\n\n"
+                    f"{directive}\n\n"
+                    "---\n\n"
+                ) + prompt
+
             prompt += (
                 "\n\n## IMPORTANT: File Write Constraint\n"
                 "You MUST only create or modify files inside the work "
