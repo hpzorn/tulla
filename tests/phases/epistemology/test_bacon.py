@@ -1,10 +1,11 @@
-"""Baseline tests for PoolPhase (pre-rewrite).
+"""Tests for BaconPhase (Baconian Inductivism mode).
 
-These tests capture the current behavior of ``PoolPhase`` so that the
-philosopher-grounded rewrite (Baconian inductive mode) can be
-validated against a known baseline.  No prompt may be modified until these pass.
+These tests verify the philosopher-grounded ``BaconPhase`` which replaces
+the original ``PoolPhase``.  The mode's distinctive process is *eliminative*:
+it compiles systematic evidence tables (Presence, Absence, Degrees) then
+eliminates non-essential factors to induce the Form — the essential nature.
 
-Requirement: prd:req-83-1-7
+Requirement: prd:req-83-3-8
 """
 
 from __future__ import annotations
@@ -15,82 +16,100 @@ import pytest
 
 from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
 from tulla.phases.epistemology.models import EpistemologyOutput
-from tulla.phases.epistemology.pool import PoolPhase
+from tulla.phases.epistemology.pool import BaconPhase
 
 # ---------------------------------------------------------------------------
-# Sample output constant — uses Idea N: headings with Pool mode format
+# Sample output constant — uses Idea N: headings with Bacon mode format
 # ---------------------------------------------------------------------------
 
 SAMPLE_OUTPUT = """\
-# Generated Ideas — Pool Mode
+# Generated Ideas — Bacon Mode
 **Root Idea**: idea-42
 **Date**: 2026-02-16
-**Frameworks**: Gap Analysis, Conceptual Combination, Assumption Inversion
+**Frameworks**: Table of Presence, Table of Absence, Table of Degrees
 
-## Pool Landscape
-### Clusters
-**Semantic Infrastructure**: idea-11 (ontology server), idea-17 (ADR linking), \
-idea-31 (graph RAG)
-**Epistemology Modes**: idea-42 (pool cartography), idea-44 (signal detection), \
-idea-51 (contradiction mining)
-**Developer Experience**: idea-22 (CLI tooling), idea-28 (prompt templates), \
-idea-33 (auto-documentation)
-**Evaluation**: idea-55 (rubric scoring), idea-58 (mode distinctness metrics)
+## The Phenomenon
+**Observable Phenomenon**: Structured ontology management produces higher \
+query accuracy than ad-hoc knowledge organization
+**Source**: idea 42
 
-### Gaps
-1. No connection between Evaluation and Semantic Infrastructure — metrics \
-are not stored in the knowledge graph.
-2. Developer Experience cluster has no link to Epistemology Modes — prompt \
-authoring is disconnected from mode design.
-3. No idea addresses cross-mode synthesis — combining outputs from multiple \
-epistemology runs.
+## Table of Presence
+| # | Instance | Phenomenon Manifestation | Surrounding Conditions |
+|---|----------|--------------------------|------------------------|
+| 1 | Wikidata | High query accuracy via SPARQL over structured ontology | Massive community curation, strict schema enforcement |
+| 2 | Gene Ontology | Precise gene function queries across species | Domain-expert curation, formal axioms |
+| 3 | Schema.org | Reliable structured data extraction by search engines | Industry consortium backing, simple flat hierarchy |
+| 4 | Dublin Core | Consistent metadata retrieval across digital libraries | Minimal core vocabulary, widespread adoption |
+| 5 | SNOMED CT | Accurate clinical concept queries in healthcare systems | Professional terminology management, formal definitions |
 
-### Shared Assumptions
-1. Single-idea-in, ideas-out: idea-42, idea-44, idea-51, idea-55 all assume \
-one root idea produces a fixed number of outputs.
-2. Text-only output: idea-28, idea-33, idea-42 assume markdown is the only \
-output format.
-3. Human-triggered runs: idea-22, idea-42, idea-44 assume a human initiates \
-each epistemology run.
+## Table of Absence
+| # | Similar Case | Why Expected | Why Absent | Differs From |
+|---|-------------|-------------|------------|---------------|
+| 1 | Wikipedia infoboxes | Structured data in ontology-adjacent format | Query accuracy is inconsistent — infobox schemas vary wildly | Presence #1 (Wikidata) |
+| 2 | Biomedical preprints | Domain knowledge similar to Gene Ontology | No formal structure — free text defeats precise querying | Presence #2 (Gene Ontology) |
+| 3 | Microformats | Structured web data like Schema.org | Adoption fragmented, no single authority — queries return inconsistent results | Presence #3 (Schema.org) |
+| 4 | Folksonomy tags (Delicious) | Metadata system like Dublin Core | User-generated tags lack controlled vocabulary — recall high but precision low | Presence #4 (Dublin Core) |
+| 5 | ICD-9 legacy codes | Medical terminology like SNOMED CT | Flat code list without formal relationships — concept queries require manual mapping | Presence #5 (SNOMED CT) |
 
-## Root Selection
-**Selected Root**: idea-42 (pool cartography)
-**Rationale**: idea-42 sits at the intersection of two major gaps — it belongs \
-to Epistemology Modes but its cartographic nature makes it a natural bridge to \
-Evaluation (map quality is measurable) and Semantic Infrastructure (the map \
-could be persisted as a knowledge graph subgraph).
+## Table of Degrees
+| # | Instance | Intensity | Co-varying Factor |
+|---|----------|-----------|-------------------|
+| 1 | Personal Zettelkasten | Low | Minimal formal structure, single-user vocabulary |
+| 2 | Corporate taxonomy (SharePoint) | Low-Medium | Some hierarchy but no formal axioms |
+| 3 | DBpedia | Medium | Auto-extracted structure, partial ontology coverage |
+| 4 | FIBO (Financial Industry) | Medium-High | Formal ontology but narrow domain adoption |
+| 5 | Wikidata | High | Full ontology with community curation and SPARQL endpoint |
 
-## Idea 1: Metric-Enriched Knowledge Graph
-**Protocol**: Gap Analysis
-**Gap Addressed**: Gap 1 — Evaluation disconnected from Semantic Infrastructure
-**Clusters Bridged**: Evaluation ↔ Semantic Infrastructure
-**Description**: Store evaluation metrics (rubric scores, mode distinctness \
-coefficients) as first-class triples in the ontology server. This allows \
-SPARQL queries like "which modes scored below threshold on Contradiction \
-Handling?" and enables the pool map to include evaluation health per cluster.
+## Elimination
+**Eliminated factors**:
+- Domain specificity: eliminated because present in both Presence (Gene Ontology, \
+SNOMED CT) and Absence (Biomedical preprints, ICD-9) — domain expertise alone \
+does not produce the phenomenon
+- Community size: eliminated because Wikipedia infoboxes have massive community \
+yet lack the phenomenon, while Dublin Core has small community yet exhibits it
+- Digital format: eliminated because all cases are digital — does not discriminate
 
-## Idea 2: Mode-Aware Prompt Workbench
-**Protocol**: Conceptual Combination
-**Parent Ideas**: idea-28 (prompt templates) from Developer Experience + \
-idea-42 (pool cartography) from Epistemology Modes
-**From idea-28**: Structured prompt template system with variables and previews
-**From idea-42**: Cartographic analysis that reveals pool structure and gaps
-**Description**: Build a prompt authoring tool that understands epistemology \
-mode structure. When editing a mode prompt, the workbench shows which pool \
-clusters the mode tends to generate into, which gaps it has never addressed, \
-and which anti-collapse guards are active. Prompt authoring becomes \
-pool-topology-aware.
+## The Form
+**Induced Form**: The essential nature is *controlled vocabulary with formal \
+relationships* — not structure alone, not curation alone, but the combination \
+of a bounded term set with explicitly defined inter-term relations.
+**Why Surprising**: The naive expectation is that "more structure = better queries." \
+The Form reveals that structure without controlled vocabulary (Wikipedia infoboxes) \
+and vocabulary without formal relations (folksonomy tags) both fail. It is the \
+conjunction that is essential.
+**Surviving Evidence**: Explains all three tables — Presence cases have both \
+controlled vocabulary and formal relations; Absence cases lack one or both; \
+Degrees cases vary in the tightness of vocabulary control and relation formality.
 
-## Idea 3: Autonomous Pool Maintenance
-**Protocol**: Assumption Inversion
-**Assumption Challenged**: "Human-triggered runs" — assumption 3 from census
-**Ideas Affected**: idea-22 (CLI tooling), idea-42 (pool cartography), \
-idea-44 (signal detection)
-**Description**: Invert the assumption that a human must initiate each \
-epistemology run. Instead, let the pool map itself trigger runs: when the \
-cartographic analysis detects a gap exceeding a staleness threshold or a \
-cluster falling below a diversity minimum, it autonomously queues the most \
-appropriate mode to address the deficit. The pool becomes self-maintaining.
+## Idea 1: Vocabulary-First Ontology Bootstrap
+**Framework**: Table of Presence
+**Form Applied**: If controlled vocabulary + formal relationships is the Form, \
+then new ontology projects should start by establishing the controlled vocabulary \
+BEFORE defining structural relationships — not the reverse.
+**Description**: Build an ontology bootstrap tool that enforces vocabulary \
+stabilization before relationship definition. Users define and lock terms first, \
+then progressively add formal relations. This inverts the common pattern of \
+starting with a schema and hoping vocabulary standardizes later.
+
+## Idea 2: Vocabulary Gap Detector
+**Framework**: Table of Absence
+**Form Applied**: The Form predicts that any knowledge system lacking controlled \
+vocabulary will exhibit low query accuracy regardless of structural sophistication. \
+Systems in the Absence table are candidates for vocabulary injection.
+**Description**: Build a diagnostic tool that analyzes existing knowledge systems \
+(wikis, tag systems, document stores) and identifies where vocabulary control is \
+missing. For each gap, suggest the minimal controlled vocabulary that would bring \
+the system across the threshold from Absence to Presence.
+
+## Idea 3: Vocabulary-Relation Coupling Meter
+**Framework**: Table of Degrees
+**Form Applied**: The Degrees table shows that query accuracy co-varies with the \
+tightness of vocabulary-relation coupling. This suggests a measurable metric.
+**Description**: Define a quantitative coupling coefficient that measures how \
+tightly a system's vocabulary is bound to its formal relations. Systems with \
+low coupling (like DBpedia's auto-extracted structure) would score low; systems \
+with high coupling (like SNOMED CT) would score high. Use the metric to guide \
+ontology improvement efforts toward the highest-leverage interventions.
 """
 
 
@@ -100,33 +119,51 @@ appropriate mode to address the deficit. The pool becomes self-maintaining.
 
 
 class TestBuildPrompt:
-    """Verify the prompt produced by PoolPhase.build_prompt."""
+    """Verify the prompt produced by BaconPhase.build_prompt."""
 
     def test_prompt_contains_idea_id(self, ctx: PhaseContext) -> None:
-        prompt = PoolPhase().build_prompt(ctx)
+        prompt = BaconPhase().build_prompt(ctx)
         assert "idea-42" in prompt
 
     def test_prompt_contains_output_filename(self, ctx: PhaseContext) -> None:
-        prompt = PoolPhase().build_prompt(ctx)
-        assert "ep-pool-ideas.md" in prompt
+        prompt = BaconPhase().build_prompt(ctx)
+        assert "ep-bacon-ideas.md" in prompt
 
-    def test_prompt_contains_phase_marker(self, ctx: PhaseContext) -> None:
-        prompt = PoolPhase().build_prompt(ctx)
-        # Pool mode defines 5 phases; at least one must appear
+    def test_prompt_contains_phase_markers(self, ctx: PhaseContext) -> None:
+        prompt = BaconPhase().build_prompt(ctx)
         phase_markers = [
             "Phase 1",
             "Phase 2",
             "Phase 3",
             "Phase 4",
             "Phase 5",
+            "Phase 6",
+            "Phase 7",
+            "Phase 8",
         ]
         found = [m for m in phase_markers if m in prompt]
-        assert found, "Prompt must contain at least one Phase marker"
+        assert len(found) == 8, f"Prompt must contain all 8 Phase markers, found: {found}"
 
-    def test_prompt_contains_pool_cartography_emphasis(self, ctx: PhaseContext) -> None:
-        prompt = PoolPhase().build_prompt(ctx)
-        # Pool mode is distinctively cartographic — mapping the pool is the core
-        assert "Pool Mode" in prompt
+    def test_prompt_contains_bacon_grounding(self, ctx: PhaseContext) -> None:
+        prompt = BaconPhase().build_prompt(ctx)
+        assert "Francis Bacon" in prompt
+        assert "Novum Organum" in prompt
+
+    def test_prompt_contains_anti_collapse_table_of_absence(
+        self, ctx: PhaseContext,
+    ) -> None:
+        prompt = BaconPhase().build_prompt(ctx)
+        assert "Table of Absence" in prompt
+        assert "Do NOT skip the Absence table" in prompt
+
+    def test_prompt_contains_elimination_emphasis(self, ctx: PhaseContext) -> None:
+        prompt = BaconPhase().build_prompt(ctx)
+        assert "ELIMINATION" in prompt
+        assert "SURPRISING" in prompt
+
+    def test_phase_id_is_ep_bacon(self) -> None:
+        phase = BaconPhase()
+        assert phase.phase_id == "ep-bacon"
 
 
 # =========================================================================
@@ -135,25 +172,25 @@ class TestBuildPrompt:
 
 
 class TestGetTools:
-    """Verify the tool list returned by PoolPhase.get_tools."""
+    """Verify the tool list returned by BaconPhase.get_tools."""
 
     def test_get_idea_tool_present(self, ctx: PhaseContext) -> None:
-        tools = PoolPhase().get_tools(ctx)
+        tools = BaconPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "mcp__ontology-server__get_idea" in names
 
     def test_query_ideas_tool_present(self, ctx: PhaseContext) -> None:
-        tools = PoolPhase().get_tools(ctx)
+        tools = BaconPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "mcp__ontology-server__query_ideas" in names
 
     def test_create_idea_tool_present(self, ctx: PhaseContext) -> None:
-        tools = PoolPhase().get_tools(ctx)
+        tools = BaconPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "mcp__ontology-server__create_idea" in names
 
     def test_write_tool_present(self, ctx: PhaseContext) -> None:
-        tools = PoolPhase().get_tools(ctx)
+        tools = BaconPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "Write" in names
 
@@ -164,10 +201,10 @@ class TestGetTools:
 
 
 class TestParseOutput:
-    """Verify PoolPhase.parse_output handles missing and present files."""
+    """Verify BaconPhase.parse_output handles missing and present files."""
 
     def test_missing_file_raises_parse_error(self, ctx: PhaseContext) -> None:
-        phase = PoolPhase()
+        phase = BaconPhase()
         with pytest.raises(ParseError):
             phase.parse_output(ctx, raw="ignored")
 
@@ -176,13 +213,13 @@ class TestParseOutput:
         ctx: PhaseContext,
         write_sample_output,
     ) -> None:
-        write_sample_output("ep-pool-ideas.md", SAMPLE_OUTPUT)
-        phase = PoolPhase()
+        write_sample_output("ep-bacon-ideas.md", SAMPLE_OUTPUT)
+        phase = BaconPhase()
         result = phase.parse_output(ctx, raw="ignored")
 
         assert isinstance(result, EpistemologyOutput)
         assert result.ideas_generated == 3
-        assert result.mode == "pool"
+        assert result.mode == "bacon"
 
 
 # =========================================================================
@@ -190,13 +227,13 @@ class TestParseOutput:
 # =========================================================================
 
 
-class _MockedPoolPhase(PoolPhase):
-    """PoolPhase subclass that writes sample output instead of calling Claude."""
+class _MockedBaconPhase(BaconPhase):
+    """BaconPhase subclass that writes sample output instead of calling Claude."""
 
     def run_claude(
         self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
     ) -> Any:
-        output_file = ctx.work_dir / "ep-pool-ideas.md"
+        output_file = ctx.work_dir / "ep-bacon-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"
 
@@ -205,11 +242,11 @@ class TestExecuteWithMock:
     """End-to-end execute via a mock that writes sample output."""
 
     def test_execute_returns_success(self, ctx: PhaseContext) -> None:
-        phase = _MockedPoolPhase()
+        phase = _MockedBaconPhase()
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
         assert result.data is not None
         assert isinstance(result.data, EpistemologyOutput)
         assert result.data.ideas_generated == 3
-        assert result.data.mode == "pool"
+        assert result.data.mode == "bacon"

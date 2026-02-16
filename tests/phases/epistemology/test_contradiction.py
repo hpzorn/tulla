@@ -1,10 +1,10 @@
-"""Baseline tests for ContradictionPhase (pre-rewrite).
+"""Tests for ContradictionPhase (Hegelian dialectical synthesis).
 
-These tests capture the current behavior of ``ContradictionPhase`` so that the
-philosopher-grounded rewrite (Hegelian dialectical synthesis mode) can be
-validated against a known baseline.  No prompt may be modified until these pass.
+These tests verify the philosopher-grounded ``ContradictionPhase`` including
+5-layer encoding (Persona, Operational Rules, Phase Markers, Output Format,
+Anti-Collapse Guards) with Hegel, Aufhebung, and determinate negation grounding.
 
-Requirement: prd:req-83-1-4
+Requirement: prd:req-83-1-4, prd:req-83-3-3
 """
 
 from __future__ import annotations
@@ -124,9 +124,30 @@ class TestBuildPrompt:
         found = [m for m in phase_markers if m in prompt]
         assert found, "Prompt must contain at least one Phase marker"
 
-    def test_prompt_contains_critical_warning(self, ctx: PhaseContext) -> None:
+    def test_prompt_contains_hegel_grounding(self, ctx: PhaseContext) -> None:
         prompt = ContradictionPhase().build_prompt(ctx)
-        assert "CRITICAL WARNING" in prompt
+        assert "Hegel" in prompt
+        assert "Aufhebung" in prompt
+        assert "determinate negation" in prompt
+
+    def test_prompt_contains_anti_collapse_guards(self, ctx: PhaseContext) -> None:
+        prompt = ContradictionPhase().build_prompt(ctx)
+        assert "Anti-Collapse Guards" in prompt
+        assert "Do NOT argue one side only" in prompt
+        assert "Do NOT produce synthesis that says" in prompt
+        assert "NEITHER thesis nor antithesis contained" in prompt
+        assert "why the opposition existed" in prompt
+        assert "impossible to arrive at by simply averaging" in prompt
+
+    def test_prompt_contains_operational_rules(self, ctx: PhaseContext) -> None:
+        prompt = ContradictionPhase().build_prompt(ctx)
+        assert "Operational Rules" in prompt
+        assert "AUFHEBUNG CRITERION" in prompt
+        assert "IDENTIFY THE SHARED ERROR" in prompt
+
+    def test_prompt_contains_aufhebung_verification(self, ctx: PhaseContext) -> None:
+        prompt = ContradictionPhase().build_prompt(ctx)
+        assert "verify the Aufhebung criterion" in prompt
 
 
 # =========================================================================

@@ -1,10 +1,9 @@
-"""Baseline tests for DomainPhase (pre-rewrite).
+"""Baseline tests for PopperPhase (post-rewrite).
 
-These tests capture the current behavior of ``DomainPhase`` so that the
-philosopher-grounded rewrite (Popperian falsificationist mode) can be
-validated against a known baseline.  No prompt may be modified until these pass.
+These tests verify the Popperian falsificationist mode — ``PopperPhase`` —
+produces a prompt grounded in Popper's tradition and correctly parses output.
 
-Requirement: prd:req-83-1-6
+Requirement: prd:req-83-3-5
 """
 
 from __future__ import annotations
@@ -15,81 +14,93 @@ import pytest
 
 from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
 from tulla.phases.epistemology.models import EpistemologyOutput
-from tulla.phases.epistemology.domain import DomainPhase
+from tulla.phases.epistemology.domain import PopperPhase
 
 # ---------------------------------------------------------------------------
-# Sample output constant — uses Idea N: headings with Domain mode format
+# Sample output constant — uses Idea N: headings with Popper mode format
 # ---------------------------------------------------------------------------
 
 SAMPLE_OUTPUT = """\
-# Generated Ideas — Domain Mode
+# Generated Ideas — Popper Mode
 **Root Idea**: idea-42
 **Date**: 2026-02-16
-**Frameworks**: Gap Analysis, Analogical Transfer, Assumption Inversion
-**Domain**: Knowledge graph construction for software architecture decisions
+**Frameworks**: Bold Conjecture, Severe Test, Error Elimination
 
-## Research Log
-### Search 1: recent advances in knowledge graph construction 2026
-**Key Findings**: Property graph databases (Neo4j 6, Memgraph) now support \
-RDF interop natively, eliminating the traditional gap between labeled property \
-graphs and triple stores. Graph RAG pipelines are becoming mainstream for \
-enterprise knowledge management.
-**Surprise**: The convergence happened faster than expected — two years ago \
-these were separate ecosystems.
+## Bold Conjecture
+Any software architecture decision record (ADR) can be automatically validated \
+against the running system's topology within 5 seconds, and at least 80% of \
+architectural drift would be caught by such validation before the next release.
 
-### Search 2: unsolved problems in architectural knowledge management
-**Key Findings**: Architectural Decision Records (ADRs) remain disconnected \
-from the systems they describe. No major tool links ADR content to runtime \
-topology. ISO 42010 compliance is still largely manual.
-**Surprise**: Despite widespread ADR adoption, tooling has barely evolved \
-since the original Nygard template.
+## Testable Predictions
+| # | Prediction | Conditions | Measurable Outcome |
+|---|------------|------------|---------------------|
+| 1 | ADR constraints can be formalized as executable graph queries | Given a corpus of 50 real-world ADRs | At least 40 can be expressed as Cypher/SPARQL queries |
+| 2 | Runtime topology data is accessible with < 5s latency | Given a microservice system with > 20 services | API response time for full topology < 5 seconds |
+| 3 | Drift detection catches > 80% of architectural violations | Given 10 known violation scenarios injected into test system | At least 8 are detected automatically |
 
-### Search 3: biological taxonomy approaches to classification problems
-**Key Findings**: Cladistic methods use shared derived characteristics \
-(synapomorphies) rather than overall similarity for classification. Molecular \
-phylogenetics revolutionized taxonomy by providing objective, computable \
-classification criteria independent of morphological opinion.
-**Surprise**: The parallel to ontology alignment problems is striking — both \
-fields struggle with lumpers vs splitters.
+## Severe Tests
+### Test 1: ADR Formalization Failure
+**Designed to Break**: The assumption that natural-language ADRs can be reliably \
+converted to executable constraints
+**Method**: Take 50 ADRs from the adr-tools GitHub repository, attempt to \
+formalize each as a graph query. Count failures.
+**Evidence Found**: Auer et al. (2025) showed that only 62% of ADRs contain \
+sufficiently precise language for automated extraction — below the 80% threshold.
 
-## Pool Confrontation
-| Finding | Pool Status | Implication |
-|---------|-------------|-------------|
-| Property graph / RDF convergence | Pool is blind | Pool assumes triple-store-only architecture |
-| ADR disconnection from runtime | Pool has it | idea-17 addresses this partially |
-| Cladistic classification methods | Pool is blind | No idea applies biological classification to software concepts |
-| Graph RAG pipelines | Pool is behind | idea-31 mentions RAG but not graph-structured retrieval |
+### Test 2: Topology Latency Wall
+**Designed to Break**: The 5-second latency assumption for real production systems
+**Method**: Query topology APIs of 5 open-source microservice benchmarks \
+(Sock Shop, Hipster Shop, etc.) and measure response times.
+**Evidence Found**: Kubernetes API server responses for namespace-wide resource \
+listing average 8-12 seconds for clusters with > 100 pods.
 
-## Idea 1: Convergent Graph Architecture
-**Protocol**: Gap Analysis
-**External Finding**: Neo4j 6 and Memgraph support RDF interop natively
-**Pool Blind Spot**: Pool assumes triple stores and property graphs are separate worlds
-**Description**: Redesign the ontology-server storage layer to exploit native \
-RDF interop in modern property graph databases. This would allow SPARQL queries \
-AND Cypher traversals on the same data, eliminating the current impedance \
-mismatch between the idea pool's semantic model and graph analytics.
+### Test 3: Drift Detection Coverage
+**Designed to Break**: The 80% detection rate assumption
+**Method**: Create 10 specific architectural violations (wrong service \
+communication patterns, unauthorized database access, etc.) and test detection.
+**Evidence Found**: Netflix's architectural fitness functions paper reports \
+73% detection for structural violations but only 41% for behavioral ones.
 
-## Idea 2: Cladistic Idea Classification
-**Protocol**: Analogical Transfer
-**Source Field**: Biological taxonomy (molecular phylogenetics)
-**Source Solution**: Classify organisms by shared derived characteristics rather than overall similarity
-**Structural Mapping**: Ideas can be classified by their shared architectural \
-implications (the "derived characteristics") rather than surface-level topic \
-similarity. An idea about caching and an idea about event sourcing might share \
-the derived characteristic of "eventual consistency acceptance."
-**Description**: Build a cladistic classifier that groups ideas by their deep \
-structural implications rather than keyword similarity. Use the ontology's \
-property structure as the equivalent of molecular markers — objective, \
-computable, and independent of subjective categorization.
+## Error Elimination
+| # | Prediction | Result | Explanation |
+|---|------------|--------|-------------|
+| 1 | ADR formalization | Falsified | Only 62% of ADRs are precise enough — below the implicit threshold needed |
+| 2 | Topology latency | Falsified | Real production systems exceed 5s for full topology queries |
+| 3 | Drift detection rate | Falsified | Behavioral violations bring overall detection well below 80% |
 
-## Idea 3: ADR-Runtime Topology Bridge
-**Protocol**: Assumption Inversion
-**Conventional Wisdom**: ADRs are documentation artifacts reviewed by humans
-**Challenge Found**: No major tool links ADR content to runtime topology despite widespread adoption
-**Description**: Invert the assumption that ADRs are static documents. Treat \
-each ADR as an executable constraint that can be validated against the actual \
-system topology. When the system diverges from its recorded decisions, surface \
-the contradiction automatically rather than waiting for a human audit.
+## Improved Conjectures
+The falsification reveals that the real problem is not "can we validate ADRs \
+against topology" but "which ADRs are validatable and what subset of drift is \
+detectable." The structure is in the BOUNDARY between formalizable and \
+non-formalizable decisions.
+
+## Idea 1: ADR Formalizability Classifier
+**Framework**: Error Elimination
+**From Falsification**: Prediction 1 broke — only 62% of ADRs are formalizable. \
+The boundary between formalizable and non-formalizable ADRs is itself valuable.
+**Description**: Build a classifier that scores ADRs on formalizability at \
+write-time, nudging authors toward more precise language. The 38% that fail \
+formalization reveal what kinds of architectural decisions resist automation — \
+a taxonomy more valuable than the validation itself.
+
+## Idea 2: Incremental Topology Snapshots
+**Framework**: Severe Test
+**From Falsification**: Prediction 2 broke on full topology queries. But drift \
+detection doesn't need the FULL topology — only the delta since last check.
+**Description**: Replace full topology queries with event-driven incremental \
+snapshots. Subscribe to Kubernetes watch APIs for topology-relevant changes \
+only. This sidesteps the latency wall by never querying the full state — \
+only the changes that could indicate drift.
+
+## Idea 3: Behavioral Drift Probes
+**Framework**: Bold Conjecture
+**From Falsification**: Prediction 3 broke specifically on behavioral violations \
+(41% detection vs 73% structural). The gap between structural and behavioral \
+detection is the real frontier.
+**Description**: Design active probes that inject synthetic requests to detect \
+behavioral drift (unauthorized communication paths, unexpected latency patterns). \
+Structural violations are the easy problem; behavioral drift is where \
+architectural erosion actually happens in production.
 """
 
 
@@ -99,33 +110,69 @@ the contradiction automatically rather than waiting for a human audit.
 
 
 class TestBuildPrompt:
-    """Verify the prompt produced by DomainPhase.build_prompt."""
+    """Verify the prompt produced by PopperPhase.build_prompt."""
 
     def test_prompt_contains_idea_id(self, ctx: PhaseContext) -> None:
-        prompt = DomainPhase().build_prompt(ctx)
+        prompt = PopperPhase().build_prompt(ctx)
         assert "idea-42" in prompt
 
     def test_prompt_contains_output_filename(self, ctx: PhaseContext) -> None:
-        prompt = DomainPhase().build_prompt(ctx)
-        assert "ep-domain-ideas.md" in prompt
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "ep-popper-ideas.md" in prompt
 
-    def test_prompt_contains_phase_marker(self, ctx: PhaseContext) -> None:
-        prompt = DomainPhase().build_prompt(ctx)
-        # Domain mode defines 5 phases; at least one must appear
+    def test_prompt_contains_phase_markers(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
         phase_markers = [
             "Phase 1",
             "Phase 2",
             "Phase 3",
             "Phase 4",
             "Phase 5",
+            "Phase 6",
         ]
         found = [m for m in phase_markers if m in prompt]
-        assert found, "Prompt must contain at least one Phase marker"
+        assert len(found) == 6, "Prompt must contain all 6 Phase markers"
 
-    def test_prompt_contains_domain_research_emphasis(self, ctx: PhaseContext) -> None:
-        prompt = DomainPhase().build_prompt(ctx)
-        # Domain mode is distinctively outward-looking — web research is the core
-        assert "Domain Research" in prompt
+    def test_prompt_contains_popper(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "Popper" in prompt
+
+    def test_prompt_contains_refute(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "REFUTE" in prompt
+
+    def test_prompt_contains_do_not_confirm(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        # Anti-collapse guard: "do NOT confirm" (via "confirmation bias")
+        assert "confirm" in prompt.lower()
+
+    def test_prompt_contains_p1_tt_ee_p2_cycle(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "P1" in prompt
+        assert "TT" in prompt
+        assert "EE" in prompt
+        assert "P2" in prompt
+
+    def test_prompt_contains_bold_conjecture_framework(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "Bold Conjecture" in prompt
+
+    def test_prompt_contains_severe_test_framework(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "Severe Test" in prompt
+
+    def test_prompt_contains_error_elimination_framework(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "Error Elimination" in prompt
+
+    def test_prompt_contains_anticollapse_guards(self, ctx: PhaseContext) -> None:
+        prompt = PopperPhase().build_prompt(ctx)
+        assert "Anti-Collapse Guards" in prompt
+        assert "BREAK" in prompt
+
+    def test_phase_id_is_ep_popper(self) -> None:
+        phase = PopperPhase()
+        assert phase.phase_id == "ep-popper"
 
 
 # =========================================================================
@@ -134,30 +181,30 @@ class TestBuildPrompt:
 
 
 class TestGetTools:
-    """Verify the tool list returned by DomainPhase.get_tools."""
+    """Verify the tool list returned by PopperPhase.get_tools."""
 
     def test_get_idea_tool_present(self, ctx: PhaseContext) -> None:
-        tools = DomainPhase().get_tools(ctx)
+        tools = PopperPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "mcp__ontology-server__get_idea" in names
 
     def test_query_ideas_tool_present(self, ctx: PhaseContext) -> None:
-        tools = DomainPhase().get_tools(ctx)
+        tools = PopperPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "mcp__ontology-server__query_ideas" in names
 
     def test_create_idea_tool_present(self, ctx: PhaseContext) -> None:
-        tools = DomainPhase().get_tools(ctx)
+        tools = PopperPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "mcp__ontology-server__create_idea" in names
 
     def test_web_search_tool_present(self, ctx: PhaseContext) -> None:
-        tools = DomainPhase().get_tools(ctx)
+        tools = PopperPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "WebSearch" in names
 
     def test_write_tool_present(self, ctx: PhaseContext) -> None:
-        tools = DomainPhase().get_tools(ctx)
+        tools = PopperPhase().get_tools(ctx)
         names = [t["name"] for t in tools]
         assert "Write" in names
 
@@ -168,10 +215,10 @@ class TestGetTools:
 
 
 class TestParseOutput:
-    """Verify DomainPhase.parse_output handles missing and present files."""
+    """Verify PopperPhase.parse_output handles missing and present files."""
 
     def test_missing_file_raises_parse_error(self, ctx: PhaseContext) -> None:
-        phase = DomainPhase()
+        phase = PopperPhase()
         with pytest.raises(ParseError):
             phase.parse_output(ctx, raw="ignored")
 
@@ -180,13 +227,13 @@ class TestParseOutput:
         ctx: PhaseContext,
         write_sample_output,
     ) -> None:
-        write_sample_output("ep-domain-ideas.md", SAMPLE_OUTPUT)
-        phase = DomainPhase()
+        write_sample_output("ep-popper-ideas.md", SAMPLE_OUTPUT)
+        phase = PopperPhase()
         result = phase.parse_output(ctx, raw="ignored")
 
         assert isinstance(result, EpistemologyOutput)
         assert result.ideas_generated == 3
-        assert result.mode == "domain"
+        assert result.mode == "popper"
 
 
 # =========================================================================
@@ -194,13 +241,13 @@ class TestParseOutput:
 # =========================================================================
 
 
-class _MockedDomainPhase(DomainPhase):
-    """DomainPhase subclass that writes sample output instead of calling Claude."""
+class _MockedPopperPhase(PopperPhase):
+    """PopperPhase subclass that writes sample output instead of calling Claude."""
 
     def run_claude(
         self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
     ) -> Any:
-        output_file = ctx.work_dir / "ep-domain-ideas.md"
+        output_file = ctx.work_dir / "ep-popper-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"
 
@@ -209,11 +256,11 @@ class TestExecuteWithMock:
     """End-to-end execute via a mock that writes sample output."""
 
     def test_execute_returns_success(self, ctx: PhaseContext) -> None:
-        phase = _MockedDomainPhase()
+        phase = _MockedPopperPhase()
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
         assert result.data is not None
         assert isinstance(result.data, EpistemologyOutput)
         assert result.data.ideas_generated == 3
-        assert result.data.mode == "domain"
+        assert result.data.mode == "popper"
