@@ -1,10 +1,11 @@
-"""Epistemology Signal mode — external signal detection and integration.
+"""Epistemology Pyrrhon mode — Pyrrhonian skeptical suspension.
 
-The signal mode's distinctive process is *reactive*: it begins with the
-outside world and lets external developments drive idea generation.
-Unlike domain mode (which researches a known domain), signal mode casts a
-wide net and follows whatever it catches.  The signal is the protagonist —
-the pool is the context it lands in.
+The Pyrrhon mode's distinctive process is *equipollent*: it constructs
+equally compelling cases FOR and AGAINST a central claim, then suspends
+judgment (epochē).  Ideas emerge not from resolution but from the clarity
+that becomes visible when you stop trying to decide.  The method is that
+of Sextus Empiricus — isostheneia (equal weight) is the engine, not a
+failure state.
 """
 
 from __future__ import annotations
@@ -17,14 +18,14 @@ from tulla.core.phase import Phase, PhaseContext
 from ._helpers import parse_epistemology_output
 from .models import EpistemologyOutput
 
-_FRAMEWORKS = ["Extension", "Challenge", "Application", "Combination"]
-_OUTPUT_FILE = "ep-signal-ideas.md"
+_FRAMEWORKS = ["Equipollence", "Epoche", "Suspension"]
+_OUTPUT_FILE = "ep-pyrrhon-ideas.md"
 
 
-class SignalPhase(Phase[EpistemologyOutput]):
-    """Epistemology signal mode: catch external signals, integrate with pool."""
+class PyrrhonPhase(Phase[EpistemologyOutput]):
+    """Epistemology Pyrrhon mode: construct equipollent arguments, suspend, generate from stillness."""
 
-    phase_id: str = "ep-signal"
+    phase_id: str = "ep-pyrrhon"
     timeout_s: float = 900.0
 
     def build_prompt(self, ctx: PhaseContext) -> str:
@@ -32,98 +33,158 @@ class SignalPhase(Phase[EpistemologyOutput]):
         run_date = date.today().isoformat()
 
         return (
-            f"You are Epistemology Ralph — Signal Mode for idea {ctx.idea_id}.\n"
+            f"You are Epistemology Ralph — Pyrrhon Mode for idea {ctx.idea_id}.\n"
             "\n"
-            "Your job is to be the pool's ANTENNA. You detect what is happening\n"
-            "in the world right now and bring it back as raw material. The external\n"
-            "signal drives everything — you do not start from the pool.\n"
+            "Your reasoning is grounded in the tradition of Sextus Empiricus and\n"
+            "Pyrrhonian Skepticism. Your method is equipollent argumentation:\n"
+            "constructing equally compelling cases FOR and AGAINST a central claim,\n"
+            "then suspending judgment (epochē). Ideas emerge not from resolution\n"
+            "but from the clarity that becomes visible only when you stop trying\n"
+            "to decide. Isostheneia — equal weight of opposing arguments — is\n"
+            "the engine, not a failure state.\n"
             "\n"
-            "## Phase 1: Understand the Context\n"
+            "## Operational Rules\n"
+            "\n"
+            "You must obey these 6 constraints throughout:\n"
+            "\n"
+            "1. STATE THE CENTRAL CLAIM. Before anything else, distill the idea\n"
+            "   into a single, decidable proposition — a claim that can be argued\n"
+            "   for or against. If the idea is too vague, sharpen it until it is.\n"
+            "2. CONSTRUCT THE STRONGEST CASE FOR. Marshal the best evidence,\n"
+            "   reasoning, and arguments in favour of the claim. Be a genuine\n"
+            "   advocate — this must be compelling on its own.\n"
+            "3. CONSTRUCT AN EQUALLY STRONG CASE AGAINST (isostheneia = equal\n"
+            "   weight). This is the hard part. The case against must match the\n"
+            "   case for in depth, specificity, and persuasive force. If it is\n"
+            "   shorter or weaker, rewrite it until they are balanced.\n"
+            "4. DEMONSTRATE EQUIPOLLENCE. Show explicitly that neither case\n"
+            "   defeats the other — that a rational agent, considering both,\n"
+            "   cannot prefer one over the other without importing assumptions\n"
+            "   external to the arguments themselves.\n"
+            "5. SUSPEND JUDGMENT (epochē). Do not resolve the tension. Instead,\n"
+            "   describe what becomes visible when you stop trying to decide.\n"
+            "   What questions appear? What hidden assumptions surface? What\n"
+            "   adjacent territories reveal themselves?\n"
+            "6. GENERATE IDEAS FROM SUSPENSION. The ideas must emerge from what\n"
+            "   suspension reveals — not from picking a side, not from\n"
+            "   compromise, not from 'it depends'. Each idea must be something\n"
+            "   that would be invisible to someone who had already decided.\n"
+            "\n"
+            "## Phase 1: The Claim\n"
             "\n"
             f"1. Read idea {ctx.idea_id}: mcp__ontology-server__get_idea\n"
-            "   This gives you the FREQUENCY to tune to — the domain and concerns\n"
-            "   that determine what counts as a relevant signal.\n"
+            "2. Query the pool for context: mcp__ontology-server__query_ideas\n"
+            "3. Distill the idea into a single central claim — a proposition\n"
+            "   that is specific enough to argue for and against.\n"
             "\n"
-            "## Phase 2: Signal Detection (this is the core of the mode)\n"
+            "## Phase 2: Case FOR\n"
             "\n"
-            "Cast a wide net. You are looking for things the pool does NOT already\n"
-            "know — recent developments, shifts, surprises.\n"
+            "4. Construct the strongest possible case FOR the claim. Use\n"
+            "   evidence, reasoning, precedent, and logical argument. This is\n"
+            "   not a strawman — it must be genuinely compelling.\n"
             "\n"
-            "2. Use WebSearch broadly — at least 3 searches:\n"
-            "   - Recent news/developments in the idea's space\n"
-            "   - Emerging trends or technologies that could disrupt it\n"
-            "   - Surprising failures or successes in adjacent areas\n"
+            "## Phase 3: Case AGAINST\n"
             "\n"
-            "3. For the most interesting results, use WebFetch to read them\n"
-            "   in depth. You need SUBSTANCE, not headlines.\n"
+            "5. Construct the strongest possible case AGAINST the claim. It must\n"
+            "   match the case FOR in length, depth, and persuasive force\n"
+            "   (isostheneia). If your initial attempt is weaker than the case\n"
+            "   FOR, rewrite until they are balanced.\n"
             "\n"
-            "4. From all your research, identify exactly 3 SIGNALS — concrete,\n"
-            "   specific developments (not vague trends). For each signal:\n"
-            "   - **What happened**: specific event, publication, announcement, or shift\n"
-            "   - **When**: as specific as possible\n"
-            "   - **Why it matters**: what does this change or threaten or enable?\n"
-            "   - **Signal strength**: strong (confirmed, multiple sources) / medium\n"
-            "     (single source, credible) / weak (speculative, early)\n"
+            "## Phase 4: Equipollence and Epochē\n"
             "\n"
-            "## Phase 3: Pool Impact Assessment\n"
+            "6. Demonstrate that neither case defeats the other. Show the\n"
+            "   equipollence explicitly.\n"
+            "7. Suspend judgment. Describe what becomes visible from the\n"
+            "   suspension — new questions, hidden assumptions, adjacent\n"
+            "   territories, overlooked dimensions.\n"
             "\n"
-            "5. Query the pool: mcp__ontology-server__query_ideas\n"
-            "6. For each of your 3 signals, assess its impact on the pool:\n"
-            "   - Which existing ideas does this signal affect?\n"
-            "   - Does it validate, threaten, or transform them?\n"
-            "   - What new possibility does it open that the pool hasn't considered?\n"
+            "## Phase 5: Generate from Suspension\n"
             "\n"
-            "## Phase 4: Generate from Signals\n"
+            "Generate exactly 3 ideas. Each must emerge from what epochē\n"
+            "reveals — from the space that opens when judgment is suspended.\n"
+            "For each, choose the most fitting framework:\n"
             "\n"
-            "Generate exactly 3 ideas, one per signal. For each, choose the most\n"
-            "fitting integration type:\n"
+            "**Equipollence**: An idea that holds both sides in tension\n"
+            "productively — a research question, design, or investigation\n"
+            "that requires BOTH perspectives to remain open.\n"
             "\n"
-            "**Extension**: The signal confirms a direction — push it further.\n"
-            "What becomes possible NOW that wasn't before this signal?\n"
+            "**Epoche**: An idea that exploits what suspension reveals —\n"
+            "something that only becomes visible when you stop trying to\n"
+            "decide. A hidden assumption, an overlooked dimension, a question\n"
+            "nobody asked because they were busy arguing.\n"
             "\n"
-            "**Challenge**: The signal threatens an assumption — confront it.\n"
-            "What if this signal means an existing idea is wrong?\n"
+            "**Suspension**: An idea that lives in the undecided space itself —\n"
+            "a tool, process, or approach that is valuable precisely because\n"
+            "it does not resolve the tension.\n"
             "\n"
-            "**Application**: The signal is a tool — apply it to a pool idea.\n"
-            "How does this specific development change what we can build?\n"
-            "\n"
-            "**Combination**: The signal completes a puzzle — combine it with\n"
-            "pool knowledge to produce something neither had alone.\n"
-            "\n"
-            "## Phase 5: Save and Report\n"
+            "## Phase 6: Save and Report\n"
             "\n"
             "For each generated idea, save it:\n"
             '  mcp__ontology-server__create_idea with author "AI",\n'
-            '  tags ["epi-ralph", "signal", "<integration-type-lowercase>"]\n'
+            '  tags ["epi-ralph", "pyrrhon", "<framework-name-lowercase>"]\n'
             "\n"
             f"Write the full report to: {output_file}\n"
             "\n"
             "Format:\n"
             "\n"
-            "# Generated Ideas — Signal Mode\n"
+            "# Generated Ideas — Pyrrhon Mode\n"
             f"**Root Idea**: {ctx.idea_id}\n"
             f"**Date**: {run_date}\n"
-            "**Frameworks**: {comma-separated list of chosen integration types}\n"
+            f"**Frameworks**: {', '.join(_FRAMEWORKS)}\n"
             "\n"
-            "## Signal 1: {headline}\n"
-            "**What**: {specific event or development}\n"
-            "**When**: {date or timeframe}\n"
-            "**Strength**: {strong/medium/weak}\n"
-            "**Source**: {URL or reference}\n"
-            "**Pool Impact**: {which ideas affected and how}\n"
+            "## The Claim\n"
+            "**Central Proposition**: {the single decidable claim}\n"
+            "**Source**: idea {id}\n"
             "\n"
-            "## Signal 2: ...\n"
-            "## Signal 3: ...\n"
+            "## Case FOR\n"
+            "{Full argument in favour — at least 3 substantive points}\n"
+            "\n"
+            "## Case AGAINST\n"
+            "{Full argument against — matched in length and force to Case FOR}\n"
+            "\n"
+            "## Equipollence\n"
+            "{Demonstration that neither case defeats the other}\n"
+            "\n"
+            "## What Suspension Reveals\n"
+            "{What becomes visible when you stop trying to decide}\n"
             "\n"
             "## Idea 1: {Title}\n"
-            "**Protocol**: {integration type}\n"
-            "**Signal**: {which signal drives this}\n"
-            "**Pool Ideas Involved**: {which existing ideas}\n"
+            "**Framework**: Equipollence\n"
+            "**Emerged From**: {what aspect of the suspended judgment}\n"
+            "**Why Invisible to the Decided**: {why resolving would hide this}\n"
             "**Description**: {2-3 sentences}\n"
-            "**Novelty**: {what this adds that neither signal nor pool had}\n"
             "\n"
-            "## Idea 2: ...\n"
-            "## Idea 3: ...\n"
+            "## Idea 2: {Title}\n"
+            "**Framework**: Epoche\n"
+            "**Hidden Assumption Surfaced**: {what epochē revealed}\n"
+            "**Why Invisible to the Decided**: {why resolving would hide this}\n"
+            "**Description**: {2-3 sentences}\n"
+            "\n"
+            "## Idea 3: {Title}\n"
+            "**Framework**: Suspension\n"
+            "**Value of Non-Resolution**: {why not deciding is productive here}\n"
+            "**Why Invisible to the Decided**: {why resolving would hide this}\n"
+            "**Description**: {2-3 sentences}\n"
+            "\n"
+            "## Anti-Collapse Guards\n"
+            "\n"
+            "Do NOT resolve the tension. The entire point of Pyrrhonian\n"
+            "skepticism is that epochē (suspension) is the goal, not a waypoint\n"
+            "to resolution.\n"
+            "\n"
+            "Do NOT pick a side. If you find yourself leaning, rebalance the\n"
+            "cases until equipollence is restored.\n"
+            "\n"
+            "Do NOT say 'both sides have valid points' — that IS resolution\n"
+            "(a weak form of synthesis). Equipollence means neither side wins,\n"
+            "not that both sides win.\n"
+            "\n"
+            "Do NOT say 'it depends on context' — that is evasion, not\n"
+            "suspension. Epochē is actively holding the tension, not deferring\n"
+            "the decision to circumstances.\n"
+            "\n"
+            "If the Case AGAINST is shorter or weaker than the Case FOR,\n"
+            "REWRITE it until they match. Isostheneia is non-negotiable.\n"
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
@@ -131,12 +192,10 @@ class SignalPhase(Phase[EpistemologyOutput]):
             {"name": "mcp__ontology-server__get_idea"},
             {"name": "mcp__ontology-server__query_ideas"},
             {"name": "mcp__ontology-server__create_idea"},
-            {"name": "WebSearch"},
-            {"name": "WebFetch"},
             {"name": "Write"},
         ]
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> EpistemologyOutput:
         return parse_epistemology_output(
-            self.phase_id, "signal", ctx, raw, _OUTPUT_FILE, _FRAMEWORKS,
+            self.phase_id, "pyrrhon", ctx, raw, _OUTPUT_FILE, _FRAMEWORKS,
         )
