@@ -1,10 +1,19 @@
-"""Epistemology Auto mode — diagnostic framework selection.
+"""Epistemology Auto mode — topology-grounded meta-epistemological selector.
 
-The auto mode's distinctive process is *meta-epistemological*: it analyses
-the idea's properties to determine which thinking strategies would be most
-productive, then applies them.  It is the only mode that begins with a
-diagnostic step — the framework selection is itself a reasoned act, not
-a mechanical dispatch.
+The auto mode is the *meta-epistemologist* of the system: it diagnoses the
+epistemological situation of an idea along 8 philosopher-grounded dimensions,
+then prescribes the TOP 3 most applicable reasoning modes based on evidence.
+It is the only mode that begins with diagnosis — the mode selection itself is
+a reasoned act grounded in the idea's actual epistemic needs, not a mechanical
+dispatch or aesthetic preference.
+
+Modes available for selection:
+  Pyrrhonian Skepticism, Peircean Abduction, Hegelian Dialectics,
+  Catuṣkoṭi (Nāgārjuna), Aristotelian Four Causes, Deweyan Inquiry,
+  Popperian Falsification, Baconian Inductivism.
+
+Fallback: Peircean Abduction (when no strong diagnostic match).
+Mutual exclusion: Popper and Bacon may not both be selected.
 """
 
 from __future__ import annotations
@@ -18,19 +27,20 @@ from ._helpers import parse_epistemology_output
 from .models import EpistemologyOutput
 
 _ALL_FRAMEWORKS = [
-    "Extension",
-    "Lateral Transfer",
-    "Assumption Inversion",
-    "Decomposition",
-    "Synthesis",
-    "Gap Analysis",
-    "Conceptual Combination",
+    "Pyrrhonian Skepticism",
+    "Peircean Abduction",
+    "Hegelian Dialectics",
+    "Catuṣkoṭi",
+    "Aristotelian Four Causes",
+    "Deweyan Inquiry",
+    "Popperian Falsification",
+    "Baconian Inductivism",
 ]
 _OUTPUT_FILE = "ep-auto-ideas.md"
 
 
 class AutoPhase(Phase[EpistemologyOutput]):
-    """Epistemology auto mode: diagnose the idea, then select and apply frameworks."""
+    """Epistemology auto mode: diagnose the idea's epistemological situation, then select and apply philosopher-grounded modes."""
 
     phase_id: str = "ep-auto"
     timeout_s: float = 1200.0  # 20 minutes — larger scope
@@ -40,98 +50,120 @@ class AutoPhase(Phase[EpistemologyOutput]):
         run_date = date.today().isoformat()
 
         return (
-            f"You are Epistemology Ralph — Auto Mode for idea {ctx.idea_id}.\n"
+            # ── Layer 1: Persona ──────────────────────────────────────────
+            "You are a meta-epistemologist who diagnoses which WAY OF THINKING\n"
+            "is most productive for this specific idea based on its\n"
+            f"epistemological situation. You are working on idea {ctx.idea_id}.\n"
             "\n"
-            "Your job is to DIAGNOSE the idea first, then prescribe the right\n"
-            "thinking strategies. You are a doctor of ideas — examine before\n"
-            "treating.\n"
-            "\n"
+            # ── Layer 2: Operational Rules ────────────────────────────────
             "## Phase 1: Examine the Idea\n"
             "\n"
             f"1. Read idea {ctx.idea_id}: mcp__ontology-server__get_idea\n"
             f"2. Get neighbours: mcp__ontology-server__get_related_ideas for {ctx.idea_id}\n"
             "3. Query broader pool: mcp__ontology-server__query_ideas\n"
             "\n"
-            "## Phase 2: Diagnose\n"
+            "## Phase 2: Diagnose the Epistemological Situation\n"
             "\n"
-            "Assess the idea along these dimensions. Be specific — cite evidence\n"
-            "from what you read:\n"
+            "Assess the idea along these 8 diagnostic questions. For EACH question,\n"
+            "cite specific evidence from the idea. If you cannot cite evidence,\n"
+            "the diagnosis is WRONG — mark it N/A.\n"
             "\n"
-            "- **Maturity**: seed (just a title/sentence), sapling (has structure\n"
-            "  but gaps), tree (well-developed, detailed). Evidence: {what you saw}\n"
-            "- **Connectivity**: isolated (0-1 neighbours), connected (2-4),\n"
-            "  hub (5+). Evidence: {neighbour count and quality}\n"
-            "- **Assumption load**: light (few assumptions), heavy (rests on many\n"
-            "  assumptions, some questionable). Evidence: {specific assumptions found}\n"
-            "- **Decomposability**: atomic (single concept), compound (2-3 separable\n"
-            "  parts), complex (many intertwined parts). Evidence: {what parts you see}\n"
-            "- **Domain specificity**: narrow (one domain), bridging (touches 2+\n"
-            "  domains), universal (domain-independent principle). Evidence: {domains}\n"
+            "1. **Contested Claims → Pyrrhonian Skepticism**: Does the idea contain\n"
+            "   claims that are actively contested, dogmatically asserted, or accepted\n"
+            "   without sufficient warrant? Evidence: {specific contested claims}\n"
+            "2. **Unexplained Anomaly → Peircean Abduction**: Does the idea exhibit\n"
+            "   a surprising observation, anomaly, or phenomenon that lacks a\n"
+            "   satisfying explanation? Evidence: {the specific anomaly}\n"
+            "3. **Genuine Contradiction → Hegelian Dialectics**: Does the idea contain\n"
+            "   a genuine contradiction — two forces, requirements, or truths that\n"
+            "   are BOTH valid yet incompatible? Evidence: {the thesis and antithesis}\n"
+            "4. **Non-Binary Tension → Catuṣkoṭi**: Does the idea involve a tension\n"
+            "   that resists binary resolution — where the answer is neither A nor B,\n"
+            "   or perhaps both and neither? Evidence: {the non-binary tension}\n"
+            "5. **Unclear Purpose/Composition → Aristotelian Four Causes**: Is the\n"
+            "   idea's purpose (final cause), mechanism (efficient cause), structure\n"
+            "   (formal cause), or material basis unclear or under-specified?\n"
+            "   Evidence: {which cause is missing or unclear}\n"
+            "6. **Indeterminate Situation → Deweyan Inquiry**: Is the idea in a state\n"
+            "   of genuine indeterminacy — a felt difficulty without a clear problem\n"
+            "   formulation? Evidence: {the indeterminate situation}\n"
+            "7. **Untested Bold Claim → Popperian Falsification**: Does the idea make\n"
+            "   a bold, specific, testable claim that has NOT been subjected to\n"
+            "   rigorous attempted refutation? Evidence: {the specific claim}\n"
+            "8. **Observable Pattern → Baconian Inductivism**: Does the idea present\n"
+            "   observable instances, cases, or data from which general principles\n"
+            "   could be systematically extracted? Evidence: {the observable pattern}\n"
             "\n"
-            "## Phase 3: Prescribe Frameworks\n"
+            "## Phase 3: Select Modes\n"
             "\n"
-            "Based on the diagnosis, select exactly 4 frameworks from:\n"
-            "Extension, Lateral Transfer, Assumption Inversion, Decomposition,\n"
-            "Synthesis, Gap Analysis, Conceptual Combination\n"
-            "\n"
-            "Selection rules (these are firm, not suggestions):\n"
-            "- Extension requires maturity >= sapling (seeds have no direction yet)\n"
-            "- Lateral Transfer requires domain specificity narrow or bridging\n"
-            "  (universal ideas have nothing to transfer)\n"
-            "- Assumption Inversion requires assumption load >= heavy\n"
-            "- Decomposition requires decomposability >= compound\n"
-            "- Synthesis requires connectivity >= connected (need neighbours to combine)\n"
-            "- Gap Analysis requires connectivity <= connected (hubs don't have gaps)\n"
-            "- Conceptual Combination requires access to ideas in different domains\n"
-            "\n"
-            "If fewer than 4 frameworks qualify, relax the weakest constraint and\n"
-            "explain which rule you bent and why.\n"
+            "Selection procedure (these are firm, not suggestions):\n"
+            "- Diagnose along ALL 8 dimensions, citing evidence from the idea.\n"
+            "- Select the TOP 3 most applicable modes based on diagnostic strength.\n"
+            "- **Default**: If no strong match on any dimension, default to\n"
+            "  Peircean Abduction — every idea has SOMETHING unexplained.\n"
+            "- **Mutual exclusion**: Popper and Bacon may NOT both be selected.\n"
+            "  If both score highly, select the one with stronger evidence and\n"
+            "  replace the other with the next-strongest mode.\n"
+            "- For each selected mode, generate exactly 4 ideas (12 total).\n"
             "\n"
             "## Phase 4: Generate\n"
             "\n"
-            "For each of the 4 chosen frameworks, generate exactly 3 ideas (12 total).\n"
+            "For each of the 3 chosen modes, generate exactly 4 ideas (12 total).\n"
             "Each idea must trace back to a specific diagnostic finding from Phase 2.\n"
             "\n"
-            "**Extension**: Push the idea further in its natural direction.\n"
-            "**Lateral Transfer**: Apply core insight to a different domain.\n"
-            "**Assumption Inversion**: Reverse a specific assumption from the diagnosis.\n"
-            "**Decomposition**: Extract a specific component identified in Phase 2.\n"
-            "**Synthesis**: Combine with a specific neighbour from Phase 1.\n"
-            "**Gap Analysis**: Fill a specific gap visible from the connectivity map.\n"
-            "**Conceptual Combination**: Merge with a specific idea from a different domain.\n"
+            "**Pyrrhonian Skepticism**: Suspend judgement on contested claims;\n"
+            "  generate ideas that emerge from withholding assent.\n"
+            "**Peircean Abduction**: Form explanatory hypotheses for the anomaly;\n"
+            "  generate ideas via observe → hypothesize → predict → validate.\n"
+            "**Hegelian Dialectics**: Synthesize the contradiction into a higher\n"
+            "  unity; generate ideas from thesis-antithesis-synthesis.\n"
+            "**Catuṣkoṭi**: Explore all four logical corners (is, is-not,\n"
+            "  both, neither); generate ideas from non-binary positions.\n"
+            "**Aristotelian Four Causes**: Fill in the missing causes;\n"
+            "  generate ideas by completing the causal picture.\n"
+            "**Deweyan Inquiry**: Transform the indeterminate situation into a\n"
+            "  determinate one; generate ideas via problem-formulation.\n"
+            "**Popperian Falsification**: Design severe tests for the bold claim;\n"
+            "  generate ideas that would survive attempted refutation.\n"
+            "**Baconian Inductivism**: Systematically catalogue instances and\n"
+            "  extract general principles; generate ideas via inductive tables.\n"
             "\n"
             "## Phase 5: Save and Report\n"
             "\n"
             "For each generated idea, save it:\n"
             f'  mcp__ontology-server__create_idea with author "AI", parent {ctx.idea_id},\n'
-            '  tags ["epi-ralph", "auto", "<framework-name-lowercase>"]\n'
+            '  tags ["epi-ralph", "auto", "<mode-name-lowercase>"]\n'
             "\n"
             f"Write the full report to: {output_file}\n"
             "\n"
+            # ── Layer 4: Output Format ────────────────────────────────────
             "Format:\n"
             "\n"
             "# Generated Ideas — Auto Mode\n"
             f"**Root Idea**: {ctx.idea_id}\n"
             f"**Date**: {run_date}\n"
-            "**Frameworks**: {comma-separated list of 4 chosen frameworks}\n"
+            "**Modes**: {comma-separated list of 3 chosen modes}\n"
             "\n"
             "## Diagnosis\n"
-            "| Dimension | Assessment | Evidence |\n"
-            "|-----------|-----------|----------|\n"
-            "| Maturity | {level} | {evidence} |\n"
-            "| Connectivity | {level} | {evidence} |\n"
-            "| Assumption Load | {level} | {evidence} |\n"
-            "| Decomposability | {level} | {evidence} |\n"
-            "| Domain Specificity | {level} | {evidence} |\n"
+            "| Diagnostic Question | Mode Indicated | Evidence | Strength |\n"
+            "|---------------------|---------------|----------|----------|\n"
+            "| Contested Claims | Pyrrhonian Skepticism | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Unexplained Anomaly | Peircean Abduction | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Genuine Contradiction | Hegelian Dialectics | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Non-Binary Tension | Catuṣkoṭi | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Unclear Purpose/Composition | Aristotelian Four Causes | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Indeterminate Situation | Deweyan Inquiry | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Untested Bold Claim | Popperian Falsification | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Observable Pattern | Baconian Inductivism | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
             "\n"
-            "## Framework Prescription\n"
-            "| Framework | Qualifying Rule | Diagnostic Basis |\n"
-            "|-----------|----------------|------------------|\n"
-            "| {name} | {which rule} | {which finding} |\n"
+            "## Mode Prescription\n"
+            "| Mode | Diagnostic Basis | Selection Rationale |\n"
+            "|------|-----------------|---------------------|\n"
+            "| {philosopher-grounded mode} | {which diagnostic finding} | {why this mode fits} |\n"
             "| ... | ... | ... |\n"
             "\n"
             "## Idea 1: {Title}\n"
-            "**Protocol**: {framework}\n"
+            "**Mode**: {philosopher-grounded mode}\n"
             "**Diagnostic Basis**: {which Phase 2 finding drives this}\n"
             "**Source Ideas**: {root + any pool ideas used}\n"
             "**Description**: {2-3 sentences}\n"
@@ -140,6 +172,15 @@ class AutoPhase(Phase[EpistemologyOutput]):
             "## Idea 2: ...\n"
             "...\n"
             "## Idea 12: ...\n"
+            "\n"
+            # ── Layer 5: Anti-Collapse Guard ──────────────────────────────
+            "## CRITICAL ANTI-COLLAPSE RULES\n"
+            "- Do NOT select modes based on which sounds most interesting —\n"
+            "  select based on the EPISTEMOLOGICAL SITUATION of the idea.\n"
+            "- If you cannot cite specific evidence from the idea for a\n"
+            "  diagnosis, that diagnosis is WRONG. Mark it N/A.\n"
+            "- Fallback: If no strong match, default to Peircean Abduction.\n"
+            "- NEVER select more than 3 modes.\n"
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
