@@ -38,8 +38,8 @@ EXIT_INCOMPLETE = 2
 EXIT_TIMEOUT = 124
 
 
-def ep_modes() -> dict[str, tuple[str, Any]]:
-    """Build and return the epistemology mode registry.
+def _build_ep_modes() -> dict[str, tuple[str, Any]]:
+    """Build the epistemology mode registry.
 
     Imports are deferred so the epistemology package is only loaded when
     this function is actually called.
@@ -65,6 +65,9 @@ def ep_modes() -> dict[str, tuple[str, Any]]:
         "bacon": ("ep-bacon", BaconPhase()),
         "catuskoti": ("ep-catuskoti", CatuskotiPhase()),
     }
+
+
+ep_modes: dict[str, tuple[str, Any]] = _build_ep_modes()
 
 
 # Lifecycle transitions: agent -> (on_start, on_success)
@@ -259,7 +262,7 @@ def _build_pipeline(
         )
 
     if agent == "epistemology":
-        modes = ep_modes()
+        modes = ep_modes
 
         effective_mode = mode if mode else "auto"
         if effective_mode not in modes:
