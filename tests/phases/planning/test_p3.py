@@ -220,8 +220,8 @@ class TestBuildPrompt:
         ]
         upstream_facts = [
             {
-                "subject": "http://impl-ralph.io/phase#idea-42-d1",
-                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "subject": "http://tulla.dev/phase#idea-42-d1",
+                "predicate": "http://tulla.dev/phase#preserves-key_capabilities",
                 "object": "Graph traversal engine",
             },
         ]

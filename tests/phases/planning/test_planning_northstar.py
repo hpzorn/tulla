@@ -21,7 +21,7 @@ from tulla.phases.planning.p6 import P6Phase
 # Shared constants
 # ---------------------------------------------------------------------------
 
-PHASE_NS = "http://impl-ralph.io/phase#"
+PHASE_NS = "http://tulla.dev/phase#"
 
 NORTHSTAR_TRIPLES = [
     {

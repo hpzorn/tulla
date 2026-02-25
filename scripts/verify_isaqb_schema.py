@@ -82,7 +82,7 @@ EXPECTED_RELATIONSHIPS = [
     "documentedIn",
 ]
 
-ISAQB_NS = "http://impl-ralph.io/isaqb#"
+ISAQB_NS = "http://tulla.dev/isaqb#"
 
 
 @dataclass

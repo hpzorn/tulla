@@ -120,20 +120,20 @@ class TestExpandUri:
     def test_isaqb_prefix(self) -> None:
         assert (
             FindPhase._expand_uri("isaqb:Maintainability")
-            == "http://impl-ralph.io/isaqb#Maintainability"
+            == "http://tulla.dev/isaqb#Maintainability"
         )
 
     def test_prd_prefix(self) -> None:
         assert (
             FindPhase._expand_uri("prd:qualityFocus")
-            == "http://impl-ralph.io/prd#qualityFocus"
+            == "http://tulla.dev/prd#qualityFocus"
         )
 
     def test_unknown_prefix_returns_unchanged(self) -> None:
         assert FindPhase._expand_uri("foo:Bar") == "foo:Bar"
 
     def test_already_full_uri_returns_unchanged(self) -> None:
-        full = "http://impl-ralph.io/isaqb#Testability"
+        full = "http://tulla.dev/isaqb#Testability"
         assert FindPhase._expand_uri(full) == full
 
     def test_empty_string(self) -> None:
@@ -425,7 +425,7 @@ class TestResolvePatternsViaSparql:
         phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
 
         q1 = ontology.sparql_queries[0]
-        assert "http://impl-ralph.io/isaqb#Maintainability" in q1
+        assert "http://tulla.dev/isaqb#Maintainability" in q1
 
 
 # ---------------------------------------------------------------------------

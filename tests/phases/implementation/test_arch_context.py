@@ -500,14 +500,14 @@ class TestLoopProjectAdrs:
             'isaqb:scope "project"': {
                 "results": [
                     {
-                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "adr": "http://tulla.dev/arch#adr-ralph-proj-1",
                         "title": "Additive-Only Changes",
                         "consequences": "Never remove existing fields or phases",
                         "status": "accepted",
                         "quality_attributes": "Maintainability, Compatibility",
                     },
                     {
-                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-2",
+                        "adr": "http://tulla.dev/arch#adr-ralph-proj-2",
                         "title": "Composition Over Invention",
                         "consequences": "Compose existing infrastructure",
                         "status": "accepted",
@@ -594,7 +594,7 @@ class TestLoopProjectAdrLoading:
             'isaqb:scope "project"': {
                 "results": [
                     {
-                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "adr": "http://tulla.dev/arch#adr-ralph-proj-1",
                         "title": "Additive-Only Changes",
                         "consequences": "Never remove existing fields",
                         "status": "accepted",
@@ -630,14 +630,14 @@ class TestLoopProjectAdrLoading:
             'isaqb:scope "project"': {
                 "results": [
                     {
-                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "adr": "http://tulla.dev/arch#adr-ralph-proj-1",
                         "title": "Additive-Only Changes",
                         "consequences": "Never remove existing fields",
                         "status": "accepted",
                         "quality_attributes": "",
                     },
                     {
-                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-2",
+                        "adr": "http://tulla.dev/arch#adr-ralph-proj-2",
                         "title": "Composition Over Invention",
                         "consequences": "Compose existing infrastructure",
                         "status": "accepted",
@@ -686,7 +686,7 @@ class TestLoopProjectAdrLoading:
             'isaqb:scope "project"': {
                 "results": [
                     {
-                        "adr": "http://impl-ralph.io/arch#adr-ralph-proj-1",
+                        "adr": "http://tulla.dev/arch#adr-ralph-proj-1",
                         "title": "Composition Over Invention",
                         "consequences": "Compose existing infrastructure",
                         "status": "accepted",

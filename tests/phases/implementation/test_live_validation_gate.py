@@ -172,8 +172,8 @@ from .models import FindOutput
 logger = logging.getLogger(__name__)
 
 _REVERSE_PREFIXES: dict[str, str] = {
-    "prd:": "http://impl-ralph.io/prd#",
-    "isaqb:": "http://impl-ralph.io/isaqb#",
+    "prd:": "http://tulla.dev/prd#",
+    "isaqb:": "http://tulla.dev/isaqb#",
 }
 
 
@@ -197,7 +197,7 @@ class FindPhase:
 
         full_uri = self._expand_uri(quality_focus)
         q1 = (
-            "PREFIX isaqb: <http://impl-ralph.io/isaqb#>\\n"
+            "PREFIX isaqb: <http://tulla.dev/isaqb#>\\n"
             "SELECT DISTINCT ?pattern ?quality WHERE {\\n"
             f"  ?pattern isaqb:addresses <{full_uri}> .\\n"
             "}"
@@ -721,8 +721,8 @@ class TestLiveValidateInstance:
     def test_validate_known_requirement_instance(self, ontology: Any) -> None:
         """A known prd:Requirement instance should validate against RequirementShape."""
         result = ontology.validate_instance(
-            instance_uri="http://impl-ralph.io/prd#req-51-1-1",
-            shape_uri="http://impl-ralph.io/prd#RequirementShape",
+            instance_uri="http://tulla.dev/prd#req-51-1-1",
+            shape_uri="http://tulla.dev/prd#RequirementShape",
         )
         # Response must be a dict with at least 'conforms' key
         assert isinstance(result, dict), f"Expected dict, got {type(result)}"

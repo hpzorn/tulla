@@ -1,53 +1,32 @@
-# Research-First Ralph
+# Tulla
 
-Autonomous idea-to-implementation loop with mandatory research phase.
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![CI](https://github.com/hpz/tulla/actions/workflows/ci.yml/badge.svg)](https://github.com/hpz/tulla/actions/workflows/ci.yml)
 
-Extends Geoffrey Huntley's [Ralph Wiggum loop](https://ghuntley.com/ralph/) with:
+Ontology-driven idea hygiene and lifecycle agent.
+
+Tulla extends Geoffrey Huntley's [Ralph Wiggum loop](https://ghuntley.com/ralph/) with:
 - **Mandatory research phase** before implementation
 - **Idea pool integration** via MCP for continuous multi-task processing
 - **Decomposition** of large ideas into sub-ideas
 - **Dependency tracking** and blocking detection
-- **PRD-driven implementation**
-- **Lifecycle state tracking** with automatic transitions
+- **PRD-driven implementation** with ontology-backed quality gates
+- **SHACL validation** at every phase transition
 
 ## The Loop
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        RESEARCH-FIRST RALPH                          │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│   ┌─────────┐    ┌───────────┐    ┌───────────┐    ┌─────┐          │
-│   │ BACKLOG │───▶│ RESEARCH  │───▶│ DECOMPOSE │───▶│ PRD │          │
-│   └─────────┘    └───────────┘    └───────────┘    └─────┘          │
-│        ▲               │                │              │             │
-│        │               ▼                ▼              ▼             │
-│        │         ┌──────────┐    ┌──────────┐   ┌───────────┐       │
-│        │         │INVALIDATE│    │ CHILDREN │   │ IMPLEMENT │       │
-│        │         │  / PARK  │    │ → BACKLOG│   │  (Ralph)  │       │
-│        │         └──────────┘    └──────────┘   └───────────┘       │
-│        │                                              │              │
-│        │         ┌──────────────────┐                 │              │
-│        └─────────│    COMPLETED     │◀────────────────┘              │
-│                  │ / BLOCKED / FAIL │                                │
-│                  └──────────────────┘                                │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-## Lifecycle States
-
-```
-backlog ──► researching ──► researched ──► scoped ──► implementing ──► completed
-                │                │                          │
-                ▼                ▼                          ▼
-           invalidated     decomposing               blocked/failed
-              parked      (→ children)
+backlog → researching → researched → scoped → implementing → completed
+              │              │                      │
+              ▼              ▼                      ▼
+         invalidated    decomposing            blocked/failed
+            parked      (→ children)
 ```
 
 | State | Meaning |
 |-------|---------|
-| `backlog` | Queued for Ralph to process |
-| `researching` | Research phase active |
+| `backlog` | Queued for processing |
+| `researching` | Research phase active (R1–R6) |
 | `researched` | Research done, ready for scoping |
 | `invalidated` | Dead end, won't implement |
 | `parked` | Needs human decision |
@@ -55,174 +34,46 @@ backlog ──► researching ──► researched ──► scoped ──► im
 | `scoped` | PRD created |
 | `implementing` | Code being written |
 | `blocked` | Stuck on dependency |
-| `completed` | Done! |
-| `failed` | Gave up after retries |
+| `completed` | Done |
 
-## Quick Start
+## Installation
 
 ```bash
-# Run the loop (processes ideas continuously)
-./research-ralph.sh
+# With uv (recommended)
+uv add tulla
 
-# Process a single idea and exit
-./research-ralph.sh --once --idea 13
+# With pip
+pip install tulla
+```
 
-# Dry run to see what would happen
-./research-ralph.sh --dry-run --idea 5
+### Development setup
 
-# Interactive mode (pause between phases for review)
-./research-ralph.sh --interactive --idea 13
+```bash
+git clone https://github.com/hpz/tulla.git
+cd tulla
+uv sync --all-extras
+uv run python -m pytest tests/ -x -q
 ```
 
 ## Requirements
 
-- `claude` CLI (Claude Code) installed and authenticated
-- `idea-pool` MCP server configured with the following tools:
-  - `get_workable_ideas()` - Find ideas ready for processing
-  - `set_lifecycle()` - Change idea state
-  - `read_idea()` / `append_to_idea()` - Read and update ideas
-  - `create_sub_idea()` - Create child ideas
-  - `add_dependency()` - Track blocking relationships
-  - `check_parent_completion()` - Roll up child completions
-  - `get_ralph_status()` - Dashboard view
-- Bash 4.0+
+- Python 3.11+
+- [ontology-server](https://github.com/hpz/semantic-tool-use) MCP server for ontology operations
+- `claude` CLI ([Claude Code](https://github.com/anthropics/claude-code)) for the autonomous loop
 
-## Usage
+## Project Structure
 
 ```
-./research-ralph.sh [--once] [--dry-run] [--idea IDEA_ID] [--interactive]
+src/tulla/
+├── core/           # Pipeline, phase facts, configuration
+├── phases/         # Discovery (D1-D5), Research (R1-R6), Planning, Implementation, Epistemology
+├── ontology/       # Phase ontology (SHACL shapes, namespace definitions)
+├── ports/          # Ontology and MCP integration
+└── cli.py          # CLI entry point
 
-Options:
-  --once        Run once and exit (don't loop continuously)
-  --dry-run     Show what would be done without executing
-  --idea ID     Process a specific idea by number or pattern
-  --interactive Pause for human review between phases
-  --help        Show help message
+ontologies/         # Shared ontology files (symlinked into ontology-server)
+tests/              # pytest test suite
 ```
-
-## Phases
-
-### 1. Extract (Idea Selection)
-
-Queries the idea pool for the next workable idea:
-- State: `backlog`
-- Not blocked by dependencies
-- Prioritized by the idea pool server
-
-### 2. Research (Mandatory)
-
-**This phase cannot be skipped.** Transitions idea to `researching` state.
-
-The agent must:
-- Read the idea content
-- Search for prior art (existing implementations, tools)
-- Look for academic papers or blog posts
-- Identify theoretical foundations
-- Document failure modes and pitfalls
-
-Writes research notes directly to the idea via `append_to_idea()`.
-
-**Research outcomes:**
-- `proceed` → Continue to decomposition check (state: `researched`)
-- `invalidate` → Mark as dead end (state: `invalidated`)
-- `park` → Needs human decision (state: `parked`)
-
-Time-boxed to prevent research paralysis (default: 30 minutes).
-
-### 3. Decomposition Check
-
-Evaluates if the idea is too large for atomic implementation:
-- More than 5 success criteria needed?
-- More than 3 independent components?
-
-If decomposition is needed:
-- Creates child ideas via `create_sub_idea()`
-- Sets up dependencies via `add_dependency()`
-- Parent enters `decomposing` state
-- Children are added to `backlog`
-- Loop continues to process children
-
-If atomic, continues to PRD phase.
-
-### 4. PRD Creation
-
-Creates a Product Requirements Document (state: `scoped`):
-- Problem Statement
-- Research Summary
-- Proposed Solution
-- Success Criteria (max 5 for atomic ideas)
-- Non-Goals
-- Technical Approach
-- Risks & Mitigations
-- Estimated Complexity (S/M/L)
-
-PRD is appended directly to the idea file.
-
-### 5. Implementation (Classic Ralph)
-
-The core Ralph loop (state: `implementing`):
-```
-while retries < max:
-    result = claude("Implement the PRD...")
-    if result == COMPLETE: break
-    if result == BLOCKED: create_dependency(); break
-    retries++
-```
-
-**Implementation outcomes:**
-- `COMPLETE` → All success criteria met (state: `completed`)
-- `BLOCKED: reason` → Dependency discovered (state: `blocked`)
-- `STUCK: reason` → Retry or eventually fail (state: `failed`)
-
-On completion, checks if any parent idea can now complete via `check_parent_completion()`.
-
-## Configuration
-
-Edit `research-ralph.conf` to customize:
-
-```bash
-# Research time limit (minutes)
-RESEARCH_TIME_BOX_MINUTES=30
-
-# Max implementation retries before failure
-MAX_IMPLEMENTATION_RETRIES=3
-
-# Decomposition thresholds
-MAX_SUCCESS_CRITERIA=5
-MAX_INDEPENDENT_COMPONENTS=3
-
-# Sleep interval when no ideas (seconds)
-SLEEP_INTERVAL=3600
-
-# Enable interactive mode by default
-INTERACTIVE=false
-```
-
-## Key Differences from Original Ralph
-
-| Aspect | Original Ralph | Research-First Ralph |
-|--------|---------------|---------------------|
-| Input | Single PROMPT.md | Idea pool (many ideas) |
-| Research | None (jump to code) | Mandatory pre-phase |
-| Decomposition | None | Auto-splits large ideas |
-| Dependencies | None | Tracks blocking relationships |
-| Documentation | Optional | PRD required |
-| State tracking | File on disk | Idea pool lifecycle |
-| Failure handling | None | Retry with limits |
-| Scope | One task | Continuous multi-task |
-
-## MCP Tools Used
-
-| Tool | Purpose |
-|------|---------|
-| `get_workable_ideas()` | Find ideas ready for processing |
-| `get_ralph_status()` | Dashboard of all idea states |
-| `set_lifecycle()` | Transition idea between states |
-| `read_idea()` | Get full idea content |
-| `append_to_idea()` | Add research notes, PRD |
-| `create_sub_idea()` | Decompose into children |
-| `add_dependency()` | Track blocking relationships |
-| `check_parent_completion()` | Roll up when children complete |
 
 ## References
 
@@ -230,6 +81,16 @@ INTERACTIVE=false
 - [anthropics/claude-code](https://github.com/anthropics/claude-code) — Claude Code CLI
 - [snarktank/ralph](https://github.com/snarktank/ralph) — PRD-driven autonomous agent
 
+## Contributing
+
+Contributions are welcome. Please open an issue first to discuss what you'd like to change.
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-change`)
+3. Run the test suite (`uv run python -m pytest tests/ -x -q`)
+4. Run linting (`ruff check src/` and `mypy src/`)
+5. Open a pull request
+
 ## License
 
-MIT
+[Apache 2.0](LICENSE)

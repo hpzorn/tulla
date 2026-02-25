@@ -147,38 +147,38 @@ implement
 
 SAMPLE_D1_D4_TRIPLES = [
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d1",
-        "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+        "subject": "http://tulla.dev/phase#idea-42-d1",
+        "predicate": "http://tulla.dev/phase#preserves-key_capabilities",
         "object": "[]",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d1",
-        "predicate": "http://impl-ralph.io/phase#preserves-ecosystem_context",
+        "subject": "http://tulla.dev/phase#idea-42-d1",
+        "predicate": "http://tulla.dev/phase#preserves-ecosystem_context",
         "object": "Core MCP platform",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d2",
-        "predicate": "http://impl-ralph.io/phase#preserves-primary_persona_jtbd",
+        "subject": "http://tulla.dev/phase#idea-42-d2",
+        "predicate": "http://tulla.dev/phase#preserves-primary_persona_jtbd",
         "object": "When I build, I want speed",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d3",
-        "predicate": "http://impl-ralph.io/phase#preserves-verdict",
+        "subject": "http://tulla.dev/phase#idea-42-d3",
+        "predicate": "http://tulla.dev/phase#preserves-verdict",
         "object": "P1-High | Strong ROI | High confidence",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d3",
-        "predicate": "http://impl-ralph.io/phase#preserves-quadrant",
+        "subject": "http://tulla.dev/phase#idea-42-d3",
+        "predicate": "http://tulla.dev/phase#preserves-quadrant",
         "object": "Major Project",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d4",
-        "predicate": "http://impl-ralph.io/phase#preserves-blockers",
+        "subject": "http://tulla.dev/phase#idea-42-d4",
+        "predicate": "http://tulla.dev/phase#preserves-blockers",
         "object": "No API endpoint blocks core functionality",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-d4",
-        "predicate": "http://impl-ralph.io/phase#preserves-root_blocker",
+        "subject": "http://tulla.dev/phase#idea-42-d4",
+        "predicate": "http://tulla.dev/phase#preserves-root_blocker",
         "object": "No API endpoint: blocks core functionality",
     },
 ]

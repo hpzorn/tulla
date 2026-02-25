@@ -132,18 +132,18 @@ class TestBuildPrompt:
         """Upstream facts from D1 and D2 are grouped and rendered in the prompt."""
         sample_triples = [
             {
-                "subject": "http://impl-ralph.io/phase#idea-42-d1",
-                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "subject": "http://tulla.dev/phase#idea-42-d1",
+                "predicate": "http://tulla.dev/phase#preserves-key_capabilities",
                 "object": "[]",
             },
             {
-                "subject": "http://impl-ralph.io/phase#idea-42-d1",
-                "predicate": "http://impl-ralph.io/phase#preserves-ecosystem_context",
+                "subject": "http://tulla.dev/phase#idea-42-d1",
+                "predicate": "http://tulla.dev/phase#preserves-ecosystem_context",
                 "object": "Core MCP platform",
             },
             {
-                "subject": "http://impl-ralph.io/phase#idea-42-d2",
-                "predicate": "http://impl-ralph.io/phase#preserves-primary_persona_jtbd",
+                "subject": "http://tulla.dev/phase#idea-42-d2",
+                "predicate": "http://tulla.dev/phase#preserves-primary_persona_jtbd",
                 "object": "When I build, I want speed",
             },
         ]
@@ -173,8 +173,8 @@ class TestBuildPrompt:
         """Upstream facts section appears before ## Goal."""
         sample_triples = [
             {
-                "subject": "http://impl-ralph.io/phase#idea-42-d1",
-                "predicate": "http://impl-ralph.io/phase#preserves-key_capabilities",
+                "subject": "http://tulla.dev/phase#idea-42-d1",
+                "predicate": "http://tulla.dev/phase#preserves-key_capabilities",
                 "object": "[]",
             },
         ]

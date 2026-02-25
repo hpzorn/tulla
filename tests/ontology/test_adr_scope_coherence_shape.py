@@ -15,7 +15,7 @@ import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-ISAQB = Namespace("http://impl-ralph.io/isaqb#")
+ISAQB = Namespace("http://tulla.dev/isaqb#")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
 SHAPES_PATH = "ontologies/isaqb-ontology.ttl"

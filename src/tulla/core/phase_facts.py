@@ -178,16 +178,20 @@ class PhaseFactPersister:
             violations = result.get("violations", [])
 
             if not conforms:
+                error_strs = [str(v) for v in violations]
                 logger.warning(
-                    "SHACL validation failed for %s — rolling back %d triples",
+                    "SHACL validation failed for %s — rolling back %d triples.  "
+                    "Violations (%d): %s",
                     subject,
                     stored,
+                    len(error_strs),
+                    "; ".join(error_strs) or "(no detail returned)",
                 )
                 self._ontology.remove_triples_by_subject(subject)
                 return PersistResult(
                     stored_count=stored,
                     validation_passed=False,
-                    validation_errors=[str(v) for v in violations],
+                    validation_errors=error_strs,
                     rolled_back=True,
                 )
 

@@ -1,10 +1,11 @@
-@prefix code: <http://impl-ralph.io/code#> .
-@prefix isaqb: <http://impl-ralph.io/isaqb#> .
+@prefix code: <http://tulla.dev/code#> .
+@prefix isaqb: <http://tulla.dev/isaqb#> .
 @prefix ns1: <rdf:> .
 @prefix ns2: <rdfs:> .
 @prefix ns3: <isaqb:> .
+@prefix ns4: <http://isaqb.org/ontology#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -28,7 +29,7 @@ isaqb:ArchitecturalView a rdfs:Class,
 isaqb:ArchitectureDecision a rdfs:Class,
         owl:Class ;
     rdfs:label "Architecture Decision" ;
-    rdfs:comment "A documented architectural decision following ADR structure: context, options, decision, consequences (LG 04-08). Created per-project by Planning-Ralph." .
+    rdfs:comment "A documented architectural decision following ADR structure: context, options, decision, consequences (LG 04-08). Created per-project by Tulla's planning phase." .
 
 isaqb:ConcernCategory a rdfs:Class,
         owl:Class ;
@@ -108,7 +109,7 @@ isaqb:QualityGoal a rdfs:Class,
 isaqb:QualityScenario a rdfs:Class,
         owl:Class ;
     rdfs:label "Quality Scenario" ;
-    rdfs:comment "A concrete, testable scenario making a quality attribute measurable. Leaf of the quality tree. Form: stimulus -> environment -> response -> measure (Len Bass). Created per-project by Planning-Ralph." .
+    rdfs:comment "A concrete, testable scenario making a quality attribute measurable. Leaf of the quality tree. Form: stimulus -> environment -> response -> measure (Len Bass). Created per-project by Tulla's planning phase." .
 
 isaqb:Risk a rdfs:Class,
         owl:Class ;
@@ -225,52 +226,111 @@ isaqb:TradeoffPoint a rdfs:Class,
     ns1:type "isaqb:ArchitectureDecision" ;
     ns2:label "ADR-78-5: Qualitative Display as Primary Anti-Frustration Mechanism" .
 
-<http://impl-ralph.io/arch#adr-69-1> a isaqb:ArchitectureDecision ;
+<http://tulla.dev/arch#adr-69-1> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-1: Separate collect_project_decisions from get_adrs" ;
     isaqb:addresses isaqb:Maintainability ;
     isaqb:consequences "(+) Single responsibility per function, optimized SPARQL. (-) Mild duplication querying same entity type. (~) Can extract shared base query later if needed." ;
     isaqb:context "Both functions query isaqb:ArchitectureDecision via SPARQL but serve different consumers: get_adrs returns idea-level ADRs for display, collect_project_decisions returns project-level ADRs for prompt injection. Different filters, different return schemas." ;
     isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://impl-ralph.io/arch#adr-69-2> a isaqb:ArchitectureDecision ;
+<http://tulla.dev/arch#adr-69-2> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-2: Delta-prompt with dual positive+negative framing for P3" ;
     isaqb:consequences "(+) Zero regenerated project ADRs in experiments. (+) SHACL safety net for LLM non-compliance. (-) Depends on LLM instruction-following. (~) Prompt template becomes maintained artifact." ;
     isaqb:context "P3 must generate only feature-delta ADRs when project ADRs exist. Risk: LLM restates project decisions. R5 Exp 3 validated dual framing: 0 regenerated project ADRs, correct supersedes links, 9/9 scope annotations correct." ;
     isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://impl-ralph.io/arch#adr-69-3> a isaqb:ArchitectureDecision ;
+<http://tulla.dev/arch#adr-69-3> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-3: Zero-shot CLAUDE.md extraction with interactive confirmation" ;
     isaqb:consequences "(+) Simple, no example curation. (+) Human review catches overlaps. (-) Requires 2 min user review time. (~) Few-shot can be added later if needed." ;
     isaqb:context "Project-init must extract ADRs from CLAUDE.md. R5 Exp 4: zero-shot produced 6 ADRs, all SHACL-valid, 0 hallucinated. Overlapping extractions caught by interactive review." ;
     isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://impl-ralph.io/arch#adr-69-4> a isaqb:ArchitectureDecision ;
+<http://tulla.dev/arch#adr-69-4> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-4: sh:Warning severity for governance shapes" ;
     isaqb:consequences "(+) Pipeline never blocked by governance. (+) Consistent with existing codebase. (-) Silent contradictions produce warnings only. (~) Severity can be tightened per-project later." ;
     isaqb:context "Governance shapes detect alignment issues, not structural breakage. Solo Architect needs override flexibility. Using Violation for governance makes Tulla a straitjacket. Matches existing ADRShapeStrict pattern." ;
     isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://impl-ralph.io/arch#adr-69-5> a isaqb:ArchitectureDecision ;
+<http://tulla.dev/arch#adr-69-5> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-5: Manual-only ADR promotion for MVP" ;
     isaqb:consequences "(+) Simple, predictable. (+) No false positives. (+) Future auto-detection needs zero schema migration. (-) Relies on architect awareness." ;
     isaqb:context "Auto-detection of promotion candidates cannot be validated with only 4 ADRs. GOV.UK ADR Framework validates impact-based scope escalation. Manual promotion is predictable and avoids false positives." ;
     isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://impl-ralph.io/arch#adr-69-6> a isaqb:ArchitectureDecision ;
+<http://tulla.dev/arch#adr-69-6> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-6: One new file only (workflows/project_init.py)" ;
     isaqb:consequences "(+) Single new file, minimal bloat. (+) All project governance logic in one place. (-) File may grow with more governance features. (~) Can split later if needed." ;
     isaqb:context "Project-init workflow, migration function, and promote-adr logic need a home. Options: one module, three modules, or inline in cli.py. One module follows existing pattern where cli.py is a thin router." ;
     isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://impl-ralph.io/isaqb> a owl:Ontology ;
+<http://tulla.dev/architecture#adr-79-1> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-79-1: SPARQL ASK for Instance Existence Check" ;
+    isaqb:addresses isaqb:Correctness ;
+    isaqb:consequences "(+) Existence check works regardless of Turtle serialization format. (+) Uses same SPARQL path as all other KG operations. (~) One SPARQL ASK query per validation request (negligible overhead)." ;
+    isaqb:context "The /validate endpoint used substring check (instance_uri in kg_ttl) which broke when export_turtle() compacted URIs with namespace prefixes. This disabled all A-Box SHACL validation." ;
+    isaqb:decisionStatus isaqb:StatusAccepted .
+
+<http://tulla.dev/architecture#adr-79-2> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-79-2: Dual-Exposure for SPARQL UPDATE (MCP + HTTP)" ;
+    isaqb:addresses isaqb:Consistency ;
+    isaqb:consequences "(+) Same exposure pattern as sparql_query, reducing cognitive load. (+) Tulla can call via MCP SSE or HTTP REST. (-) Exposes destructive SPARQL to authenticated callers (mitigated by DROP/CLEAR rejection). (~) Two thin code paths for same operation." ;
+    isaqb:context "kg_store.update() exists but is only callable internally. Tulla needs SPARQL UPDATE for promote_adr() DELETE WHERE. The existing sparql_query is exposed as both MCP tool and HTTP endpoint." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://tulla.dev/architecture#adr-79-3> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-79-3: Lightweight UPDATE Validation (Not Reusing SELECT Validator)" ;
+    isaqb:consequences "(+) No false positives from SELECT-specific patterns. (+) ~15 LOC vs retrofitting ~70 LOC validator. (-) No property name validation for UPDATE (acceptable since UPDATE properties come from tulla code, not LLM hallucination)." ;
+    isaqb:context "_validate_sparql_query() has 5 patterns tuned for SELECT (property names, path depth, aggregation, graph refs, datetime). UPDATE operations use different syntax. Reusing SELECT validator would cause false positives." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
+
+<http://tulla.dev/architecture#adr-79-4> a isaqb:ArchitectureDecision ;
+    rdfs:label "ADR-79-4: Defer Dashboard Items to Idea 74" ;
+    isaqb:consequences "(+) Idea 79 stays focused on critical validation/mutation pipeline. (+) No merge conflicts with idea 74 dashboard files. (-) Project URIs wont resolve in dashboard until idea 74 ships." ;
+    isaqb:context "Features 6-9 are display-only dashboard enhancements. Idea 74 (Tulla Inspector) is committed and covers all dashboard improvements. Implementing here would duplicate scope and risk merge conflicts with uncommitted idea 74 changes." ;
+    isaqb:decisionStatus isaqb:StatusAccepted .
+
+<http://tulla.dev/isaqb> a owl:Ontology ;
     rdfs:label "iSAQB Architecture Knowledge Ontology" ;
     rdfs:comment "Formal representation of iSAQB CPSA-FL/AL body of knowledge for architecture-aware planning and implementation" ;
-    owl:imports <http://impl-ralph.io/code>,
-        <http://impl-ralph.io/prd> ;
+    owl:imports <http://tulla.dev/code>,
+        <http://tulla.dev/prd> ;
     owl:versionInfo "1.0.0" .
 
+isaqb:ADRScopeCoherenceShape a sh:NodeShape ;
+    rdfs:label "ADR Scope Coherence Shape" ;
+    rdfs:comment "Warns when an idea-scope ADR addresses the same quality attribute as a project-scope ADR without an explicit refinesDecision or supersedes link." ;
+    sh:severity sh:Warning ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "Idea-scope ADR addresses same quality attribute as project-scope ADR '{?projectTitle}' without refinesDecision or supersedes link" ;
+            sh:prefixes [ sh:declare [ sh:namespace "http://tulla.dev/isaqb#"^^xsd:anyURI ;
+                            sh:prefix "isaqb" ],
+                        [ sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ;
+                            sh:prefix "rdfs" ] ] ;
+            sh:select """
+            SELECT $this ?projectTitle
+            WHERE {
+                $this isaqb:scope "idea" .
+                $this isaqb:addresses ?qa .
+                ?projectADR a isaqb:ArchitectureDecision .
+                ?projectADR isaqb:scope "project" .
+                ?projectADR isaqb:addresses ?qa .
+                ?projectADR rdfs:label ?projectTitle .
+                FILTER NOT EXISTS { $this isaqb:refinesDecision ?projectADR }
+                FILTER NOT EXISTS { $this isaqb:supersedes ?projectADR }
+            }
+        """ ] ;
+    sh:targetClass isaqb:ArchitectureDecision .
+
 isaqb:ADRShapeStrict a sh:NodeShape ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:message "ADR should consider at least 2 options" ;
+            sh:minCount 2 ;
+            sh:path isaqb:hasOption ;
+            sh:severity sh:Warning ],
+        [ sh:message "ADR should address at least one quality attribute" ;
+            sh:minCount 1 ;
+            sh:path isaqb:addresses ;
+            sh:severity sh:Warning ],
+        [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:message "ADR must have a title (rdfs:label)" ;
             sh:minCount 1 ;
@@ -295,41 +355,8 @@ isaqb:ADRShapeStrict a sh:NodeShape ;
             sh:message "ADR must have a status" ;
             sh:minCount 1 ;
             sh:path isaqb:decisionStatus ;
-            sh:severity sh:Violation ],
-        [ sh:message "ADR should consider at least 2 options" ;
-            sh:minCount 2 ;
-            sh:path isaqb:hasOption ;
-            sh:severity sh:Warning ],
-        [ sh:message "ADR should address at least one quality attribute" ;
-            sh:minCount 1 ;
-            sh:path isaqb:addresses ;
-            sh:severity sh:Warning ] ;
+            sh:severity sh:Violation ] ;
     sh:targetClass isaqb:ArchitectureDecision .
-
-isaqb:ADRScopeCoherenceShape a sh:NodeShape ;
-    rdfs:label "ADR Scope Coherence Shape" ;
-    rdfs:comment "Warns when an idea-scope ADR addresses the same quality attribute as a project-scope ADR without an explicit refinesDecision or supersedes link." ;
-    sh:severity sh:Warning ;
-    sh:targetClass isaqb:ArchitectureDecision ;
-    sh:sparql [ a sh:SPARQLConstraint ;
-        sh:message "Idea-scope ADR addresses same quality attribute as project-scope ADR '{?projectTitle}' without refinesDecision or supersedes link" ;
-        sh:prefixes [ sh:declare [ sh:prefix "isaqb" ;
-                    sh:namespace "http://impl-ralph.io/isaqb#"^^xsd:anyURI ],
-                [ sh:prefix "rdfs" ;
-                    sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ] ] ;
-        sh:select """
-            SELECT $this ?projectTitle
-            WHERE {
-                $this isaqb:scope "idea" .
-                $this isaqb:addresses ?qa .
-                ?projectADR a isaqb:ArchitectureDecision .
-                ?projectADR isaqb:scope "project" .
-                ?projectADR isaqb:addresses ?qa .
-                ?projectADR rdfs:label ?projectTitle .
-                FILTER NOT EXISTS { $this isaqb:refinesDecision ?projectADR }
-                FILTER NOT EXISTS { $this isaqb:supersedes ?projectADR }
-            }
-        """ ] .
 
 isaqb:ATAM a isaqb:EvaluationMethod ;
     rdfs:label "ATAM" ;
@@ -1149,6 +1176,13 @@ isaqb:realizesPattern a rdf:Property,
     rdfs:range isaqb:ArchitecturalPattern,
         isaqb:DesignPattern .
 
+isaqb:refinesDecision a rdf:Property,
+        owl:ObjectProperty ;
+    rdfs:label "refines decision" ;
+    rdfs:comment "Links a feature-scoped ADR to the project-scoped ADR it refines. Distinct from isaqb:refines (domain: QualityScenario, range: QualityAttribute); this property has domain and range ArchitectureDecision. The presence of this link suppresses ADRScopeCoherenceShape warnings for the source decision." ;
+    rdfs:domain isaqb:ArchitectureDecision ;
+    rdfs:range isaqb:ArchitectureDecision .
+
 isaqb:relevance a rdf:Property,
         owl:ObjectProperty ;
     rdfs:label "relevance" ;
@@ -1183,13 +1217,6 @@ isaqb:supersedes a rdf:Property,
     rdfs:domain isaqb:ArchitectureDecision ;
     rdfs:range isaqb:ArchitectureDecision .
 
-isaqb:refinesDecision a rdf:Property,
-        owl:ObjectProperty ;
-    rdfs:label "refines decision" ;
-    rdfs:comment "Links a feature-scoped ADR to the project-scoped ADR it refines. Distinct from isaqb:refines (domain: QualityScenario, range: QualityAttribute); this property has domain and range ArchitectureDecision. The presence of this link suppresses ADRScopeCoherenceShape warnings for the source decision." ;
-    rdfs:domain isaqb:ArchitectureDecision ;
-    rdfs:range isaqb:ArchitectureDecision .
-
 isaqb:supportedBy a rdf:Property,
         owl:ObjectProperty ;
     rdfs:label "supported by" ;
@@ -1210,6 +1237,36 @@ isaqb:verifiedByScenario a rdf:Property,
     rdfs:comment "Requirement is verified against this quality scenario" ;
     rdfs:domain prd:Requirement ;
     rdfs:range isaqb:QualityScenario .
+
+<http://isaqb.org/arch#adr-83-1> a ns4:ArchitectureDecision ;
+    rdfs:label "ADR-83-1: Use Idea N headings in all modes" ;
+    ns4:consequences "(+) Zero changes to _helpers.py, no parsing breakage risk. (-) Slight semantic mismatch for abduction hypotheses. (~) Synthesis N pattern remains for contradiction mode." ;
+    ns4:context "New modes generate hypotheses (Abduction) and non-binary insights (Catuskoti), but count_idea_headings() only matches ## Idea N: or ## Synthesis N:. Extending the regex risks breaking existing parsing." ;
+    ns4:decisionStatus ns4:StatusProposed .
+
+<http://isaqb.org/arch#adr-83-2> a ns4:ArchitectureDecision ;
+    rdfs:label "ADR-83-2: Catuskoti binary-collapse detector is warning-only" ;
+    ns4:consequences "(+) Mode usable from day one without blocking on detection tuning. (+) Collapse data accumulates in logs. (-) Users may see low-quality output without immediate feedback. (~) Rubric scorer provides definitive assessment when run." ;
+    ns4:context "Catuskoti may collapse to binary on diverse inputs. Could be hard failure (ParseError), warning log, or deferred to rubric scorer. Mode is explicitly experimental with removal criteria." ;
+    ns4:decisionStatus ns4:StatusProposed .
+
+<http://isaqb.org/arch#adr-83-3> a ns4:ArchitectureDecision ;
+    rdfs:label "ADR-83-3: Auto mode selects modes not frameworks" ;
+    ns4:consequences "(+) No Pipeline changes needed, single-phase execution preserved. (+) Auto output demonstrates what each recommended mode would produce. (-) Simulation is approximate, may not achieve same depth as dedicated mode. (~) _ALL_FRAMEWORKS becomes _ALL_MODES." ;
+    ns4:context "Auto currently prescribes generic frameworks. With 9 topology-grounded modes, auto should prescribe modes. Dispatching to actual mode classes requires Pipeline changes (out of scope), so auto simulates modes within a single prompt." ;
+    ns4:decisionStatus ns4:StatusProposed .
+
+<http://isaqb.org/arch#adr-83-4> a ns4:ArchitectureDecision ;
+    rdfs:label "ADR-83-4: Single SHACL shape template for all epistemology modes" ;
+    ns4:consequences "(+) Consistent with existing D1-D5 ontology conventions. (+) Enables future mode-specific IntentField constraints. (-) 9 near-identical TTL blocks is repetitive (~90 lines). (~) Shapes are generated not hand-maintained." ;
+    ns4:context "All 9 modes share EpistemologyOutput with same IntentFields (mode, ideas_generated). Options: 9 separate shapes per mode (like D1-D5), single parameterized shape, or prefix-based match. Chose 9 separate shapes for consistency with existing ontology conventions." ;
+    ns4:decisionStatus ns4:StatusProposed .
+
+<http://isaqb.org/arch#adr-83-5> a ns4:ArchitectureDecision ;
+    rdfs:label "ADR-83-5: Evaluation module lives inside epistemology package" ;
+    ns4:consequences "(+) Cohesive, evaluation code lives with the code it evaluates. (+) Can import _helpers.py directly. (-) Would need to move if evaluation generalizes beyond epistemology. (~) Not a Phase subclass, standalone function called by script or CLI." ;
+    ns4:context "Rubric scorer could live at epistemology/eval.py, tulla/eval/rubric.py, or standalone script. The scorer is epistemology-specific (6 dimensions are epistemology dimensions) and imports _helpers.py. Keeping related code together wins." ;
+    ns4:decisionStatus ns4:StatusProposed .
 
 isaqb:AbstractionPrinciples a isaqb:PrincipleCategory ;
     rdfs:label "Abstraction Principles" ;

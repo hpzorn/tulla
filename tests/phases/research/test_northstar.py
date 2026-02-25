@@ -21,7 +21,7 @@ from tulla.phases.research.r6 import R6Phase
 # Shared constants
 # ---------------------------------------------------------------------------
 
-PHASE_NS = "http://impl-ralph.io/phase#"
+PHASE_NS = "http://tulla.dev/phase#"
 
 NORTHSTAR_TRIPLES = [
     {

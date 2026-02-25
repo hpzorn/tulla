@@ -7,11 +7,11 @@ Replaces duplicated dicts formerly in ``p6.py`` and ``find.py``.
 from __future__ import annotations
 
 # Domain namespaces
-PRD_NS = "http://impl-ralph.io/prd#"
-TRACE_NS = "http://impl-ralph.io/trace#"
-ISAQB_NS = "http://impl-ralph.io/isaqb#"
-PHASE_NS = "http://impl-ralph.io/phase#"
-ARCH_NS = "http://impl-ralph.io/arch#"
+PRD_NS = "http://tulla.dev/prd#"
+TRACE_NS = "http://tulla.dev/trace#"
+ISAQB_NS = "http://tulla.dev/isaqb#"
+PHASE_NS = "http://tulla.dev/phase#"
+ARCH_NS = "http://tulla.dev/arch#"
 
 # Well-known URIs
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"

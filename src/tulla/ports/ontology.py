@@ -161,7 +161,7 @@ class OntologyPort(ABC):
                 OPTIONAL {{ ?adr isaqb:context ?context }}
                 OPTIONAL {{ ?adr isaqb:decisionStatus ?status }}
                 OPTIONAL {{ ?adr isaqb:consequences ?consequences }}
-                FILTER(STRSTARTS(STR(?adr), "http://impl-ralph.io/arch#adr-{idea_id}-"))
+                FILTER(STRSTARTS(STR(?adr), "http://tulla.dev/arch#adr-{idea_id}-"))
             }}
         '''
         try:

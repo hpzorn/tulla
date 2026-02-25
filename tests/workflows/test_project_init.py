@@ -1069,8 +1069,8 @@ import pyshacl
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS, XSD
 
-PRD = Namespace("http://impl-ralph.io/prd#")
-ISAQB = Namespace("http://impl-ralph.io/isaqb#")
+PRD = Namespace("http://tulla.dev/prd#")
+ISAQB = Namespace("http://tulla.dev/isaqb#")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
 _PRD_SHAPES_PATH = "ontologies/prd-ontology.ttl"

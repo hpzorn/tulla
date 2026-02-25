@@ -18,3 +18,13 @@ work/
 # Editor files
 *.swp
 *~
+
+# Claude Code local settings
+.claude/
+
+# Legacy scripts and docs
+archive/
+
+# Artifacts not for distribution
+semantic-tool-use.zip
+banana.png

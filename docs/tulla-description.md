@@ -216,7 +216,7 @@ The companion function `extract_intent_fields(obj)` introspects any Pydantic mod
 The `persist()` method follows an 8-step protocol:
 
 1. **Extract intent fields** from the phase result via `extract_intent_fields()`
-2. **Compute subject URI**: `http://impl-ralph.io/phase#{idea_id}-{phase_id}`
+2. **Compute subject URI**: `http://tulla.dev/phase#{idea_id}-{phase_id}`
 3. **Idempotent cleanup**: `remove_triples_by_subject(subject)` -- safe for resume
 4. **Store rdf:type**: `<subject> rdf:type phase:PhaseOutput`
 5. **Store intent fields**: `<subject> phase:preserves-{field_name} "value"` for each non-None field
@@ -234,8 +234,8 @@ Each phase can have a corresponding SHACL NodeShape in `phase-ontology.ttl`. The
 
 ```python
 PHASE_SHAPES = {
-    "d1": "http://impl-ralph.io/phase#D1OutputShape",
-    "d2": "http://impl-ralph.io/phase#D2OutputShape",
+    "d1": "http://tulla.dev/phase#D1OutputShape",
+    "d2": "http://tulla.dev/phase#D2OutputShape",
     # ... 13 shapes total
 }
 ```
@@ -507,11 +507,11 @@ Tulla operates in a multi-ontology namespace:
 
 | Prefix | URI | Purpose |
 |--------|-----|---------|
-| `phase:` | `http://impl-ralph.io/phase#` | Phase output entities and properties |
-| `trace:` | `http://impl-ralph.io/trace#` | Traceability links between phases |
-| `prd:` | `http://impl-ralph.io/prd#` | PRD entities (Project, Requirement) |
-| `isaqb:` | `http://impl-ralph.io/isaqb#` | iSAQB architecture vocabulary |
-| `arch:` | `http://impl-ralph.io/arch#` | Architecture decisions and governance |
+| `phase:` | `http://tulla.dev/phase#` | Phase output entities and properties |
+| `trace:` | `http://tulla.dev/trace#` | Traceability links between phases |
+| `prd:` | `http://tulla.dev/prd#` | PRD entities (Project, Requirement) |
+| `isaqb:` | `http://tulla.dev/isaqb#` | iSAQB architecture vocabulary |
+| `arch:` | `http://tulla.dev/arch#` | Architecture decisions and governance |
 
 ### 9.2 Triple Structure
 

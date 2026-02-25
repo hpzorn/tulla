@@ -1,5 +1,5 @@
-@prefix code: <http://impl-ralph.io/code#> .
-@prefix trace: <http://impl-ralph.io/trace#> .
+@prefix code: <http://tulla.dev/code#> .
+@prefix trace: <http://tulla.dev/trace#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -14,7 +14,7 @@
 # - 5 relationships (vs 19 in CodeOntology)
 # - 71% complexity reduction while covering 100% of trace scenarios
 #
-# This ontology is populated by Implementation-Ralph during code generation
+# This ontology is populated by Tulla during code generation
 # via Python AST analysis.
 #
 # =============================================================================
@@ -23,7 +23,7 @@
 # Ontology Metadata
 # -----------------------------------------------------------------------------
 
-<http://impl-ralph.io/code> a owl:Ontology ;
+<http://tulla.dev/code> a owl:Ontology ;
     rdfs:label "Code Ontology" ;
     rdfs:comment "Minimal code architecture ontology for traceability" ;
     owl:versionInfo "1.0.0" .

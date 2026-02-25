@@ -136,7 +136,7 @@ class FindPhase:
         """Expand a compact prefixed URI to its full form.
 
         Example: ``isaqb:Maintainability`` →
-        ``http://impl-ralph.io/isaqb#Maintainability``
+        ``http://tulla.dev/isaqb#Maintainability``
 
         Returns the input unchanged if no known prefix matches.
         """

@@ -6,10 +6,10 @@ Query the ontology-server for specific individuals and relationships.
 ## Namespaces
 
 ```turtle
-@prefix isaqb: <http://impl-ralph.io/isaqb#> .
-@prefix prd:   <http://impl-ralph.io/prd#> .
-@prefix code:  <http://impl-ralph.io/code#> .
-@prefix trace: <http://impl-ralph.io/trace#> .
+@prefix isaqb: <http://tulla.dev/isaqb#> .
+@prefix prd:   <http://tulla.dev/prd#> .
+@prefix code:  <http://tulla.dev/code#> .
+@prefix trace: <http://tulla.dev/trace#> .
 ```
 
 ## T-Box: Classes

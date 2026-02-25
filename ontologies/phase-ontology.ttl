@@ -1,1 +1,1 @@
-/Users/sandboxuser/ideasralph/src/tulla/ontology/phase-ontology.ttl
+../src/tulla/ontology/phase-ontology.ttl

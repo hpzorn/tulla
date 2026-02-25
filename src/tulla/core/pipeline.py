@@ -191,8 +191,10 @@ class Pipeline:
                 )
                 if persist_result.rolled_back:
                     self._logger.warning(
-                        "Phase %s facts rolled back — marking FAILURE",
+                        "Phase %s facts rolled back — marking FAILURE.  "
+                        "Validation errors: %s",
                         phase_id,
+                        persist_result.validation_errors or "(none)",
                     )
                     phase_result.status = PhaseStatus.FAILURE
                     self._checkpoint.save(

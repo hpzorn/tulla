@@ -1,11 +1,11 @@
-@prefix code: <http://impl-ralph.io/code#> .
-@prefix isaqb: <http://impl-ralph.io/isaqb#> .
+@prefix code: <http://tulla.dev/code#> .
+@prefix isaqb: <http://tulla.dev/isaqb#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix trace: <http://impl-ralph.io/trace#> .
+@prefix trace: <http://tulla.dev/trace#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 prd:AcceptanceCriteria a rdfs:Class,
@@ -23,9 +23,9 @@ prd:Requirement a rdfs:Class,
     rdfs:label "Requirement" ;
     rdfs:comment "A single implementable requirement or task from the PRD" .
 
-<http://impl-ralph.io/prd> a owl:Ontology ;
+<http://tulla.dev/prd> a owl:Ontology ;
     rdfs:label "PRD Ontology" ;
-    rdfs:comment "Requirements ontology for Implementation-Ralph" ;
+    rdfs:comment "Requirements ontology for Tulla" ;
     owl:versionInfo "1.0.0" .
 
 prd:ProjectShape a sh:NodeShape ;
@@ -293,7 +293,7 @@ prd:req-51-3-1 a prd:Requirement ;
     prd:dependsOn prd:req-51-1-1,
         prd:req-51-2-1,
         prd:req-51-2-2 ;
-    prd:files "/Users/sandboxuser/ideasralph/work/idea-51-research/experiments/verify_success_criteria.py" ;
+    prd:files "work/idea-51-research/experiments/verify_success_criteria.py" ;
     prd:phase "3" ;
     prd:priority prd:P1 ;
     prd:status prd:Pending ;
@@ -308,7 +308,7 @@ prd:req-51-3-2 a prd:Requirement ;
     prd:priority prd:P1 ;
     prd:status prd:Pending ;
     prd:taskId "3.2" ;
-    prd:title "Manual Ralph Pipeline Test" .
+    prd:title "Manual Pipeline Test" .
 
 prd:title a rdf:Property,
         owl:DatatypeProperty ;
@@ -348,7 +348,7 @@ prd:status a rdf:Property,
 
 prd:req-51-1-1 a prd:Requirement ;
     prd:action "modify" ;
-    prd:files "/Users/sandboxuser/semantic-tool-use/src/ontology_server/api/app.py" ;
+    prd:files "src/ontology_server/api/app.py" ;
     prd:phase "1" ;
     prd:priority prd:P0 ;
     prd:status prd:Pending ;

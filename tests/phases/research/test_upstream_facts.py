@@ -22,13 +22,13 @@ from tulla.phases.research.r6 import R6Phase
 
 SAMPLE_TRIPLES = [
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-r1",
-        "predicate": "http://impl-ralph.io/phase#preserves-questions_refined",
+        "subject": "http://tulla.dev/phase#idea-42-r1",
+        "predicate": "http://tulla.dev/phase#preserves-questions_refined",
         "object": "5",
     },
     {
-        "subject": "http://impl-ralph.io/phase#idea-42-r1",
-        "predicate": "http://impl-ralph.io/phase#preserves-output_file",
+        "subject": "http://tulla.dev/phase#idea-42-r1",
+        "predicate": "http://tulla.dev/phase#preserves-output_file",
         "object": "/tmp/work/r1-question-refinement.md",
     },
 ]

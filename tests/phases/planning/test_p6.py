@@ -221,7 +221,7 @@ class TestGetTimeoutSeconds:
 
 
 SAMPLE_TURTLE = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -248,7 +248,7 @@ prd:req-42-2-1 a prd:Requirement ;
 """
 
 SAMPLE_TURTLE_NO_ADR = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -340,7 +340,7 @@ class TestParseOutputMissing:
 # ===================================================================
 
 SAMPLE_TURTLE_COARSE = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -354,7 +354,7 @@ prd:req-42-1-1 a prd:Requirement ;
 """
 
 SAMPLE_TURTLE_CROSS_CUTTING = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -368,7 +368,7 @@ prd:req-42-1-1 a prd:Requirement ;
 """
 
 SAMPLE_TURTLE_HOMOGENEOUS = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -520,7 +520,7 @@ class _MockP6Phase(P6Phase):
 
 
 FINE_TURTLE = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -745,7 +745,7 @@ class TestGroupFilesByDirectory:
 
 
 COARSE_MULTI_DIR_TURTLE = """\
-@prefix prd: <http://impl-ralph.io/prd#> .
+@prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
 prd:req-42-1-1 a prd:Requirement ;
@@ -1089,7 +1089,7 @@ class TestCompactUri:
     """_compact_uri() compacts full URIs into prefixed form."""
 
     def test_prd_namespace(self) -> None:
-        assert _compact_uri("http://impl-ralph.io/prd#Requirement") == "prd:Requirement"
+        assert _compact_uri("http://tulla.dev/prd#Requirement") == "prd:Requirement"
 
     def test_rdf_namespace(self) -> None:
         assert _compact_uri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type") == "rdf:type"
@@ -1101,7 +1101,7 @@ class TestCompactUri:
         assert _compact_uri("http://www.w3.org/2001/XMLSchema#integer") == "xsd:integer"
 
     def test_trace_namespace(self) -> None:
-        assert _compact_uri("http://impl-ralph.io/trace#foo") == "trace:foo"
+        assert _compact_uri("http://tulla.dev/trace#foo") == "trace:foo"
 
     def test_already_compact(self) -> None:
         assert _compact_uri("prd:Requirement") == "prd:Requirement"
