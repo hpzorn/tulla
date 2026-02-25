@@ -1,9 +1,6 @@
 @prefix code: <http://tulla.dev/code#> .
 @prefix isaqb: <http://tulla.dev/isaqb#> .
-@prefix ns1: <rdf:> .
-@prefix ns2: <rdfs:> .
-@prefix ns3: <isaqb:> .
-@prefix ns4: <http://isaqb.org/ontology#> .
+@prefix arch: <http://tulla.dev/architecture#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix prd: <http://tulla.dev/prd#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -141,90 +138,90 @@ isaqb:TradeoffPoint a rdfs:Class,
     rdfs:label "Tradeoff Point" ;
     rdfs:comment "A decision where improving one quality attribute negatively affects another (ATAM). Created per-project." .
 
-<arch:adr-58-1> ns3:addresses "isaqb:Correctness",
+<arch:adr-58-1> isaqb:addresses "isaqb:Correctness",
         "isaqb:Modifiability",
         "isaqb:Reliability" ;
-    ns3:consequences "(+) Minimal new code ~20 lines. (+) Backward compatible. (+) Testable via config fixture. (-) No compile-time mode exhaustiveness. (~) May revisit with strategy pattern if modes exceed 5.",
+    isaqb:consequences "(+) Minimal new code ~20 lines. (+) Backward compatible. (+) Testable via config fixture. (-) No compile-time mode exhaustiveness. (~) May revisit with strategy pattern if modes exceed 5.",
         "(+) Single type for R6Output.recommendation. (+) A-box queries work without knowing mode. (-) No compile-time mode-verdict enforcement. (~) Discovery-fed shares groundwork verdicts intentionally.",
         "(+) Zero Pipeline.run() changes. (+) R1 IntentFields still persisted. (+) Minimal R6 record ensures work_dir always has synthesis. (-) PipelineResult.final_status is FAILURE for intentional stop. (~) Reusable EarlyTermination exception for future phases." ;
-    ns3:context "R1 detects derivative ideas in groundwork mode. Need to stop pipeline before R2-R6 (~$7 savings). Options: new PhaseStatus enum, FAILURE with metadata, or pipeline hook. FAILURE+metadata requires zero Pipeline changes.",
+    isaqb:context "R1 detects derivative ideas in groundwork mode. Need to stop pipeline before R2-R6 (~$7 savings). Options: new PhaseStatus enum, FAILURE with metadata, or pipeline hook. FAILURE+metadata requires zero Pipeline changes.",
         "R6 produces different verdicts per mode. Single ResearchVerdict enum with all 6 values and valid_verdicts(mode) helper chosen over separate per-mode enums to avoid union types and keep A-box representation uniform.",
         "Three research modes need different behavior. Options: subclasses, strategy objects, or config field. R1 already uses config implicitly. R2-R6 are mode-agnostic. Only R1 has mode-specific branching — subclasses/strategy for one branch point is over-engineering." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-58-1: Early Termination via PhaseStatus.FAILURE",
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-58-1: Early Termination via PhaseStatus.FAILURE",
         "ADR-58-1: Mode as Config Field, Not Subclass Hierarchy",
         "ADR-58-1: Single Enum with All Verdict Values" .
 
-<arch:adr-58-2> ns3:addresses "isaqb:Maintainability",
+<arch:adr-58-2> isaqb:addresses "isaqb:Maintainability",
         "isaqb:Modifiability",
         "isaqb:Usability" ;
-    ns3:consequences "(+) Pipeline engine stays domain-agnostic. (+) Reusable by planning/implementation agents. (+) Testable with mock callback. (-) Callback must not throw — needs try/except wrapper. (~) Adds ~8 lines to Pipeline.run().",
+    isaqb:consequences "(+) Pipeline engine stays domain-agnostic. (+) Reusable by planning/implementation agents. (+) Testable with mock callback. (-) Callback must not throw — needs try/except wrapper. (~) Adds ~8 lines to Pipeline.run().",
         "(+) Single resolution point ensures consistency across R1-R6. (+) Follows established discovery pipeline convention. (-) Factory gains 15 lines of mode-resolution logic. (~) R1 retains directory-presence fallback for backward compat.",
         "(+) Zero new infrastructure, uses glob on existing work dir convention. (+) Deterministic routing. (+) --research-mode override as escape hatch. (-) Depends on work directory naming convention. (~) Routing function is pure and unit-testable." ;
-    ns3:context "Groundwork must stop after R1 on DERIVATIVE verdict. Options: engine checks specific field, phase raises exception, or callback function. Callback is generic and reusable — no research semantics leak into core engine.",
+    isaqb:context "Groundwork must stop after R1 on DERIVATIVE verdict. Options: engine checks specific field, phase raises exception, or callback function. Callback is generic and reusable — no research semantics leak into core engine.",
         "Mode needs to be determined from CLI flags or directory presence. Resolved in pipeline factory (_resolve_mode in pipeline.py) matching the established discovery pipeline pattern. CLI passes raw string, factory resolves to ResearchMode enum, stores in config[\"mode\"].",
         "Users need tulla run research --idea N to just work. Mode depends on prior-phase artifacts. Options: ontology lifecycle query (requires unimplemented tracking), filesystem artifact scan (simple, deterministic), or always require explicit flags (rejects primary JTBD)." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-58-2: Auto-Routing via Artifact Scan",
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-58-2: Auto-Routing via Artifact Scan",
         "ADR-58-2: Exit Condition as Callback on Pipeline Engine",
         "ADR-58-2: Mode Resolution in Pipeline Factory" .
 
-<arch:adr-58-3> ns3:addresses "isaqb:Correctness",
+<arch:adr-58-3> isaqb:addresses "isaqb:Correctness",
         "isaqb:Maintainability" ;
-    ns3:consequences "(+) No fake checkpoints — cleaner data integrity. (+) R4 reads it naturally via work_dir scanning. (+) Inspectable by user. (-) Must verify R4 glob pattern picks up spike-context.md. (~) File becomes a contract between factory and R4.",
+    isaqb:consequences "(+) No fake checkpoints — cleaner data integrity. (+) R4 reads it naturally via work_dir scanning. (+) Inspectable by user. (-) Must verify R4 glob pattern picks up spike-context.md. (~) File becomes a contract between factory and R4.",
         "(+) Research-specific logic stays in research code. (+) Simple 10 lines, no new hooks. (-) parse_output gains side effect. (~) Only triggers for GROUNDWORK mode.",
         "(+) Routing is a pure function, easy to test with fixture directories. (+) CLI stays focused on Click; pipeline stays mode-agnostic. (-) One new file. (~) ~60 lines including dataclass and enum." ;
-    ns3:context "After R6 verdict, idea lifecycle should update (go->sprout, park->parked). Lifecycle logic added to R6 parse_output rather than a pipeline post-hook, keeping research-specific behavior in research code. ontology_port already available in ctx.config. Wrapped in try/except for resilience.",
+    isaqb:context "After R6 verdict, idea lifecycle should update (go->sprout, park->parked). Lifecycle logic added to R6 parse_output rather than a pipeline post-hook, keeping research-specific behavior in research code. ontology_port already available in ctx.config. Wrapped in try/except for resilience.",
         "Auto-routing logic needs a home. Options: inline in cli.py (mixes Click with business logic), in pipeline.py (makes mode-agnostic factory mode-aware), or new routing.py (clean separation, ~60 lines, testable in isolation).",
         "Spike starts at R4 but R4 expects R1-R3 context. Options: fake R1-R3 checkpoints, context summary file, or config dict. Fake checkpoints risk schema drift. Config bloats. A spike-context.md file in work_dir is clean and inspectable." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-58-3: Lifecycle Integration in R6 parse_output",
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-58-3: Lifecycle Integration in R6 parse_output",
         "ADR-58-3: Separate routing.py Module",
         "ADR-58-3: Spike Pre-Population via Context File, Not Synthetic Checkpoints" .
 
-<arch:adr-58-4> ns3:addresses "isaqb:Maintainability" ;
-    ns3:consequences "(+) No silent breakage for existing users. (+) Deprecation warning guides migration. (+) Clean separation: --mode is semantic, --planning-dir is a path. (-) Path detection heuristic could theoretically misfire on exotic mode names.",
+<arch:adr-58-4> isaqb:addresses "isaqb:Maintainability" ;
+    isaqb:consequences "(+) No silent breakage for existing users. (+) Deprecation warning guides migration. (+) Clean separation: --mode is semantic, --planning-dir is a path. (-) Path detection heuristic could theoretically misfire on exotic mode names.",
         "(+) Pipeline engine and phases remain pure — no ontology dependency. (+) Easy to disable in tests. (+) CLI already the integration boundary. (-) Lifecycle transition only happens via CLI caller. (~) Could add Pipeline post-hook later for programmatic callers.",
         "(+) Simplest implementation, one line change. (+) No conditional logic in discovery pipeline. (-) 6 extra SPARQL queries per discovery run when no groundwork done (negligible cost). (~) Consistent with planning pipeline which already does this." ;
-    ns3:context "Current --mode flag for research is overloaded as planning_dir path. Detect path-like values (starts with / or .) and treat as planning_dir with deprecation warning. New --planning-dir option added. Non-path values are explicit research modes.",
+    isaqb:context "Current --mode flag for research is overloaded as planning_dir path. Detect path-like values (starts with / or .) and treat as planning_dir with deprecation warning. New --planning-dir option added. Non-path values are explicit research modes.",
         "Groundwork-to-discovery handoff needs R1-R6 as prior_phases. Options: conditionally add R-phases only when groundwork has run (complex), or always include them (collect_upstream_facts returns empty if no R-phase triples exist).",
         "R6 recommendations should trigger lifecycle transitions. Options: Pipeline calls ontology, R6 phase calls ontology, or CLI reads result and calls ontology. CLI is already the integration boundary — keeps engine and phases pure." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-58-4: Backward-Compatible CLI with Path Detection",
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-58-4: Backward-Compatible CLI with Path Detection",
         "ADR-58-4: Discovery Pipeline Unconditionally Includes R-Phase Prior Phases",
         "ADR-58-4: Lifecycle Transitions in CLI Post-Hook, Not Pipeline Engine" .
 
-<arch:adr-78-1> ns3:addresses "isaqb:Simplicity" ;
-    ns3:consequences "(+) Zero framework learning curve, experiments directly portable. (+) Fastest path to playable prototype. (-) Limited UI capabilities, manual tooltip/panel implementation. (-) Not production-viable, will need framework migration. (~) Hex rendering from scratch using Red Blob Games reference." ;
-    ns3:context "Greenfield project, all prior code is Python. Need fastest path to playable prototype to validate existential game-feel risk. Alternatives: Godot (GDScript learning curve), web/Phaser (JS port needed), Pygame (direct Python code reuse from 5 experiments)." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-78-1: Pygame as Prototype Framework" .
+<arch:adr-78-1> isaqb:addresses "isaqb:Simplicity" ;
+    isaqb:consequences "(+) Zero framework learning curve, experiments directly portable. (+) Fastest path to playable prototype. (-) Limited UI capabilities, manual tooltip/panel implementation. (-) Not production-viable, will need framework migration. (~) Hex rendering from scratch using Red Blob Games reference." ;
+    isaqb:context "Greenfield project, all prior code is Python. Need fastest path to playable prototype to validate existential game-feel risk. Alternatives: Godot (GDScript learning curve), web/Phaser (JS port needed), Pygame (direct Python code reuse from 5 experiments)." ;
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-78-1: Pygame as Prototype Framework" .
 
-<arch:adr-78-2> ns3:addresses "isaqb:Testability" ;
-    ns3:consequences "(+) SDT engine fully testable with pytest, no Pygame needed. (+) Framework migration only affects Presentation layer. (+) Headless simulation for automated balancing. (-) More files than monolithic approach. (~) Command pattern adds indirection but enables replay." ;
-    ns3:context "Game has mathematically complex SDT engine that must be independently testable, game logic orchestrating turns/commands, and Pygame visual layer. Merging layers makes testing impossible without Pygame and prevents framework migration." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-78-2: Three-Layer Architecture (Engine / Logic / Presentation)" .
+<arch:adr-78-2> isaqb:addresses "isaqb:Testability" ;
+    isaqb:consequences "(+) SDT engine fully testable with pytest, no Pygame needed. (+) Framework migration only affects Presentation layer. (+) Headless simulation for automated balancing. (-) More files than monolithic approach. (~) Command pattern adds indirection but enables replay." ;
+    isaqb:context "Game has mathematically complex SDT engine that must be independently testable, game logic orchestrating turns/commands, and Pygame visual layer. Merging layers makes testing impossible without Pygame and prevents framework migration." ;
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-78-2: Three-Layer Architecture (Engine / Logic / Presentation)" .
 
-<arch:adr-78-4> ns3:addresses "isaqb:Modifiability" ;
-    ns3:consequences "(+) Designer tunes 9 SDT params without code changes. (+) F5 hot-reload enables rapid playtesting iteration. (+) YAML supports inline comments for parameter documentation. (-) Adds PyYAML as dependency. (~) Manual schema validation without extra libraries." ;
-    ns3:context "9 tunable SDT parameters plus terrain, progression, UI thresholds, economics must be adjustable during playtesting without code changes. Experiments used hardcoded Python arrays. YAML chosen over JSON (no comments) and TOML (limited nesting)." ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-78-4: YAML Config with Hot-Reload for All Game Parameters" .
+<arch:adr-78-4> isaqb:addresses "isaqb:Modifiability" ;
+    isaqb:consequences "(+) Designer tunes 9 SDT params without code changes. (+) F5 hot-reload enables rapid playtesting iteration. (+) YAML supports inline comments for parameter documentation. (-) Adds PyYAML as dependency. (~) Manual schema validation without extra libraries." ;
+    isaqb:context "9 tunable SDT parameters plus terrain, progression, UI thresholds, economics must be adjustable during playtesting without code changes. Experiments used hardcoded Python arrays. YAML chosen over JSON (no comments) and TOML (limited nesting)." ;
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-78-4: YAML Config with Hot-Reload for All Game Parameters" .
 
-<arch:adr-78-5> ns3:addresses "isaqb:Usability" ;
-    ns3:consequences "(+) Qualitative display is pure presentation, no engine changes. (+) d' boost invisible to all UI tiers including Tier 3. (-) Analytical players could detect boost statistically over many games. (~) Boost magnitude and threshold are config-tunable." ;
-    ns3:context "Research (RQ2, R6) shows raw probabilities trigger gambler's fallacy (XCOM lesson). Two complementary mechanisms: qualitative labels in UI (Weak/Moderate/Strong Signal) and hidden +0.3 d' boost in engine after 3 consecutive errors. Question: which layer owns anti-frustration?" ;
-    ns3:decisionStatus "isaqb:StatusProposed" ;
-    ns1:type "isaqb:ArchitectureDecision" ;
-    ns2:label "ADR-78-5: Qualitative Display as Primary Anti-Frustration Mechanism" .
+<arch:adr-78-5> isaqb:addresses "isaqb:Usability" ;
+    isaqb:consequences "(+) Qualitative display is pure presentation, no engine changes. (+) d' boost invisible to all UI tiers including Tier 3. (-) Analytical players could detect boost statistically over many games. (~) Boost magnitude and threshold are config-tunable." ;
+    isaqb:context "Research (RQ2, R6) shows raw probabilities trigger gambler's fallacy (XCOM lesson). Two complementary mechanisms: qualitative labels in UI (Weak/Moderate/Strong Signal) and hidden +0.3 d' boost in engine after 3 consecutive errors. Question: which layer owns anti-frustration?" ;
+    isaqb:decisionStatus "isaqb:StatusProposed" ;
+    rdf:type "isaqb:ArchitectureDecision" ;
+    rdfs:label "ADR-78-5: Qualitative Display as Primary Anti-Frustration Mechanism" .
 
 <http://tulla.dev/arch#adr-69-1> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-69-1: Separate collect_project_decisions from get_adrs" ;
@@ -1238,35 +1235,35 @@ isaqb:verifiedByScenario a rdf:Property,
     rdfs:domain prd:Requirement ;
     rdfs:range isaqb:QualityScenario .
 
-<http://isaqb.org/arch#adr-83-1> a ns4:ArchitectureDecision ;
+<http://tulla.dev/architecture#adr-83-1> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-83-1: Use Idea N headings in all modes" ;
-    ns4:consequences "(+) Zero changes to _helpers.py, no parsing breakage risk. (-) Slight semantic mismatch for abduction hypotheses. (~) Synthesis N pattern remains for contradiction mode." ;
-    ns4:context "New modes generate hypotheses (Abduction) and non-binary insights (Catuskoti), but count_idea_headings() only matches ## Idea N: or ## Synthesis N:. Extending the regex risks breaking existing parsing." ;
-    ns4:decisionStatus ns4:StatusProposed .
+    isaqb:consequences "(+) Zero changes to _helpers.py, no parsing breakage risk. (-) Slight semantic mismatch for abduction hypotheses. (~) Synthesis N pattern remains for contradiction mode." ;
+    isaqb:context "New modes generate hypotheses (Abduction) and non-binary insights (Catuskoti), but count_idea_headings() only matches ## Idea N: or ## Synthesis N:. Extending the regex risks breaking existing parsing." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://isaqb.org/arch#adr-83-2> a ns4:ArchitectureDecision ;
+<http://tulla.dev/architecture#adr-83-2> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-83-2: Catuskoti binary-collapse detector is warning-only" ;
-    ns4:consequences "(+) Mode usable from day one without blocking on detection tuning. (+) Collapse data accumulates in logs. (-) Users may see low-quality output without immediate feedback. (~) Rubric scorer provides definitive assessment when run." ;
-    ns4:context "Catuskoti may collapse to binary on diverse inputs. Could be hard failure (ParseError), warning log, or deferred to rubric scorer. Mode is explicitly experimental with removal criteria." ;
-    ns4:decisionStatus ns4:StatusProposed .
+    isaqb:consequences "(+) Mode usable from day one without blocking on detection tuning. (+) Collapse data accumulates in logs. (-) Users may see low-quality output without immediate feedback. (~) Rubric scorer provides definitive assessment when run." ;
+    isaqb:context "Catuskoti may collapse to binary on diverse inputs. Could be hard failure (ParseError), warning log, or deferred to rubric scorer. Mode is explicitly experimental with removal criteria." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://isaqb.org/arch#adr-83-3> a ns4:ArchitectureDecision ;
+<http://tulla.dev/architecture#adr-83-3> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-83-3: Auto mode selects modes not frameworks" ;
-    ns4:consequences "(+) No Pipeline changes needed, single-phase execution preserved. (+) Auto output demonstrates what each recommended mode would produce. (-) Simulation is approximate, may not achieve same depth as dedicated mode. (~) _ALL_FRAMEWORKS becomes _ALL_MODES." ;
-    ns4:context "Auto currently prescribes generic frameworks. With 9 topology-grounded modes, auto should prescribe modes. Dispatching to actual mode classes requires Pipeline changes (out of scope), so auto simulates modes within a single prompt." ;
-    ns4:decisionStatus ns4:StatusProposed .
+    isaqb:consequences "(+) No Pipeline changes needed, single-phase execution preserved. (+) Auto output demonstrates what each recommended mode would produce. (-) Simulation is approximate, may not achieve same depth as dedicated mode. (~) _ALL_FRAMEWORKS becomes _ALL_MODES." ;
+    isaqb:context "Auto currently prescribes generic frameworks. With 9 topology-grounded modes, auto should prescribe modes. Dispatching to actual mode classes requires Pipeline changes (out of scope), so auto simulates modes within a single prompt." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://isaqb.org/arch#adr-83-4> a ns4:ArchitectureDecision ;
+<http://tulla.dev/architecture#adr-83-4> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-83-4: Single SHACL shape template for all epistemology modes" ;
-    ns4:consequences "(+) Consistent with existing D1-D5 ontology conventions. (+) Enables future mode-specific IntentField constraints. (-) 9 near-identical TTL blocks is repetitive (~90 lines). (~) Shapes are generated not hand-maintained." ;
-    ns4:context "All 9 modes share EpistemologyOutput with same IntentFields (mode, ideas_generated). Options: 9 separate shapes per mode (like D1-D5), single parameterized shape, or prefix-based match. Chose 9 separate shapes for consistency with existing ontology conventions." ;
-    ns4:decisionStatus ns4:StatusProposed .
+    isaqb:consequences "(+) Consistent with existing D1-D5 ontology conventions. (+) Enables future mode-specific IntentField constraints. (-) 9 near-identical TTL blocks is repetitive (~90 lines). (~) Shapes are generated not hand-maintained." ;
+    isaqb:context "All 9 modes share EpistemologyOutput with same IntentFields (mode, ideas_generated). Options: 9 separate shapes per mode (like D1-D5), single parameterized shape, or prefix-based match. Chose 9 separate shapes for consistency with existing ontology conventions." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
 
-<http://isaqb.org/arch#adr-83-5> a ns4:ArchitectureDecision ;
+<http://tulla.dev/architecture#adr-83-5> a isaqb:ArchitectureDecision ;
     rdfs:label "ADR-83-5: Evaluation module lives inside epistemology package" ;
-    ns4:consequences "(+) Cohesive, evaluation code lives with the code it evaluates. (+) Can import _helpers.py directly. (-) Would need to move if evaluation generalizes beyond epistemology. (~) Not a Phase subclass, standalone function called by script or CLI." ;
-    ns4:context "Rubric scorer could live at epistemology/eval.py, tulla/eval/rubric.py, or standalone script. The scorer is epistemology-specific (6 dimensions are epistemology dimensions) and imports _helpers.py. Keeping related code together wins." ;
-    ns4:decisionStatus ns4:StatusProposed .
+    isaqb:consequences "(+) Cohesive, evaluation code lives with the code it evaluates. (+) Can import _helpers.py directly. (-) Would need to move if evaluation generalizes beyond epistemology. (~) Not a Phase subclass, standalone function called by script or CLI." ;
+    isaqb:context "Rubric scorer could live at epistemology/eval.py, tulla/eval/rubric.py, or standalone script. The scorer is epistemology-specific (6 dimensions are epistemology dimensions) and imports _helpers.py. Keeping related code together wins." ;
+    isaqb:decisionStatus isaqb:StatusProposed .
 
 isaqb:AbstractionPrinciples a isaqb:PrincipleCategory ;
     rdfs:label "Abstraction Principles" ;
