@@ -8,9 +8,12 @@ build/
 .mypy_cache/
 .pytest_cache/
 .venv/
+.env
+.env/
 
 # Work directory (logs, temp files)
 work/
+archive/
 
 # OS files
 .DS_Store

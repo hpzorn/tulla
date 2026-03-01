@@ -9,7 +9,7 @@ description = "Tulla – ontology-driven idea hygiene and lifecycle agent"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [
-    { name = "Hans-Peter Zorn", email = "hp@tulla.dev" },
+    { name = "Hans-Peter Zorn", email = "hpz@zorns.org" },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
