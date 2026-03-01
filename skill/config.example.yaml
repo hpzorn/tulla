@@ -1,0 +1,70 @@
+# Tulla configuration example
+# Place at ~/.tulla/config.yaml or pass via --config <path>
+#
+# All values can be overridden by environment variables with the TULLA_ prefix.
+# Nested keys use __ as delimiter, e.g. TULLA_RESEARCH__BUDGET_USD=15.0
+
+# --- Paths ---
+
+work_base_dir: ./work               # Base directory for work artifacts
+ideas_dir: ~/.claude/ideas           # Directory where idea files are stored
+
+# --- Ontology server ---
+
+ontology_server_url: http://localhost:8100
+
+# --- LLM backend ---
+# Supported backends: claude, codex, opencode
+
+llm_backend: claude
+# llm_model: ""                      # Model override (empty = backend default)
+# llm_bin: ""                        # Path to CLI binary (empty = use default)
+
+# --- Project identity ---
+
+project_id: ralph                    # Used for ADR URIs (arch:project-{id})
+
+# --- Per-agent configuration ---
+# Each agent supports: budget_usd, max_retries, permission_mode,
+# phase_timeout_minutes, phase_timeouts (dict of phase_id -> seconds)
+
+discovery:
+  budget_usd: 5.0
+  max_retries: 2
+  permission_mode: bypassPermissions
+  phase_timeout_minutes: 15
+
+research:
+  budget_usd: 8.0
+  max_retries: 2
+  permission_mode: bypassPermissions
+  phase_timeout_minutes: 30
+
+planning:
+  budget_usd: 5.0
+  max_retries: 2
+  permission_mode: bypassPermissions
+  phase_timeout_minutes: 15
+
+implementation:
+  budget_usd: 30.0
+  max_retries: 2
+  permission_mode: acceptEdits
+  phase_timeout_minutes: 15
+  # Granularity thresholds
+  max_files_per_requirement: 3
+  min_wpf_blocking: 12.0
+  min_wpf_advisory: 15.0
+  max_granularity_retries: 1
+
+lightweight:
+  budget_usd: 3.0
+  max_retries: 2
+  permission_mode: acceptEdits
+  phase_timeout_minutes: 5
+
+epistemology:
+  budget_usd: 5.0
+  max_retries: 2
+  permission_mode: bypassPermissions
+  phase_timeout_minutes: 15
