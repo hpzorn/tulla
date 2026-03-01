@@ -1,7 +1,7 @@
 # Tulla
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![CI](https://github.com/hpzorn/tulla/actions/workflows/ci.yml/badge.svg)](https://github.com/hpz/tulla/actions/workflows/ci.yml)
+[![CI](https://github.com/hpzorn/tulla/actions/workflows/ci.yml/badge.svg)](https://github.com/hpzorn/tulla/actions/workflows/ci.yml)
 
 Tulla is an autonomous agent that takes a raw idea and drives it through a structured pipeline — discovery, research, planning, and implementation — producing code at the end. Each phase is backed by an ontology and validated with SHACL, so the agent can't skip steps or produce incomplete work. It extends Geoffrey Huntley's [Ralph Wiggum loop](https://ghuntley.com/ralph/) with mandatory research, idea decomposition, and PRD-driven implementation.
 
