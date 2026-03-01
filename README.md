@@ -31,16 +31,6 @@ backlog → researching → researched → scoped → implementing → completed
 ## Installation
 
 ```bash
-# With uv (recommended)
-uv add tulla
-
-# With pip
-pip install tulla
-```
-
-### Development setup
-
-```bash
 git clone https://github.com/hpz/tulla.git
 cd tulla
 uv sync --all-extras
