@@ -52,7 +52,7 @@ class PlanPhase(Phase[PlanOutput]):
         # Extract fields from ContextScanOutput (model or dict)
         description = ""
         affected_files: list[str] = []
-        violations: list[dict] = []
+        violations: list[dict[str, object]] = []
         violation_report = ""
         patterns: list[str] = []
         conformance_status = ""

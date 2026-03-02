@@ -45,7 +45,7 @@ class D5Phase(Phase[D5Output]):
 
     def _get_mode(self, ctx: PhaseContext) -> str:
         """Return the discovery mode from context config."""
-        return ctx.config.get("mode", "upstream")
+        return str(ctx.config.get("mode", "upstream"))
 
     def _get_output_filename(self, ctx: PhaseContext) -> str:
         """Return the output filename based on mode."""

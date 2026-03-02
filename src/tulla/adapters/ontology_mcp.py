@@ -234,7 +234,7 @@ class OntologyMCPAdapter(OntologyPort):
         resp = self._post("/abox/triples/remove", {
             "subject": subject,
         })
-        return resp.get("removed", 0)
+        return int(resp.get("removed", 0))
 
     # ------------------------------------------------------------------
     # OntologyPort interface — SPARQL

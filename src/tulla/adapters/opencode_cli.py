@@ -220,6 +220,6 @@ class OpenCodeCLIAdapter(ClaudePort):
             completion_tokens = usage.get("completion_tokens", 0)
             # Rough estimate for GPT-4.1 pricing (adjust as needed)
             if prompt_tokens or completion_tokens:
-                return (prompt_tokens * 0.01 + completion_tokens * 0.03) / 1000
+                return float((prompt_tokens * 0.01 + completion_tokens * 0.03) / 1000)
 
         return 0.0

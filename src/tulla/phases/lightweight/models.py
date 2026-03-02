@@ -61,7 +61,7 @@ class IntakeOutput(BaseModel):
 class ContextScanOutput(BaseModel):
     """Output of the Context Scan phase – conformance violations and patterns."""
 
-    violations: list[dict] = Field(
+    violations: list[dict[str, object]] = Field(
         default_factory=list,
         description="List of conformance violation records",
     )

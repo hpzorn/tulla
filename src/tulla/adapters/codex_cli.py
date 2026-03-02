@@ -239,6 +239,6 @@ class CodexCLIAdapter(ClaudePort):
             output_tokens = usage.get("output_tokens", 0)
             # Rough estimate for o4-mini pricing
             if input_tokens or output_tokens:
-                return (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000
+                return float((input_tokens * 0.00015 + output_tokens * 0.0006) / 1000)
 
         return 0.0

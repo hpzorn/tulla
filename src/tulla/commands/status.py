@@ -106,7 +106,7 @@ def query_prd_status(
         return StatusSummary()
 
     # Step 2: batch-fetch — one recall_facts per requirement (ADR-3)
-    raw: list[dict[str, str | RequirementStatus | list[str]]] = []
+    raw: list[dict[str, object]] = []
     for req_id in req_subjects:
         facts = ontology.recall_facts(
             subject=req_id,
@@ -158,7 +158,7 @@ def query_prd_status(
     }
 
     for r in raw:
-        row_status = RequirementStatus(r["status"])
+        row_status = RequirementStatus(str(r["status"]))
         raw_deps = r["deps"]
         row_deps: list[str] = list(raw_deps) if isinstance(raw_deps, list) else []
 
