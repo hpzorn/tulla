@@ -1,16 +1,20 @@
 """Tests for ExecutePhase -- Claude-invoked execution.
 
-# @pattern:PortsAndAdapters -- Tests use MockClaudePort injected via claude_port config key, no real subprocess
-# @principle:FailSafeRouting -- Tests verify dry-run mode produces empty commit_ref and missing fields default safely
-# @pattern:LooseCoupling -- Tests exercise ExecutePhase through the Phase.execute() public API, not internal methods
-# @principle:DependencyInversion -- Tests depend on ClaudePort abstraction, never on concrete subprocess adapter
+# @pattern:PortsAndAdapters -- Tests use MockClaudePort injected via
+#   claude_port config key, no real subprocess
+# @principle:FailSafeRouting -- Tests verify dry-run mode produces
+#   empty commit_ref and missing fields default safely
+# @pattern:LooseCoupling -- Tests exercise ExecutePhase through the
+#   Phase.execute() public API, not internal methods
+# @principle:DependencyInversion -- Tests depend on ClaudePort
+#   abstraction, never on concrete subprocess adapter
 
 Verification criteria (prd:req-53-3-3):
-- Prompt includes guard-rail instructions (only modify listed files, no new deps, follow conventions).
+- Prompt includes guard-rail instructions (only modify listed files).
 - Tool list includes file and bash tools (Read, Write, Edit, Glob, Grep, Bash).
 - Parsing of commit SHA and file list from mock Claude response.
 - Dry-run mode produces empty commit_ref.
-- Mock Claude port (following the pattern from adapters/claude_mock.py) used throughout.
+- Mock Claude port (following adapters/claude_mock.py pattern) used.
 """
 
 from __future__ import annotations
@@ -25,7 +29,6 @@ from tulla.core.phase import PhaseContext, PhaseStatus
 from tulla.phases.lightweight.execute import ExecutePhase
 from tulla.phases.lightweight.models import ExecuteOutput, PlanOutput
 from tulla.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
-
 
 # ---------------------------------------------------------------------------
 # Mock Claude port
@@ -71,7 +74,10 @@ class MockClaudePortTextOnly(ClaudePort):
 # ---------------------------------------------------------------------------
 
 CANNED_EXECUTE = {
-    "changes_summary": "Fixed import cycle by moving tulla.cli import to local scope in core/bad.py",
+    "changes_summary": (
+        "Fixed import cycle by moving tulla.cli import"
+        " to local scope in core/bad.py"
+    ),
     "files_modified": ["src/tulla/core/bad.py", "src/tulla/cli.py"],
     "commit_ref": "abc1234def5678",
     "execution_notes": "All tests passing after change.",
@@ -104,7 +110,10 @@ def _make_ctx(
 def _make_plan_output(**overrides: Any) -> PlanOutput:
     """Create a PlanOutput with sensible defaults."""
     defaults: dict[str, Any] = {
-        "plan_summary": "Fix import violation in core/bad.py by moving the import to the outer layer",
+        "plan_summary": (
+            "Fix import violation in core/bad.py"
+            " by moving the import to the outer layer"
+        ),
         "plan_steps": [
             "Identify the circular import in core/bad.py",
             "Move the tulla.cli import to a local scope",
@@ -125,9 +134,7 @@ def _make_plan_output(**overrides: Any) -> PlanOutput:
 class TestSuccessfulExecution:
     """Verify execute() produces PhaseResult[ExecuteOutput] with SUCCESS."""
 
-    def test_execute_with_canned_json(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_execute_with_canned_json(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Mock Claude returns canned JSON -> SUCCESS with correctly parsed fields."""
         port = MockClaudePort(CANNED_EXECUTE)
         prev = _make_plan_output()
@@ -142,9 +149,7 @@ class TestSuccessfulExecution:
         assert result.data.commit_ref == CANNED_EXECUTE["commit_ref"]
         assert result.data.execution_notes == CANNED_EXECUTE["execution_notes"]
 
-    def test_execute_with_text_only_response(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_execute_with_text_only_response(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Mock Claude returns JSON as text only -> SUCCESS with parsed fields."""
         port = MockClaudePortTextOnly(json.dumps(CANNED_EXECUTE))
         prev = _make_plan_output()
@@ -157,9 +162,7 @@ class TestSuccessfulExecution:
         assert result.data.commit_ref == CANNED_EXECUTE["commit_ref"]
         assert result.data.files_modified == CANNED_EXECUTE["files_modified"]
 
-    def test_execute_with_markdown_fenced_json(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_execute_with_markdown_fenced_json(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Mock Claude returns JSON wrapped in markdown code fences -> SUCCESS."""
         fenced = f"```json\n{json.dumps(CANNED_EXECUTE, indent=2)}\n```"
         port = MockClaudePortTextOnly(fenced)
@@ -172,9 +175,7 @@ class TestSuccessfulExecution:
         assert isinstance(result.data, ExecuteOutput)
         assert result.data.commit_ref == CANNED_EXECUTE["commit_ref"]
 
-    def test_execute_records_cost_metadata(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_execute_records_cost_metadata(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Cost metadata from ClaudeResult is captured in PhaseResult."""
         port = MockClaudePort(CANNED_EXECUTE)
         prev = _make_plan_output()
@@ -194,9 +195,7 @@ class TestSuccessfulExecution:
 class TestDefaults:
     """Verify reasonable defaults when Claude's response is incomplete."""
 
-    def test_empty_commit_ref_for_dry_run(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_empty_commit_ref_for_dry_run(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Missing commit_ref -> defaults to empty string (dry-run mode)."""
         partial = {
             "changes_summary": "Applied changes",
@@ -212,9 +211,7 @@ class TestDefaults:
         assert isinstance(result.data, ExecuteOutput)
         assert result.data.commit_ref == ""
 
-    def test_missing_fields_default_to_empty(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_missing_fields_default_to_empty(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Missing files_modified and execution_notes -> default to empty."""
         minimal = {"changes_summary": "Some changes"}
         port = MockClaudePort(minimal)
@@ -255,9 +252,7 @@ class TestDefaults:
 class TestBuildPrompt:
     """Verify build_prompt() includes plan context and guard-rails."""
 
-    def test_prompt_includes_plan_steps(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_plan_steps(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt includes the plan steps from PlanOutput."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
@@ -268,9 +263,7 @@ class TestBuildPrompt:
         assert "Identify the circular import" in prompt
         assert "Move the tulla.cli import" in prompt
 
-    def test_prompt_includes_files_to_modify(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_files_to_modify(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt includes the files to modify from PlanOutput."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
@@ -281,14 +274,14 @@ class TestBuildPrompt:
         assert "src/tulla/core/bad.py" in prompt
         assert "src/tulla/cli.py" in prompt
 
-    def test_prompt_includes_change_description(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_change_description(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt includes the change description from config."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_description="Fix the import cycle in core module",
         )
 
@@ -296,9 +289,7 @@ class TestBuildPrompt:
 
         assert "Fix the import cycle in core module" in prompt
 
-    def test_prompt_includes_guardrails(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_guardrails(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt includes architectural guard-rails."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
@@ -317,7 +308,9 @@ class TestBuildPrompt:
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_type="bugfix",
         )
 
@@ -325,14 +318,14 @@ class TestBuildPrompt:
 
         assert "fix(scope): description" in prompt
 
-    def test_prompt_commit_type_mapping_feature(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_commit_type_mapping_feature(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Feature change type maps to 'feat' in commit format."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_type="feature",
         )
 
@@ -347,7 +340,9 @@ class TestBuildPrompt:
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_type="enhancement",
         )
 
@@ -355,9 +350,7 @@ class TestBuildPrompt:
 
         assert "feat(scope): description" in prompt
 
-    def test_prompt_commit_type_default_chore(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_commit_type_default_chore(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Default change_type -> 'chore' commit type in prompt."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
@@ -374,7 +367,9 @@ class TestBuildPrompt:
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_type="refactor",
         )
 
@@ -382,14 +377,14 @@ class TestBuildPrompt:
 
         assert "refactor(scope): description" in prompt
 
-    def test_prompt_commit_type_mapping_test(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_commit_type_mapping_test(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Test change type maps to 'test' in commit format."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_type="test",
         )
 
@@ -397,9 +392,7 @@ class TestBuildPrompt:
 
         assert "test(scope): description" in prompt
 
-    def test_prompt_includes_idea_id(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_idea_id(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt includes the idea_id from PhaseContext."""
         prev = _make_plan_output()
         port = MockClaudePort(CANNED_EXECUTE)
@@ -409,9 +402,7 @@ class TestBuildPrompt:
 
         assert "test-idea" in prompt
 
-    def test_prompt_includes_plan_summary(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_plan_summary(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt includes the plan_summary from PlanOutput."""
         prev = _make_plan_output(
             plan_summary="Refactor the data access layer",
@@ -423,9 +414,7 @@ class TestBuildPrompt:
 
         assert "Refactor the data access layer" in prompt
 
-    def test_prompt_without_prev_output(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_without_prev_output(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt can be built without prev_output (graceful degradation)."""
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(tmp_path, port)
@@ -435,9 +424,7 @@ class TestBuildPrompt:
         # Should still contain guard-rails even without plan data
         assert "Only modify files listed in the plan" in prompt
 
-    def test_prompt_with_dict_prev_output(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_with_dict_prev_output(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Prompt works with prev_output as a plain dict."""
         prev_dict = {
             "plan_summary": "Refactor logging module",
@@ -463,9 +450,7 @@ class TestBuildPrompt:
 class TestGetTools:
     """Verify get_tools() returns file read/write and bash tool specs."""
 
-    def test_get_tools_returns_expected_tools(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_get_tools_returns_expected_tools(self, phase: ExecutePhase, tmp_path: Path) -> None:
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(tmp_path, port)
         tools = phase.get_tools(ctx)
@@ -478,9 +463,7 @@ class TestGetTools:
         assert "Glob" in tool_names
         assert "Grep" in tool_names
 
-    def test_get_tools_returns_six_tools(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_get_tools_returns_six_tools(self, phase: ExecutePhase, tmp_path: Path) -> None:
         port = MockClaudePort(CANNED_EXECUTE)
         ctx = _make_ctx(tmp_path, port)
         assert len(phase.get_tools(ctx)) == 6
@@ -494,9 +477,7 @@ class TestGetTools:
 class TestParseOutputErrors:
     """Verify parse_output raises ParseError for unparseable responses."""
 
-    def test_unparseable_response_fails(
-        self, phase: ExecutePhase, tmp_path: Path
-    ) -> None:
+    def test_unparseable_response_fails(self, phase: ExecutePhase, tmp_path: Path) -> None:
         """Non-JSON response -> FAILURE status."""
         port = MockClaudePortTextOnly("This is not JSON at all")
         prev = _make_plan_output()

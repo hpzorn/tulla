@@ -16,7 +16,6 @@ from tulla.phases.research.r4 import R4Phase
 from tulla.phases.research.r5 import R5Phase
 from tulla.phases.research.r6 import R6Phase
 
-
 # ---------------------------------------------------------------------------
 # Shared constants
 # ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.auto import AutoPhase
 from tulla.phases.epistemology.models import EpistemologyOutput
 
@@ -33,24 +33,24 @@ SAMPLE_OUTPUT = """\
 | Diagnostic Question | Mode Indicated | Evidence | Strength |
 |---------------------|---------------|----------|----------|
 | Contested Claims | Pyrrhonian Skepticism | N/A | N/A |
-| Unexplained Anomaly | Peircean Abduction | 5-layer encoding works but no explanation for why guard removal degrades 5-6 dimensions | strong |
-| Genuine Contradiction | Hegelian Dialectics | Modes must be distinct yet share common Phase infrastructure | strong |
+| Unexplained Anomaly | Peircean Abduction | Guard removal degrades 5-6 dims | strong |
+| Genuine Contradiction | Hegelian Dialectics | Distinct yet share infrastructure | strong |
 | Non-Binary Tension | Catuṣkoṭi | N/A | N/A |
 | Unclear Purpose/Composition | Aristotelian Four Causes | N/A | N/A |
 | Indeterminate Situation | Deweyan Inquiry | N/A | N/A |
-| Untested Bold Claim | Popperian Falsification | Claim that topology determines distinctness has not been rigorously tested | strong |
-| Observable Pattern | Baconian Inductivism | 9 modes with rubric scores could yield inductive patterns | moderate |
+| Untested Bold Claim | Popperian Falsification | Topology claim untested | strong |
+| Observable Pattern | Baconian Inductivism | 9 modes could yield patterns | moderate |
 
 ## Mode Prescription
 | Mode | Diagnostic Basis | Selection Rationale |
 |------|-----------------|---------------------|
-| Peircean Abduction | Unexplained Anomaly — guard degradation unexplained | Cyclic hypothesis generation fits the anomaly |
-| Hegelian Dialectics | Genuine Contradiction — distinct yet shared | Thesis-antithesis-synthesis resolves the tension |
-| Popperian Falsification | Untested Bold Claim — topology claim untested | Severe testing needed for bold architectural claim |
+| Peircean Abduction | Unexplained Anomaly — guard degradation | Cyclic hypothesis generation |
+| Hegelian Dialectics | Genuine Contradiction — distinct yet shared | Thesis-antithesis-synthesis |
+| Popperian Falsification | Untested Bold Claim — topology | Severe testing needed |
 
 ## Idea 1: Guard Degradation Hypothesis
 **Mode**: Peircean Abduction
-**Diagnostic Basis**: Unexplained Anomaly — anti-collapse guard removal degrades 5-6 rubric dimensions
+**Diagnostic Basis**: Unexplained Anomaly — guard removal degrades rubric
 **Source Ideas**: idea-42
 **Description**: Form an explanatory hypothesis for why guard removal causes such \
 broad degradation. Hypothesis: guards act as cognitive scaffolding that prevents \
@@ -197,63 +197,43 @@ class TestBuildPrompt:
 
     # -- New diagnostic dimension checks ------------------------------------
 
-    def test_prompt_contains_contested_claims_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_contested_claims_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Contested Claims" in prompt
 
-    def test_prompt_contains_unexplained_anomaly_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_unexplained_anomaly_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Unexplained Anomaly" in prompt
 
-    def test_prompt_contains_genuine_contradiction_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_genuine_contradiction_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Genuine Contradiction" in prompt
 
-    def test_prompt_contains_non_binary_tension_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_non_binary_tension_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Non-Binary Tension" in prompt
 
-    def test_prompt_contains_unclear_purpose_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_unclear_purpose_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Unclear Purpose" in prompt
 
-    def test_prompt_contains_indeterminate_situation_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_indeterminate_situation_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Indeterminate Situation" in prompt
 
-    def test_prompt_contains_untested_bold_claim_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_untested_bold_claim_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Untested Bold Claim" in prompt
 
-    def test_prompt_contains_observable_pattern_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_observable_pattern_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Observable Pattern" in prompt
 
-    def test_prompt_does_not_contain_old_maturity_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_does_not_contain_old_maturity_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "| Maturity |" not in prompt
 
-    def test_prompt_does_not_contain_old_connectivity_dimension(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_does_not_contain_old_connectivity_dimension(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "| Connectivity |" not in prompt
 
@@ -265,9 +245,7 @@ class TestBuildPrompt:
 
     # -- Peircean Abduction fallback ----------------------------------------
 
-    def test_prompt_contains_peircean_abduction_fallback(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_peircean_abduction_fallback(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Peircean Abduction" in prompt
         # The fallback rule must mention defaulting to Peircean Abduction
@@ -275,9 +253,7 @@ class TestBuildPrompt:
 
     # -- Popper/Bacon mutual exclusion --------------------------------------
 
-    def test_prompt_contains_popper_bacon_mutual_exclusion(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_popper_bacon_mutual_exclusion(self, ctx: PhaseContext) -> None:
         prompt = AutoPhase().build_prompt(ctx)
         assert "Popper" in prompt and "Bacon" in prompt
         # Must mention they cannot both be selected
@@ -358,9 +334,7 @@ class TestParseOutput:
 class _MockedAutoPhase(AutoPhase):
     """AutoPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-auto-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

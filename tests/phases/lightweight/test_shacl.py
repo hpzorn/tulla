@@ -1,13 +1,21 @@
 """Live SHACL validation: LightweightTraceResult through PhaseFactPersister.
 
-# @pattern:PortsAndAdapters -- Tests inject OntologyMCPAdapter through OntologyPort ABC so the persister never knows the concrete adapter
-# @principle:DependencyInversion -- PhaseFactPersister constructor accepts OntologyPort; live vs. wrapper adapter chosen at test boundary
-# @pattern:MVC -- LightweightTraceResult (Model) validated independently of phase controllers and CLI view layer
-# @pattern:LayeredArchitecture -- Test imports cross layers: models (domain), phase_facts (core), ontology port (ports), adapter (infra)
-# @principle:SeparationOfConcerns -- Helper _make_trace_result isolates test-data construction from persistence and validation assertions
-# @principle:InformationHiding -- get_shape_for_phase hides the SHACL registry lookup; tests never reference shape URIs directly
-# @principle:LooseCoupling -- _FailingValidationWrapper delegates all calls except validate_instance, proving persister has no hidden adapter dependencies
-# @quality:Testability -- @pytest.mark.manual marker allows CI to skip server-dependent tests while enabling explicit local validation
+# @pattern:PortsAndAdapters -- Tests inject OntologyMCPAdapter through
+#   OntologyPort ABC so the persister never knows the concrete adapter
+# @principle:DependencyInversion -- PhaseFactPersister constructor
+#   accepts OntologyPort; live vs. wrapper adapter chosen at boundary
+# @pattern:MVC -- LightweightTraceResult (Model) validated
+#   independently of phase controllers and CLI view layer
+# @pattern:LayeredArchitecture -- Test imports cross layers: models
+#   (domain), phase_facts (core), ontology port (ports), adapter (infra)
+# @principle:SeparationOfConcerns -- Helper _make_trace_result isolates
+#   test-data construction from persistence and validation assertions
+# @principle:InformationHiding -- get_shape_for_phase hides the SHACL
+#   registry lookup; tests never reference shape URIs directly
+# @principle:LooseCoupling -- _FailingValidationWrapper delegates all
+#   calls except validate_instance, proving no hidden dependencies
+# @quality:Testability -- @pytest.mark.manual marker allows CI to skip
+#   server-dependent tests while enabling explicit local validation
 
 Verification criteria (prd:req-53-5-3):
   Test that a LightweightTraceResult persisted through PhaseFactPersister
@@ -34,7 +42,6 @@ from tulla.namespaces import PHASE_NS, RDF_TYPE
 from tulla.ontology.phase_shapes import get_shape_for_phase
 from tulla.phases.lightweight.models import LightweightTraceResult
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -104,6 +111,7 @@ def ontology() -> OntologyPort:
     """Create a live OntologyMCPAdapter, skip if server unavailable."""
     try:
         from tulla.adapters.ontology_mcp import OntologyMCPAdapter
+
         adapter = OntologyMCPAdapter()
         # Health check — light query to confirm server is reachable
         adapter.recall_facts(predicate="rdf:type", limit=1)
@@ -172,12 +180,12 @@ class TestLiveSHACLValidation:
 
             # Our instance should have no LW-trace-required-property violations
             lw_violations = [
-                v for v in our_violations
+                v
+                for v in our_violations
                 if any(pred.split("#")[-1] in v for pred in _LW_TRACE_REQUIRED_PREDICATES)
             ]
             assert len(lw_violations) == 0, (
-                f"Expected no LWTraceOutputShape violations for our instance, "
-                f"got: {lw_violations}"
+                f"Expected no LWTraceOutputShape violations for our instance, got: {lw_violations}"
             )
         finally:
             # Cleanup: always remove test triples
@@ -215,7 +223,8 @@ class TestLiveSHACLValidation:
             our_violations = _violations_for_focus_node(result, subject)
 
             lw_violations = [
-                v for v in our_violations
+                v
+                for v in our_violations
                 if any(pred.split("#")[-1] in v for pred in _LW_TRACE_REQUIRED_PREDICATES)
             ]
             assert len(lw_violations) == 0, (
@@ -254,16 +263,9 @@ class TestLiveSHACLValidation:
             )
 
             # Verify via SPARQL that all required predicates are present
-            query = (
-                f"PREFIX phase: <{PHASE_NS}>\n"
-                f"SELECT ?p WHERE {{\n"
-                f"  <{subject}> ?p ?o .\n"
-                f"}}"
-            )
+            query = f"PREFIX phase: <{PHASE_NS}>\nSELECT ?p WHERE {{\n  <{subject}> ?p ?o .\n}}"
             sparql_result = ontology.sparql_query(query)
-            predicates = {
-                b.get("p", "") for b in sparql_result.get("results", [])
-            }
+            predicates = {b.get("p", "") for b in sparql_result.get("results", [])}
 
             for required in _LW_TRACE_REQUIRED_PREDICATES:
                 assert required in predicates, (
@@ -306,9 +308,7 @@ class TestLiveSHACLValidation:
 
             # Our focus_node must appear in at least one violation
             our_violations = _violations_for_focus_node(result, subject)
-            assert len(our_violations) >= 1, (
-                f"Expected violations for {subject}, got none"
-            )
+            assert len(our_violations) >= 1, f"Expected violations for {subject}, got none"
         finally:
             ontology.remove_triples_by_subject(subject)
 
@@ -327,23 +327,35 @@ class TestLiveSHACLValidation:
                 self._delegate = delegate
                 self.removed_subjects: list[str] = []
 
-            def add_triple(self, subject: str, predicate: str, object: str,
-                           *, is_literal: bool = False,
-                           ontology: str | None = None) -> dict[str, Any]:
+            def add_triple(
+                self,
+                subject: str,
+                predicate: str,
+                object: str,
+                *,
+                is_literal: bool = False,
+                ontology: str | None = None,
+            ) -> dict[str, Any]:
                 return self._delegate.add_triple(
-                    subject, predicate, object,
-                    is_literal=is_literal, ontology=ontology,
+                    subject,
+                    predicate,
+                    object,
+                    is_literal=is_literal,
+                    ontology=ontology,
                 )
 
-            def remove_triples_by_subject(self, subject: str,
-                                          *, ontology: str | None = None) -> int:
+            def remove_triples_by_subject(
+                self, subject: str, *, ontology: str | None = None
+            ) -> int:
                 self.removed_subjects.append(subject)
                 return self._delegate.remove_triples_by_subject(
-                    subject, ontology=ontology,
+                    subject,
+                    ontology=ontology,
                 )
 
-            def validate_instance(self, instance_uri: str, shape_uri: str,
-                                  *, ontology: str | None = None) -> dict[str, Any]:
+            def validate_instance(
+                self, instance_uri: str, shape_uri: str, *, ontology: str | None = None
+            ) -> dict[str, Any]:
                 return {
                     "conforms": False,
                     "violation_count": 1,
@@ -358,32 +370,45 @@ class TestLiveSHACLValidation:
             def get_idea(self, idea_id: str) -> dict[str, Any]:
                 return self._delegate.get_idea(idea_id)
 
-            def store_fact(self, subject: str, predicate: str, object: str,
-                           *, context: str | None = None,
-                           confidence: float = 1.0) -> dict[str, Any]:
+            def store_fact(
+                self,
+                subject: str,
+                predicate: str,
+                object: str,
+                *,
+                context: str | None = None,
+                confidence: float = 1.0,
+            ) -> dict[str, Any]:
                 return self._delegate.store_fact(
-                    subject, predicate, object,
-                    context=context, confidence=confidence,
+                    subject,
+                    predicate,
+                    object,
+                    context=context,
+                    confidence=confidence,
                 )
 
             def forget_fact(self, fact_id: str) -> dict[str, Any]:
                 return self._delegate.forget_fact(fact_id)
 
-            def recall_facts(self, *, subject: str | None = None,
-                             predicate: str | None = None,
-                             context: str | None = None,
-                             limit: int = 100) -> dict[str, Any]:
+            def recall_facts(
+                self,
+                *,
+                subject: str | None = None,
+                predicate: str | None = None,
+                context: str | None = None,
+                limit: int = 100,
+            ) -> dict[str, Any]:
                 return self._delegate.recall_facts(
-                    subject=subject, predicate=predicate,
-                    context=context, limit=limit,
+                    subject=subject,
+                    predicate=predicate,
+                    context=context,
+                    limit=limit,
                 )
 
-            def sparql_query(self, query: str,
-                             *, validate: bool = True) -> dict[str, Any]:
+            def sparql_query(self, query: str, *, validate: bool = True) -> dict[str, Any]:
                 return self._delegate.sparql_query(query, validate=validate)
 
-            def sparql_update(self, query: str,
-                              *, validate: bool = True) -> dict[str, Any]:
+            def sparql_update(self, query: str, *, validate: bool = True) -> dict[str, Any]:
                 return self._delegate.sparql_update(query, validate=validate)
 
             def update_idea(self, idea_id: str, **kw: Any) -> dict[str, Any]:
@@ -392,10 +417,13 @@ class TestLiveSHACLValidation:
             def forget_by_context(self, context: str) -> int:
                 return self._delegate.forget_by_context(context)
 
-            def set_lifecycle(self, idea_id: str, new_state: str,
-                              *, reason: str = "") -> dict[str, Any]:
+            def set_lifecycle(
+                self, idea_id: str, new_state: str, *, reason: str = ""
+            ) -> dict[str, Any]:
                 return self._delegate.set_lifecycle(
-                    idea_id, new_state, reason=reason,
+                    idea_id,
+                    new_state,
+                    reason=reason,
                 )
 
         subject = f"{PHASE_NS}test-shacl-53-rb-lw-trace"

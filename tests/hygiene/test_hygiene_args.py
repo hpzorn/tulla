@@ -66,7 +66,7 @@ class TestHygieneConfig:
         config = HygieneConfig(mode=HygieneMode.CLEAN, remaining_args=[])
         try:
             config.mode = HygieneMode.CHECK  # type: ignore[misc]
-            assert False, "Should have raised FrozenInstanceError"
+            raise AssertionError("Should have raised FrozenInstanceError")
         except AttributeError:
             pass
 

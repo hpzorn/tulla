@@ -1,9 +1,15 @@
 """Tests for TracePhase — assembles the final trace model from upstream outputs.
 
-# @pattern:PortsAndAdapters -- TracePhase overrides run_claude() for local computation; tests verify port-boundary data contracts via mock upstream outputs
-# @principle:SeparationOfConcerns -- Tests validate pure assembly logic in isolation from KG persistence and pipeline wiring
-# @pattern:InformationHiding -- Tests interact only with public execute() and extract_intent_fields(); internal _get_attr_or_key is tested indirectly
-# @principle:DependencyInversion -- Mock upstream outputs (IntakeOutput, ContextScanOutput, ExecuteOutput) injected via PhaseContext.config dict
+# @pattern:PortsAndAdapters -- TracePhase overrides run_claude() for
+#   local computation; tests verify port-boundary data contracts via
+#   mock upstream outputs
+# @principle:SeparationOfConcerns -- Tests validate pure assembly logic
+#   in isolation from KG persistence and pipeline wiring
+# @pattern:InformationHiding -- Tests interact only with public
+#   execute() and extract_intent_fields(); internal _get_attr_or_key is
+#   tested indirectly
+# @principle:DependencyInversion -- Mock upstream outputs (IntakeOutput,
+#   ContextScanOutput, ExecuteOutput) injected via PhaseContext.config
 
 Verification criteria (prd:req-53-2-4):
 - Assembly from mock upstream outputs: verify all 6 required fields populated.
@@ -14,7 +20,7 @@ Verification criteria (prd:req-53-2-4):
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +35,6 @@ from tulla.phases.lightweight.models import (
     LightweightTraceResult,
 )
 from tulla.phases.lightweight.trace import TracePhase
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -112,9 +117,7 @@ def _make_ctx(
 class TestRequiredFieldsPopulated:
     """Verify that all 6 required fields are populated from upstream outputs."""
 
-    def test_all_required_fields_present(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_all_required_fields_present(self, phase: TracePhase, tmp_path: Path) -> None:
         """All 6 required fields are populated from upstream mock outputs."""
         ctx = _make_ctx(tmp_path)
         result = phase.execute(ctx)
@@ -130,9 +133,7 @@ class TestRequiredFieldsPopulated:
         assert data.change_summary == "Fixed parser edge case for nested brackets"
         assert data.timestamp  # non-empty
 
-    def test_change_type_from_intake(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_change_type_from_intake(self, phase: TracePhase, tmp_path: Path) -> None:
         """change_type is mapped from IntakeOutput."""
         intake = _make_intake_output(change_type="feature")
         ctx = _make_ctx(tmp_path, intake_output=intake)
@@ -142,13 +143,9 @@ class TestRequiredFieldsPopulated:
         assert result.data is not None
         assert result.data.change_type == "feature"
 
-    def test_affected_files_comma_separated(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_affected_files_comma_separated(self, phase: TracePhase, tmp_path: Path) -> None:
         """affected_files is a comma-separated string from ExecuteOutput.files_modified."""
-        execute = _make_execute_output(
-            files_modified=["a.py", "b.py", "c.py"]
-        )
+        execute = _make_execute_output(files_modified=["a.py", "b.py", "c.py"])
         ctx = _make_ctx(tmp_path, prev_output=execute)
         result = phase.execute(ctx)
 
@@ -156,13 +153,9 @@ class TestRequiredFieldsPopulated:
         assert result.data is not None
         assert result.data.affected_files == "a.py,b.py,c.py"
 
-    def test_conformance_from_context_scan(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_conformance_from_context_scan(self, phase: TracePhase, tmp_path: Path) -> None:
         """conformance_assertion is mapped from ContextScanOutput.conformance_status."""
-        scan = _make_context_scan_output(
-            conformance_status="structural-only:violations-found"
-        )
+        scan = _make_context_scan_output(conformance_status="structural-only:violations-found")
         ctx = _make_ctx(tmp_path, context_scan_output=scan)
         result = phase.execute(ctx)
 
@@ -170,9 +163,7 @@ class TestRequiredFieldsPopulated:
         assert result.data is not None
         assert result.data.conformance_assertion == "structural-only:violations-found"
 
-    def test_commit_ref_from_execute(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_commit_ref_from_execute(self, phase: TracePhase, tmp_path: Path) -> None:
         """commit_ref is mapped from ExecuteOutput."""
         execute = _make_execute_output(commit_ref="deadbeef")
         ctx = _make_ctx(tmp_path, prev_output=execute)
@@ -182,9 +173,7 @@ class TestRequiredFieldsPopulated:
         assert result.data is not None
         assert result.data.commit_ref == "deadbeef"
 
-    def test_change_summary_from_execute(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_change_summary_from_execute(self, phase: TracePhase, tmp_path: Path) -> None:
         """change_summary is mapped from ExecuteOutput.changes_summary."""
         execute = _make_execute_output(changes_summary="Refactored module X")
         ctx = _make_ctx(tmp_path, prev_output=execute)
@@ -203,9 +192,7 @@ class TestRequiredFieldsPopulated:
 class TestTimestampFormat:
     """Verify timestamp is current UTC in ISO 8601 format."""
 
-    def test_timestamp_is_iso_8601(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_timestamp_is_iso_8601(self, phase: TracePhase, tmp_path: Path) -> None:
         """timestamp is a valid ISO 8601 string."""
         ctx = _make_ctx(tmp_path)
         result = phase.execute(ctx)
@@ -217,14 +204,12 @@ class TestTimestampFormat:
         parsed = datetime.fromisoformat(result.data.timestamp)
         assert parsed.tzinfo is not None  # has timezone info
 
-    def test_timestamp_is_recent_utc(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_timestamp_is_recent_utc(self, phase: TracePhase, tmp_path: Path) -> None:
         """timestamp is close to current UTC time."""
-        before = datetime.now(timezone.utc)
+        before = datetime.now(UTC)
         ctx = _make_ctx(tmp_path)
         result = phase.execute(ctx)
-        after = datetime.now(timezone.utc)
+        after = datetime.now(UTC)
 
         assert result.status == PhaseStatus.SUCCESS
         assert result.data is not None
@@ -241,9 +226,7 @@ class TestTimestampFormat:
 class TestExtractIntentFields:
     """Verify extract_intent_fields() returns the expected field count."""
 
-    def test_all_nine_intent_fields_present(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_all_nine_intent_fields_present(self, phase: TracePhase, tmp_path: Path) -> None:
         """All 9 IntentField-annotated fields are returned by extract_intent_fields()."""
         ctx = _make_ctx(tmp_path)
         result = phase.execute(ctx)
@@ -264,9 +247,7 @@ class TestExtractIntentFields:
         assert "sprint_id" in intent
         assert "story_points" in intent
 
-    def test_optional_fields_none_when_absent(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_optional_fields_none_when_absent(self, phase: TracePhase, tmp_path: Path) -> None:
         """Optional fields default to None when not provided in ctx.config."""
         ctx = _make_ctx(tmp_path)
         result = phase.execute(ctx)
@@ -299,9 +280,7 @@ class TestExtractIntentFields:
         assert intent["sprint_id"] == "sprint-7"
         assert intent["story_points"] == "3"
 
-    def test_partial_optionals(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_partial_optionals(self, phase: TracePhase, tmp_path: Path) -> None:
         """Partial optionals: only issue_ref provided."""
         ctx = _make_ctx(tmp_path, issue_ref="BUG-99")
         result = phase.execute(ctx)
@@ -322,9 +301,7 @@ class TestExtractIntentFields:
 class TestDictUpstreamOutputs:
     """Verify that upstream outputs work when passed as plain dicts."""
 
-    def test_dict_upstream_outputs(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_dict_upstream_outputs(self, phase: TracePhase, tmp_path: Path) -> None:
         """All upstream outputs as dicts should work identically to models."""
         intake_dict = {
             "change_type": "enhancement",
@@ -372,13 +349,9 @@ class TestDictUpstreamOutputs:
 class TestMissingUpstreamOutputs:
     """Verify graceful handling when upstream outputs are missing."""
 
-    def test_no_upstream_outputs(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_no_upstream_outputs(self, phase: TracePhase, tmp_path: Path) -> None:
         """Missing upstream outputs produce empty-string defaults."""
-        ctx = PhaseContext(
-            idea_id="test-idea", work_dir=tmp_path, config={}
-        )
+        ctx = PhaseContext(idea_id="test-idea", work_dir=tmp_path, config={})
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
@@ -402,21 +375,15 @@ class TestPhaseMetadata:
     def test_phase_id(self, phase: TracePhase) -> None:
         assert phase.phase_id == "trace"
 
-    def test_build_prompt_returns_empty(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_build_prompt_returns_empty(self, phase: TracePhase, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         assert phase.build_prompt(ctx) == ""
 
-    def test_get_tools_returns_empty(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_get_tools_returns_empty(self, phase: TracePhase, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         assert phase.get_tools(ctx) == []
 
-    def test_parse_output_wraps_dict(
-        self, phase: TracePhase, tmp_path: Path
-    ) -> None:
+    def test_parse_output_wraps_dict(self, phase: TracePhase, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         raw = {
             "change_type": "chore",

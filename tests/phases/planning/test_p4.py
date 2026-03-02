@@ -148,21 +148,15 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_plan_output_path(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_plan_output_path(self, phase: P4Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p4-implementation-plan.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: P4Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase P4: Implementation Plan" in prompt
 
-    def test_reads_p1_p2_p3(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_reads_p1_p2_p3(self, phase: P4Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p1-discovery-context.md" in prompt
         assert "p2-codebase-analysis.md" in prompt
@@ -177,17 +171,13 @@ class TestBuildPrompt:
 class TestGetTools:
     """P4Phase.get_tools() tests."""
 
-    def test_includes_read_write(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write(self, phase: P4Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
         assert "Write" in tool_names
 
-    def test_tool_count(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_tool_count(self, phase: P4Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         assert len(tools) == 2
 
@@ -200,15 +190,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """P4Phase.parse_output() when p4-implementation-plan.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: P4Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="p4-implementation-plan.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: P4Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -222,9 +208,7 @@ class TestParseOutputMissing:
 class TestParseOutputSuccess:
     """P4Phase.parse_output() when p4-implementation-plan.md is present."""
 
-    def test_returns_p4_output(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_p4_output(self, phase: P4Phase, ctx: PhaseContext) -> None:
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(SAMPLE_IMPLEMENTATION_PLAN, encoding="utf-8")
 
@@ -234,9 +218,7 @@ class TestParseOutputSuccess:
         assert result.phase_count == 3  # 3 phases
         assert result.estimated_tasks == 4  # 4 tasks (1.1, 1.2, 2.1, 3.1)
 
-    def test_default_granularity_fields(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_default_granularity_fields(self, phase: P4Phase, ctx: PhaseContext) -> None:
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(SAMPLE_IMPLEMENTATION_PLAN, encoding="utf-8")
 
@@ -245,9 +227,7 @@ class TestParseOutputSuccess:
         assert result.coarse_tasks == []
         assert result.granularity_passed is True
 
-    def test_zero_phases_when_empty(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_zero_phases_when_empty(self, phase: P4Phase, ctx: PhaseContext) -> None:
         minimal = (
             "# P4: Implementation Plan\n"
             "## Implementation Phases\n"
@@ -274,9 +254,7 @@ class _MockP4Phase(P4Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "p4-implementation-plan.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"
@@ -433,7 +411,7 @@ SAMPLE_PLAN_WITH_HOMOGENEOUS = """\
 **Deliverable**: Test files
 
 #### Task 2.1: Create Test Stubs
-**File(s)**: `tests/test_a.py`, `tests/test_b.py`, `tests/test_c.py`, `tests/test_d.py`, `tests/test_e.py`
+**File(s)**: `tests/test_a.py`, `tests/test_b.py`, `tests/test_c.py`
 **Action**: Create
 **Details**: Stub
 **Dependencies**: Task 1.1
@@ -450,9 +428,7 @@ SAMPLE_PLAN_WITH_HOMOGENEOUS = """\
 class TestPerTaskGranularity:
     """Tests for per-task granularity extraction in parse_output()."""
 
-    def test_sample_plan_all_fine_grained(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_sample_plan_all_fine_grained(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """SAMPLE_IMPLEMENTATION_PLAN has all 1-file tasks -> no coarse tasks."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(SAMPLE_IMPLEMENTATION_PLAN, encoding="utf-8")
@@ -462,9 +438,7 @@ class TestPerTaskGranularity:
         assert result.coarse_tasks == []
         assert result.granularity_passed is True
 
-    def test_coarse_task_detected(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_coarse_task_detected(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """Plan with 7-file non-homogeneous short-detail task -> 1 coarse task."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(COARSE_TASK_PLAN, encoding="utf-8")
@@ -477,9 +451,7 @@ class TestPerTaskGranularity:
         assert result.coarse_tasks[0]["homogeneous"] is False
         assert result.granularity_passed is False
 
-    def test_coarse_task_metrics(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_coarse_task_metrics(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """Verify word_count and wpf on the detected coarse task."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(COARSE_TASK_PLAN, encoding="utf-8")
@@ -491,9 +463,7 @@ class TestPerTaskGranularity:
         assert entry["word_count"] == 2
         assert entry["wpf"] < 1.0
 
-    def test_fine_grained_task_not_flagged(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_fine_grained_task_not_flagged(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """Task 2.1 (single file, detailed description) should NOT be flagged."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(COARSE_TASK_PLAN, encoding="utf-8")
@@ -530,9 +500,7 @@ class TestPerTaskGranularity:
 class TestGranularityMetrics:
     """Granularity metrics: fine plan passes, coarse detected, homogeneous exempt."""
 
-    def test_fine_plan_passes(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_fine_plan_passes(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """A plan with only fine-grained tasks has no coarse flags."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(SAMPLE_IMPLEMENTATION_PLAN, encoding="utf-8")
@@ -542,9 +510,7 @@ class TestGranularityMetrics:
         assert result.coarse_tasks == []
         assert result.granularity_passed is True
 
-    def test_coarse_detected(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_coarse_detected(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """SAMPLE_PLAN_WITH_COARSE_TASK triggers coarse detection."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(SAMPLE_PLAN_WITH_COARSE_TASK, encoding="utf-8")
@@ -554,9 +520,7 @@ class TestGranularityMetrics:
         assert len(result.coarse_tasks) >= 1
         assert result.granularity_passed is False
 
-    def test_homogeneous_exempt(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_homogeneous_exempt(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """SAMPLE_PLAN_WITH_HOMOGENEOUS multi-file tasks are exempt from coarse detection."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(SAMPLE_PLAN_WITH_HOMOGENEOUS, encoding="utf-8")
@@ -575,7 +539,7 @@ class TestGranularityMetrics:
 
 
 class TestHomogeneityCheck:
-    """Tests for _check_homogeneity(): single file, same basename, same extension, heterogeneous."""
+    """Tests for _check_homogeneity(): single, same base/ext, hetero."""
 
     def test_single_file(self) -> None:
         """A single file is always homogeneous."""
@@ -644,9 +608,7 @@ class TestValidateOutputAdvisory:
         assert "P4 advisory" in captured.err
         assert "Task 1.1" in captured.err
 
-    def test_never_raises(
-        self, phase: P4Phase, ctx: PhaseContext
-    ) -> None:
+    def test_never_raises(self, phase: P4Phase, ctx: PhaseContext) -> None:
         """validate_output() must never raise ValueError (advisory only)."""
         plan_file = ctx.work_dir / "p4-implementation-plan.md"
         plan_file.write_text(COARSE_TASK_PLAN, encoding="utf-8")
@@ -678,9 +640,7 @@ class _MockP4PhaseCoarse(P4Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "p4-implementation-plan.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"

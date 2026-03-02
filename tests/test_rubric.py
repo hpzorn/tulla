@@ -27,7 +27,6 @@ from tulla.evaluation.rubric import (
     detect_regression,
 )
 
-
 # ---------------------------------------------------------------------------
 # Synthetic scores
 # ---------------------------------------------------------------------------
@@ -96,8 +95,12 @@ class TestRubricScore:
     def test_as_tuple(self) -> None:
         t = SCORE_A.as_tuple()
         assert t == (
-            "top-down", "accepting", "additive",
-            "internal", "ignore", "exploratory",
+            "top-down",
+            "accepting",
+            "additive",
+            "internal",
+            "ignore",
+            "exploratory",
         )
 
     def test_as_tuple_length(self) -> None:
@@ -192,9 +195,7 @@ class TestDetectRegression:
 
     def test_silent_for_maximally_different(self) -> None:
         """No alert for 0/6 overlap even with low threshold."""
-        alerts = detect_regression(
-            {"a": SCORE_A, "z": SCORE_MAX_DIFF}, threshold=1
-        )
+        alerts = detect_regression({"a": SCORE_A, "z": SCORE_MAX_DIFF}, threshold=1)
         assert alerts == []
 
     def test_mixed_pairs_only_problematic_flagged(self) -> None:

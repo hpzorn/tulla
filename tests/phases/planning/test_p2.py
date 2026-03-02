@@ -94,21 +94,15 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_analysis_output_path(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_analysis_output_path(self, phase: P2Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p2-codebase-analysis.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: P2Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase P2: Codebase Analysis" in prompt
 
-    def test_reads_p1_context(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_reads_p1_context(self, phase: P2Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p1-discovery-context.md" in prompt
 
@@ -121,9 +115,7 @@ class TestBuildPrompt:
 class TestGetTools:
     """P2Phase.get_tools() tests."""
 
-    def test_includes_read_write_glob_grep(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write_glob_grep(self, phase: P2Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
@@ -140,15 +132,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """P2Phase.parse_output() when p2-codebase-analysis.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: P2Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="p2-codebase-analysis.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: P2Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -162,9 +150,7 @@ class TestParseOutputMissing:
 class TestParseOutputSuccess:
     """P2Phase.parse_output() when p2-codebase-analysis.md is present."""
 
-    def test_returns_p2_output(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_p2_output(self, phase: P2Phase, ctx: PhaseContext) -> None:
         analysis_file = ctx.work_dir / "p2-codebase-analysis.md"
         analysis_file.write_text(SAMPLE_CODEBASE_ANALYSIS, encoding="utf-8")
 
@@ -174,9 +160,7 @@ class TestParseOutputSuccess:
         assert result.requirement_count == 3  # 3 reusable components
         assert result.p0_count == 3  # 3 extension point bullets
 
-    def test_zero_components_when_table_empty(
-        self, phase: P2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_zero_components_when_table_empty(self, phase: P2Phase, ctx: PhaseContext) -> None:
         minimal = (
             "# P2: Codebase Analysis\n"
             "## Reusable Components\n"
@@ -203,9 +187,7 @@ class _MockP2Phase(P2Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "p2-codebase-analysis.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"

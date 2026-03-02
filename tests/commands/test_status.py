@@ -25,7 +25,6 @@ from tulla.commands.status import (
 from tulla.phases.implementation.models import RequirementStatus
 from tulla.ports.ontology import OntologyPort
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -92,7 +91,15 @@ class StubOntology(OntologyPort):
     ) -> dict[str, Any]:
         return {}
 
-    def add_triple(self, subject: str, predicate: str, object: str, *, is_literal: bool = False, ontology: str | None = None) -> dict[str, Any]:
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
         return {"status": "added"}
 
     def remove_triples_by_subject(self, subject: str, *, ontology: str | None = None) -> int:
@@ -117,15 +124,17 @@ class TestQueryPrdStatus:
 
     def test_single_complete(self) -> None:
         """Single requirement with prd:Complete status."""
-        ontology = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "Create module"},
-                {"predicate": "prd:status", "object": "prd:Complete"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "Create module"},
+                    {"predicate": "prd:status", "object": "prd:Complete"},
+                ],
+            }
+        )
         result = query_prd_status(ontology, "prd-idea-42")
         assert result.total == 1
         assert result.complete == 1
@@ -136,21 +145,23 @@ class TestQueryPrdStatus:
 
     def test_blocked_deps(self) -> None:
         """Pending requirement with unmet dependency → Blocked (deps)."""
-        ontology = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "First"},
-                {"predicate": "prd:status", "object": "prd:Pending"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-2": [
-                {"predicate": "prd:title", "object": "Second"},
-                {"predicate": "prd:status", "object": "prd:Pending"},
-                {"predicate": "prd:dependsOn", "object": "prd:req-42-1-1"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "First"},
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-2": [
+                    {"predicate": "prd:title", "object": "Second"},
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                    {"predicate": "prd:dependsOn", "object": "prd:req-42-1-1"},
+                ],
+            }
+        )
         result = query_prd_status(ontology, "prd-idea-42")
 
         row2 = next(r for r in result.rows if r.requirement_id == "prd:req-42-1-2")
@@ -161,21 +172,23 @@ class TestQueryPrdStatus:
 
     def test_complete_deps(self) -> None:
         """Pending requirement with all deps complete → stays Pending."""
-        ontology = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "First"},
-                {"predicate": "prd:status", "object": "prd:Complete"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-2": [
-                {"predicate": "prd:title", "object": "Second"},
-                {"predicate": "prd:status", "object": "prd:Pending"},
-                {"predicate": "prd:dependsOn", "object": "prd:req-42-1-1"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "First"},
+                    {"predicate": "prd:status", "object": "prd:Complete"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-2": [
+                    {"predicate": "prd:title", "object": "Second"},
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                    {"predicate": "prd:dependsOn", "object": "prd:req-42-1-1"},
+                ],
+            }
+        )
         result = query_prd_status(ontology, "prd-idea-42")
 
         row2 = next(r for r in result.rows if r.requirement_id == "prd:req-42-1-2")
@@ -186,41 +199,43 @@ class TestQueryPrdStatus:
 
     def test_all_six_states(self) -> None:
         """Six requirements covering all status values plus Blocked (deps)."""
-        ontology = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-3", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-4", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-5", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-6", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "Complete task"},
-                {"predicate": "prd:status", "object": "prd:Complete"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-2": [
-                {"predicate": "prd:title", "object": "In progress task"},
-                {"predicate": "prd:status", "object": "prd:InProgress"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-3": [
-                {"predicate": "prd:title", "object": "Pending task"},
-                {"predicate": "prd:status", "object": "prd:Pending"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-4": [
-                {"predicate": "prd:title", "object": "Blocked task"},
-                {"predicate": "prd:status", "object": "prd:Blocked"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-5": [
-                {"predicate": "prd:title", "object": "Failed task"},
-                {"predicate": "prd:status", "object": "prd:Failed"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-6": [
-                {"predicate": "prd:title", "object": "Blocked by deps"},
-                {"predicate": "prd:status", "object": "prd:Pending"},
-                {"predicate": "prd:dependsOn", "object": "prd:req-42-1-3"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-3", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-4", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-5", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-6", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "Complete task"},
+                    {"predicate": "prd:status", "object": "prd:Complete"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-2": [
+                    {"predicate": "prd:title", "object": "In progress task"},
+                    {"predicate": "prd:status", "object": "prd:InProgress"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-3": [
+                    {"predicate": "prd:title", "object": "Pending task"},
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-4": [
+                    {"predicate": "prd:title", "object": "Blocked task"},
+                    {"predicate": "prd:status", "object": "prd:Blocked"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-5": [
+                    {"predicate": "prd:title", "object": "Failed task"},
+                    {"predicate": "prd:status", "object": "prd:Failed"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-6": [
+                    {"predicate": "prd:title", "object": "Blocked by deps"},
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                    {"predicate": "prd:dependsOn", "object": "prd:req-42-1-3"},
+                ],
+            }
+        )
         result = query_prd_status(ontology, "prd-idea-42")
 
         assert result.total == 6
@@ -232,28 +247,32 @@ class TestQueryPrdStatus:
 
     def test_missing_title(self) -> None:
         """Requirement without a prd:title → title defaults to empty string."""
-        ontology = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:status", "object": "prd:Pending"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                ],
+            }
+        )
         result = query_prd_status(ontology, "prd-idea-42")
         assert result.rows[0].title == ""
         assert result.total == 1
 
     def test_missing_status(self) -> None:
         """Requirement without a prd:status → defaults to PENDING."""
-        ontology = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "No status set"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "No status set"},
+                ],
+            }
+        )
         result = query_prd_status(ontology, "prd-idea-42")
         assert result.rows[0].status == RequirementStatus.PENDING
         assert result.rows[0].display_status == "Pending"
@@ -331,7 +350,10 @@ class TestFormatStatusTable:
             rows=[
                 RequirementRow(
                     requirement_id="prd:req-42-1-1",
-                    title="A very long title that should definitely be truncated on a narrow terminal window",
+                    title=(
+                        "A very long title that should definitely be"
+                        " truncated on a narrow terminal window"
+                    ),
                     status=RequirementStatus.PENDING,
                     display_status="Pending",
                     deps=["prd:req-42-1-99", "prd:req-42-1-98"],
@@ -369,15 +391,17 @@ class TestStatusCommand:
     @patch("tulla.cli.OntologyMCPAdapter")
     def test_exit_0_all_complete(self, mock_adapter_cls: Any) -> None:
         """All requirements complete → exit code 0 (EXIT_SUCCESS)."""
-        stub = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "Done"},
-                {"predicate": "prd:status", "object": "prd:Complete"},
-            ],
-        })
+        stub = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "Done"},
+                    {"predicate": "prd:status", "object": "prd:Complete"},
+                ],
+            }
+        )
         mock_adapter_cls.return_value = stub
 
         runner = CliRunner()
@@ -389,20 +413,22 @@ class TestStatusCommand:
     @patch("tulla.cli.OntologyMCPAdapter")
     def test_exit_2_incomplete(self, mock_adapter_cls: Any) -> None:
         """Some requirements not complete → exit code 2 (EXIT_INCOMPLETE)."""
-        stub = StubOntology({
-            "context=prd-idea-42|predicate=rdf:type": [
-                {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
-                {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "Done"},
-                {"predicate": "prd:status", "object": "prd:Complete"},
-            ],
-            "context=prd-idea-42|subject=prd:req-42-1-2": [
-                {"predicate": "prd:title", "object": "Not done"},
-                {"predicate": "prd:status", "object": "prd:Pending"},
-            ],
-        })
+        stub = StubOntology(
+            {
+                "context=prd-idea-42|predicate=rdf:type": [
+                    {"subject": "prd:req-42-1-1", "object": "prd:Requirement"},
+                    {"subject": "prd:req-42-1-2", "object": "prd:Requirement"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "Done"},
+                    {"predicate": "prd:status", "object": "prd:Complete"},
+                ],
+                "context=prd-idea-42|subject=prd:req-42-1-2": [
+                    {"predicate": "prd:title", "object": "Not done"},
+                    {"predicate": "prd:status", "object": "prd:Pending"},
+                ],
+            }
+        )
         mock_adapter_cls.return_value = stub
 
         runner = CliRunner()

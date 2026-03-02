@@ -11,7 +11,6 @@ import structlog
 
 from tulla.infrastructure.logging import configure_logging
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -39,8 +38,7 @@ class TestConsoleOutput:
         configure_logging()
         root = logging.getLogger()
         assert any(
-            isinstance(h, logging.StreamHandler)
-            and not isinstance(h, logging.FileHandler)
+            isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
             for h in root.handlers
         ), "Expected a StreamHandler (non-FileHandler) on the root logger"
 
@@ -72,9 +70,9 @@ class TestJsonFileOutput:
     def test_no_json_file_without_work_dir(self, tmp_path: Path) -> None:
         configure_logging()
         root = logging.getLogger()
-        assert not any(
-            isinstance(h, logging.FileHandler) for h in root.handlers
-        ), "FileHandler should not be present when work_dir is not given"
+        assert not any(isinstance(h, logging.FileHandler) for h in root.handlers), (
+            "FileHandler should not be present when work_dir is not given"
+        )
 
 
 # ===================================================================
@@ -93,9 +91,7 @@ class TestJsonLinesValidity:
         for h in logging.getLogger().handlers:
             h.flush()
         log_file = tmp_path / "phase-1.log.json"
-        lines = [
-            ln for ln in log_file.read_text(encoding="utf-8").splitlines() if ln.strip()
-        ]
+        lines = [ln for ln in log_file.read_text(encoding="utf-8").splitlines() if ln.strip()]
         assert len(lines) >= 2, f"Expected at least 2 log lines, got {len(lines)}"
         for i, line in enumerate(lines):
             parsed = json.loads(line)  # raises on invalid JSON
@@ -121,17 +117,13 @@ class TestBoundContext:
         for h in logging.getLogger().handlers:
             h.flush()
         log_file = tmp_path / "ctx-test.log.json"
-        lines = [
-            ln for ln in log_file.read_text(encoding="utf-8").splitlines() if ln.strip()
-        ]
+        lines = [ln for ln in log_file.read_text(encoding="utf-8").splitlines() if ln.strip()]
         assert len(lines) >= 1
         entry = json.loads(lines[0])
         assert entry.get("idea_id") == "idea-42", f"idea_id missing: {entry}"
         assert entry.get("run") == "run-7", f"run missing: {entry}"
 
-    def test_bound_context_in_stderr(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_bound_context_in_stderr(self, capsys: pytest.CaptureFixture[str]) -> None:
         logger = configure_logging(idea_id="idea-99")
         logger.info("stderr context check")
         captured = capsys.readouterr()

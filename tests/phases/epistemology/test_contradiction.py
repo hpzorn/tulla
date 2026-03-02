@@ -13,9 +13,9 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
-from tulla.phases.epistemology.models import EpistemologyOutput
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.contradiction import ContradictionPhase
+from tulla.phases.epistemology.models import EpistemologyOutput
 
 # ---------------------------------------------------------------------------
 # Sample output constant — uses Synthesis N: headings (not Idea N:)
@@ -214,9 +214,7 @@ class TestParseOutput:
 class _MockedContradictionPhase(ContradictionPhase):
     """ContradictionPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-contradiction-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

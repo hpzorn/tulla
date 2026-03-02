@@ -16,7 +16,6 @@ from tulla.phases.planning.p5 import P5Phase
 from tulla.phases.planning.p6 import P6Phase
 from tulla.phases.planning.pipeline import planning_pipeline
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -60,7 +59,7 @@ class TestPlanningPipelinePhases:
 
     def test_phase_types(self, pipeline: Pipeline) -> None:
         expected_types = [P1Phase, P2Phase, P3Phase, P4Phase, P5Phase, P6Phase]
-        for (_, phase), expected in zip(pipeline._phases, expected_types):
+        for (_, phase), expected in zip(pipeline._phases, expected_types, strict=False):
             assert isinstance(phase, expected)
 
 

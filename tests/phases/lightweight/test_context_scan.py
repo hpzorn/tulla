@@ -1,7 +1,9 @@
 """Tests for ContextScanPhase — structural conformance checking.
 
-# @pattern:EventSourcing -- Tests verify that ContextScanPhase produces correct immutable ContextScanOutput from mocked file state
-# @principle:FailSafeRouting -- Tests verify SPARQL unavailability degrades gracefully to structural-only:sparql-unavailable
+# @pattern:EventSourcing -- Tests verify ContextScanPhase produces
+#   correct immutable ContextScanOutput from mocked file state
+# @principle:FailSafeRouting -- Tests verify SPARQL unavailability
+#   degrades gracefully to structural-only:sparql-unavailable
 
 Verification criteria (prd:req-53-2-2):
 - Clean files produce structural-only:clean.
@@ -21,7 +23,6 @@ import pytest
 from tulla.core.phase import PhaseContext, PhaseStatus
 from tulla.phases.lightweight.context_scan import ContextScanPhase
 from tulla.phases.lightweight.models import ContextScanOutput, IntakeOutput
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -92,16 +93,12 @@ def _make_ontology_port(sparql_works: bool = True) -> MagicMock:
 class TestCleanStatus:
     """Verify that clean files produce structural-only:clean."""
 
-    def test_clean_files_with_sparql(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_clean_files_with_sparql(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """Clean files + working SPARQL -> structural-only:clean."""
         clean_file = _make_clean_file(tmp_path)
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
             mock_finder._resolve_patterns_via_sparql.return_value = (
                 ["PatternA"],
@@ -119,9 +116,7 @@ class TestCleanStatus:
         assert result.data.violations == []
         assert "No import violations" in result.data.violation_report
 
-    def test_clean_files_no_ontology(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_clean_files_no_ontology(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """Clean files + no ontology_port -> structural-only:sparql-unavailable.
 
         Even though there are no violations, the absence of an ontology
@@ -142,9 +137,7 @@ class TestCleanStatus:
         """No affected files + working SPARQL -> structural-only:clean."""
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
             mock_finder._resolve_patterns_via_sparql.return_value = ([], [], [])
             mock_find_cls.return_value = mock_finder
@@ -165,16 +158,12 @@ class TestCleanStatus:
 class TestViolationsFoundStatus:
     """Verify that violations produce structural-only:violations-found."""
 
-    def test_violating_file_with_sparql(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_violating_file_with_sparql(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """A file with import violations + working SPARQL -> violations-found."""
         bad_file = _make_violating_file(tmp_path)
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
             mock_finder._resolve_patterns_via_sparql.return_value = (
                 ["PatternX"],
@@ -199,9 +188,7 @@ class TestViolationsFoundStatus:
         bad_file = _make_violating_file(tmp_path)
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
             mock_finder._resolve_patterns_via_sparql.return_value = ([], [], [])
             mock_find_cls.return_value = mock_finder
@@ -220,16 +207,12 @@ class TestViolationsFoundStatus:
         bad_file = _make_violating_file(tmp_path)
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
             mock_finder._resolve_patterns_via_sparql.return_value = ([], [], [])
             mock_find_cls.return_value = mock_finder
 
-            ctx = _make_ctx(
-                tmp_path, [clean_file, bad_file], ontology_port=port
-            )
+            ctx = _make_ctx(tmp_path, [clean_file, bad_file], ontology_port=port)
             result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
@@ -246,9 +229,7 @@ class TestViolationsFoundStatus:
 class TestSparqlUnavailableStatus:
     """Verify SPARQL unavailability degrades gracefully."""
 
-    def test_sparql_probe_fails(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_sparql_probe_fails(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """SPARQL probe failure -> structural-only:sparql-unavailable."""
         clean_file = _make_clean_file(tmp_path)
         port = _make_ontology_port(sparql_works=False)
@@ -260,9 +241,7 @@ class TestSparqlUnavailableStatus:
         assert result.data is not None
         assert result.data.conformance_status == "structural-only:sparql-unavailable"
 
-    def test_no_ontology_port(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_no_ontology_port(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """No ontology_port in config -> structural-only:sparql-unavailable."""
         clean_file = _make_clean_file(tmp_path)
         ctx = _make_ctx(tmp_path, [clean_file], ontology_port=None)
@@ -280,13 +259,9 @@ class TestSparqlUnavailableStatus:
         clean_file = _make_clean_file(tmp_path)
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
-            mock_finder._resolve_patterns_via_sparql.side_effect = Exception(
-                "Resolution failed"
-            )
+            mock_finder._resolve_patterns_via_sparql.side_effect = Exception("Resolution failed")
             mock_find_cls.return_value = mock_finder
 
             ctx = _make_ctx(tmp_path, [clean_file], ontology_port=port)
@@ -322,9 +297,7 @@ class TestSparqlUnavailableStatus:
 class TestMissingFileHandling:
     """Verify that missing files do not crash the phase."""
 
-    def test_nonexistent_file_skipped(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_nonexistent_file_skipped(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """A file path that doesn't exist is skipped without crashing."""
         missing_path = str(tmp_path / "does_not_exist.py")
         ctx = _make_ctx(tmp_path, [missing_path], ontology_port=None)
@@ -335,15 +308,11 @@ class TestMissingFileHandling:
         assert result.data is not None
         assert result.data.violations == []
 
-    def test_mix_of_missing_and_existing(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_mix_of_missing_and_existing(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """Missing files are skipped; existing files are still scanned."""
         clean_file = _make_clean_file(tmp_path)
         missing_path = str(tmp_path / "gone.py")
-        ctx = _make_ctx(
-            tmp_path, [missing_path, clean_file], ontology_port=None
-        )
+        ctx = _make_ctx(tmp_path, [missing_path, clean_file], ontology_port=None)
 
         result = phase.execute(ctx)
 
@@ -352,9 +321,7 @@ class TestMissingFileHandling:
         # No crash, and no violations from the clean file
         assert result.data.violations == []
 
-    def test_all_files_missing(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_all_files_missing(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """All affected files missing -> no violations, phase succeeds."""
         missing_files = [
             str(tmp_path / "a.py"),
@@ -378,9 +345,7 @@ class TestMissingFileHandling:
 class TestPrevOutputAsDict:
     """Verify that prev_output works when passed as a plain dict."""
 
-    def test_dict_prev_output(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_dict_prev_output(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """prev_output as a dict should work the same as an IntakeOutput object."""
         clean_file = _make_clean_file(tmp_path)
         prev_dict = {
@@ -398,13 +363,9 @@ class TestPrevOutputAsDict:
         assert result.data is not None
         assert result.data.violations == []
 
-    def test_no_prev_output(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_no_prev_output(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         """Missing prev_output -> empty affected_files, no crash."""
-        ctx = PhaseContext(
-            idea_id="test-idea", work_dir=tmp_path, config={}
-        )
+        ctx = PhaseContext(idea_id="test-idea", work_dir=tmp_path, config={})
 
         result = phase.execute(ctx)
 
@@ -424,21 +385,15 @@ class TestPhaseMetadata:
     def test_phase_id(self, phase: ContextScanPhase) -> None:
         assert phase.phase_id == "context-scan"
 
-    def test_build_prompt_returns_empty(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_build_prompt_returns_empty(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path, [])
         assert phase.build_prompt(ctx) == ""
 
-    def test_get_tools_returns_empty(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_get_tools_returns_empty(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path, [])
         assert phase.get_tools(ctx) == []
 
-    def test_parse_output_wraps_dict(
-        self, phase: ContextScanPhase, tmp_path: Path
-    ) -> None:
+    def test_parse_output_wraps_dict(self, phase: ContextScanPhase, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path, [])
         raw = {
             "violations": [],
@@ -458,9 +413,7 @@ class TestPhaseMetadata:
         """Default quality_focus is isaqb:Maintainability."""
         port = _make_ontology_port(sparql_works=True)
 
-        with patch(
-            "tulla.phases.lightweight.context_scan.FindPhase"
-        ) as mock_find_cls:
+        with patch("tulla.phases.lightweight.context_scan.FindPhase") as mock_find_cls:
             mock_finder = MagicMock()
             mock_finder._resolve_patterns_via_sparql.return_value = ([], [], [])
             mock_find_cls.return_value = mock_finder

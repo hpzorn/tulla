@@ -192,9 +192,7 @@ SAMPLE_D1_D4_TRIPLES = [
 class TestBuildPromptUpstream:
     """D5Phase.build_prompt() in upstream mode."""
 
-    def test_includes_idea_id(
-        self, phase: D5Phase, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_includes_idea_id(self, phase: D5Phase, ctx_upstream: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx_upstream)
         assert ctx_upstream.idea_id in prompt
 
@@ -204,15 +202,11 @@ class TestBuildPromptUpstream:
         prompt = phase.build_prompt(ctx_upstream)
         assert "d5-research-brief.md" in prompt
 
-    def test_includes_upstream_heading(
-        self, phase: D5Phase, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_includes_upstream_heading(self, phase: D5Phase, ctx_upstream: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx_upstream)
         assert "UPSTREAM" in prompt
 
-    def test_reads_all_previous_phases(
-        self, phase: D5Phase, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_reads_all_previous_phases(self, phase: D5Phase, ctx_upstream: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx_upstream)
         assert "d1-inventory.md" in prompt
         assert "d2-personas.md" in prompt
@@ -262,9 +256,7 @@ class TestBuildPromptDownstream:
 class TestBuildPromptUpstreamFacts:
     """D5Phase.build_prompt() upstream facts injection for both modes."""
 
-    def test_upstream_mode_includes_facts(
-        self, phase: D5Phase, tmp_path: Path
-    ) -> None:
+    def test_upstream_mode_includes_facts(self, phase: D5Phase, tmp_path: Path) -> None:
         """Upstream mode prompt contains grouped D1-D4 facts."""
         ctx = PhaseContext(
             idea_id="idea-42",
@@ -283,9 +275,7 @@ class TestBuildPromptUpstreamFacts:
         assert "blockers" in prompt
         assert "root_blocker" in prompt
 
-    def test_downstream_mode_includes_facts(
-        self, phase: D5Phase, tmp_path: Path
-    ) -> None:
+    def test_downstream_mode_includes_facts(self, phase: D5Phase, tmp_path: Path) -> None:
         """Downstream mode prompt contains grouped D1-D4 facts."""
         ctx = PhaseContext(
             idea_id="idea-42",
@@ -359,9 +349,7 @@ class TestBuildPromptUpstreamFacts:
 class TestBuildPromptDefault:
     """D5Phase.build_prompt() defaults to upstream."""
 
-    def test_defaults_to_upstream(
-        self, phase: D5Phase, ctx_default: PhaseContext
-    ) -> None:
+    def test_defaults_to_upstream(self, phase: D5Phase, ctx_default: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx_default)
         assert "d5-research-brief.md" in prompt
         assert "UPSTREAM" in prompt
@@ -382,9 +370,7 @@ class TestGetTools:
         tool_names = [t["name"] for t in tools]
         assert "mcp__ontology-server__capture_seed" in tool_names
 
-    def test_downstream_includes_glob(
-        self, phase: D5Phase, ctx_downstream: PhaseContext
-    ) -> None:
+    def test_downstream_includes_glob(self, phase: D5Phase, ctx_downstream: PhaseContext) -> None:
         tools = phase.get_tools(ctx_downstream)
         tool_names = [t["name"] for t in tools]
         assert "Glob" in tool_names
@@ -415,9 +401,7 @@ class TestGetTools:
 class TestParseOutputMissing:
     """D5Phase.parse_output() when output file is absent."""
 
-    def test_raises_parse_error_upstream(
-        self, phase: D5Phase, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_upstream(self, phase: D5Phase, ctx_upstream: PhaseContext) -> None:
         with pytest.raises(ParseError, match="d5-research-brief.md not found"):
             phase.parse_output(ctx_upstream, raw="anything")
 
@@ -427,9 +411,7 @@ class TestParseOutputMissing:
         with pytest.raises(ParseError, match="d5-product-spec.md not found"):
             phase.parse_output(ctx_downstream, raw="anything")
 
-    def test_parse_error_includes_mode(
-        self, phase: D5Phase, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_mode(self, phase: D5Phase, ctx_upstream: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx_upstream, raw="raw-data")
         assert "mode" in exc_info.value.context
@@ -444,9 +426,7 @@ class TestParseOutputMissing:
 class TestParseOutputUpstream:
     """D5Phase.parse_output() for upstream mode."""
 
-    def test_returns_d5_output_upstream(
-        self, phase: D5Phase, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_returns_d5_output_upstream(self, phase: D5Phase, ctx_upstream: PhaseContext) -> None:
         brief_file = ctx_upstream.work_dir / "d5-research-brief.md"
         brief_file.write_text(SAMPLE_RESEARCH_BRIEF, encoding="utf-8")
 
@@ -476,6 +456,7 @@ class TestParseOutputUpstream:
         result = phase.parse_output(ctx_upstream, raw="raw")
 
         import json
+
         features = json.loads(result.mandatory_features)
         assert len(features) == 3
         assert any("CLI" in f for f in features)
@@ -559,9 +540,7 @@ class _MockD5Phase(D5Phase):
         self._content = content
         self._filename = filename
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / self._filename
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"
@@ -570,9 +549,7 @@ class _MockD5Phase(D5Phase):
 class TestExecuteWithMock:
     """D5Phase.execute() end-to-end with a mocked Claude adapter."""
 
-    def test_execute_upstream_returns_success(
-        self, ctx_upstream: PhaseContext
-    ) -> None:
+    def test_execute_upstream_returns_success(self, ctx_upstream: PhaseContext) -> None:
         phase = _MockD5Phase(SAMPLE_RESEARCH_BRIEF, "d5-research-brief.md")
         result = phase.execute(ctx_upstream)
 
@@ -584,9 +561,7 @@ class TestExecuteWithMock:
         assert result.error is None
         assert result.duration_s > 0
 
-    def test_execute_downstream_returns_success(
-        self, ctx_downstream: PhaseContext
-    ) -> None:
+    def test_execute_downstream_returns_success(self, ctx_downstream: PhaseContext) -> None:
         phase = _MockD5Phase(SAMPLE_PRODUCT_SPEC, "d5-product-spec.md")
         result = phase.execute(ctx_downstream)
 

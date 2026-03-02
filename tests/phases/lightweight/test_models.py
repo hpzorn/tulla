@@ -1,7 +1,8 @@
 """Tests for lightweight pipeline phase output models.
 
 # @pattern:SeparationOfConcerns -- Each test class isolates one model's behaviour
-# @principle:DependencyInversion -- Tests depend on the public IntentField API, not json_schema_extra internals
+# @principle:DependencyInversion -- Tests depend on the public
+#   IntentField API, not json_schema_extra internals
 # @quality:Testability -- Fixtures decouple test data from assertion logic
 
 Verification criteria (prd:req-53-1-3):
@@ -26,10 +27,10 @@ from tulla.phases.lightweight.models import (
     PlanOutput,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures: valid data for each model
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def intake_data() -> dict:
@@ -101,6 +102,7 @@ def trace_all_fields(trace_required_only: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Tests: model instantiation
 # ---------------------------------------------------------------------------
+
 
 class TestIntakeOutput:
     def test_instantiation(self, intake_data: dict) -> None:
@@ -183,6 +185,7 @@ class TestExecuteOutput:
 # Tests: LightweightTraceResult + IntentField
 # ---------------------------------------------------------------------------
 
+
 class TestLightweightTraceResult:
     def test_instantiation_required_only(self, trace_required_only: dict) -> None:
         model = LightweightTraceResult(**trace_required_only)
@@ -203,9 +206,7 @@ class TestLightweightTraceResult:
         assert model.sprint_id == "sprint-7"
         assert model.story_points == "3"
 
-    def test_change_type_accepts_any_string(
-        self, trace_required_only: dict
-    ) -> None:
+    def test_change_type_accepts_any_string(self, trace_required_only: dict) -> None:
         """change_type is str (not Literal-constrained); any string is valid."""
         data = {**trace_required_only, "change_type": "arbitrary-value"}
         model = LightweightTraceResult(**data)
@@ -216,9 +217,7 @@ class TestLightweightTraceResult:
         with pytest.raises(ValidationError):
             LightweightTraceResult()  # type: ignore[call-arg]
 
-    def test_extract_intent_6_keys_when_optionals_none(
-        self, trace_required_only: dict
-    ) -> None:
+    def test_extract_intent_6_keys_when_optionals_none(self, trace_required_only: dict) -> None:
         """extract_intent_fields() returns exactly 6 keys when optional
         IntentFields are None."""
         model = LightweightTraceResult(**trace_required_only)
@@ -235,9 +234,7 @@ class TestLightweightTraceResult:
             "timestamp",
         }
 
-    def test_extract_intent_9_keys_when_all_populated(
-        self, trace_all_fields: dict
-    ) -> None:
+    def test_extract_intent_9_keys_when_all_populated(self, trace_all_fields: dict) -> None:
         """extract_intent_fields() returns 9 keys when all optional
         IntentFields are populated."""
         model = LightweightTraceResult(**trace_all_fields)

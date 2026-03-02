@@ -16,7 +16,6 @@ from tulla.phases.planning.p4 import P4Phase
 from tulla.phases.planning.p5 import P5Phase
 from tulla.phases.planning.p6 import P6Phase
 
-
 # ---------------------------------------------------------------------------
 # Shared constants
 # ---------------------------------------------------------------------------

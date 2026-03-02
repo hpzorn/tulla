@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
-from tulla.phases.epistemology.models import EpistemologyOutput
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.idea import AristotlePhase
+from tulla.phases.epistemology.models import EpistemologyOutput
 
 # ---------------------------------------------------------------------------
 # Sample output constant — minimal valid markdown matching Aristotle mode format
@@ -198,9 +198,7 @@ class TestParseOutput:
 class _MockedAristotlePhase(AristotlePhase):
     """AristotlePhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-aristotle-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

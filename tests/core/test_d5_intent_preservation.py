@@ -15,15 +15,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pydantic import BaseModel
 
-from tulla.core.intent import IntentField, extract_intent_fields
+from tulla.core.intent import extract_intent_fields
 from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
 from tulla.core.pipeline import Pipeline
 from tulla.namespaces import PHASE_NS, RDF_TYPE
 from tulla.phases.discovery.models import D5Output
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Mock ontology port that records add_triple calls for verification
@@ -81,7 +79,8 @@ class _RecordingOntologyPort(OntologyPort):
     ) -> list[dict[str, Any]]:
         """Query stored triples (test helper, not part of OntologyPort)."""
         return [
-            t for t in self._triples
+            t
+            for t in self._triples
             if (subject is None or t["subject"] == subject)
             and (predicate is None or t["predicate"] == predicate)
         ]
@@ -133,12 +132,18 @@ class _RecordingOntologyPort(OntologyPort):
         return {}
 
     def sparql_query(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"results": []}
 
     def sparql_update(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"status": "ok"}
 
@@ -146,7 +151,11 @@ class _RecordingOntologyPort(OntologyPort):
         return {}
 
     def set_lifecycle(
-        self, idea_id: str, new_state: str, *, reason: str = "",
+        self,
+        idea_id: str,
+        new_state: str,
+        *,
+        reason: str = "",
     ) -> dict[str, Any]:
         return {}
 
@@ -203,8 +212,11 @@ class TestD5IntentPreservation:
     IDEA_ID = "idea-772"
 
     @pytest.fixture()
-    def _pipeline_result(self, tmp_path: Path) -> tuple[
-        _RecordingOntologyPort, D5Output,
+    def _pipeline_result(
+        self, tmp_path: Path
+    ) -> tuple[
+        _RecordingOntologyPort,
+        D5Output,
     ]:
         """Run a pipeline with a D5 stub phase and return the ontology port."""
         d5_output = D5Output(
@@ -231,7 +243,8 @@ class TestD5IntentPreservation:
         return ontology, d5_output
 
     def test_triples_contain_d5_mode_verbatim(
-        self, _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
+        self,
+        _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
     ) -> None:
         """Stored triples contain mode with exact original value."""
         ontology, d5_output = _pipeline_result
@@ -241,16 +254,14 @@ class TestD5IntentPreservation:
             subject=subject,
             predicate=f"{PHASE_NS}preserves-mode",
         )
-        assert len(mode_triples) == 1, (
-            f"Expected exactly 1 mode triple, got {len(mode_triples)}"
-        )
+        assert len(mode_triples) == 1, f"Expected exactly 1 mode triple, got {len(mode_triples)}"
         assert mode_triples[0]["object"] == self.D5_MODE, (
-            f"Mode value mismatch: stored={mode_triples[0]['object']!r}, "
-            f"expected={self.D5_MODE!r}"
+            f"Mode value mismatch: stored={mode_triples[0]['object']!r}, expected={self.D5_MODE!r}"
         )
 
     def test_triples_contain_d5_recommendation_verbatim(
-        self, _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
+        self,
+        _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
     ) -> None:
         """Stored triples contain recommendation with exact value."""
         ontology, d5_output = _pipeline_result
@@ -270,7 +281,8 @@ class TestD5IntentPreservation:
         )
 
     def test_no_lossy_transformation_on_multiline_recommendation(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """A multi-line recommendation with special characters survives
         the persist round trip with zero transformation."""
@@ -333,16 +345,18 @@ class TestD5IntentPreservation:
         intent_fields = extract_intent_fields(d5)
 
         assert set(intent_fields.keys()) == {
-            "mode", "recommendation", "northstar",
-            "mandatory_features", "key_constraints",
-        }, (
-            f"Expected 5 intent fields, got {set(intent_fields.keys())}"
-        )
+            "mode",
+            "recommendation",
+            "northstar",
+            "mandatory_features",
+            "key_constraints",
+        }, f"Expected 5 intent fields, got {set(intent_fields.keys())}"
         # output_file must NOT leak into intent fields
         assert "output_file" not in intent_fields
 
     def test_triples_include_metadata_alongside_intent(
-        self, _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
+        self,
+        _pipeline_result: tuple[_RecordingOntologyPort, D5Output],
     ) -> None:
         """Stored triples include both intent fields and metadata
         (producedBy, forRequirement, rdf:type) — the full graph record."""
@@ -362,7 +376,8 @@ class TestD5IntentPreservation:
         assert RDF_TYPE in predicates
 
     def test_idempotent_rerun_preserves_latest_values(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """Running the pipeline twice with different D5 values results in
         only the latest values being stored — idempotent write pattern."""

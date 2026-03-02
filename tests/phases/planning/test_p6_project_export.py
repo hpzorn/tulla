@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -50,9 +49,7 @@ SAMPLE_DECISIONS = [
 class TestBuildProjectExportInstructions:
     """Tests for _build_project_export_instructions method."""
 
-    def test_with_project_decisions_in_prompt(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_with_project_decisions_in_prompt(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """Prompt includes project export section when decisions are present."""
         ctx.config["project_decisions"] = SAMPLE_DECISIONS
 
@@ -69,9 +66,7 @@ class TestBuildProjectExportInstructions:
         # Verify it says only linkage triples needed
         assert "linkage triples" in prompt
 
-    def test_empty_decisions_no_section(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_empty_decisions_no_section(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """Prompt omits project section entirely when decisions are empty."""
         ctx.config["project_decisions"] = []
 
@@ -80,9 +75,7 @@ class TestBuildProjectExportInstructions:
         assert "## Project ADR Linkage" not in prompt
         assert "prd:projectADR" not in prompt
 
-    def test_no_decisions_key_no_section(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_no_decisions_key_no_section(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """Prompt omits project section when key is absent from config."""
         # config has no "project_decisions" key at all
         prompt = phase.build_prompt(ctx)
@@ -90,9 +83,7 @@ class TestBuildProjectExportInstructions:
         assert "## Project ADR Linkage" not in prompt
         assert "prd:projectADR" not in prompt
 
-    def test_template_uses_project_id(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_template_uses_project_id(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """The Turtle example in the instructions uses the correct project ID."""
         ctx.config["project_decisions"] = SAMPLE_DECISIONS
 
@@ -101,9 +92,7 @@ class TestBuildProjectExportInstructions:
         # The template example should use idea-99
         assert "prd:req-idea-99-1-1 prd:projectADR" in prompt
 
-    def test_method_directly_returns_empty_for_no_decisions(
-        self, phase: P6Phase
-    ) -> None:
+    def test_method_directly_returns_empty_for_no_decisions(self, phase: P6Phase) -> None:
         """_build_project_export_instructions returns '' for empty list."""
         result = phase._build_project_export_instructions([], "idea-99")
         assert result == ""

@@ -12,7 +12,6 @@ import pytest
 from tulla.adapters.codex_cli import CodexCLIAdapter
 from tulla.ports.claude import ClaudeRequest, ClaudeResult
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -218,9 +217,7 @@ class TestTimeoutHandling:
     def test_timeout_returns_timed_out_result(
         self, mock_run: MagicMock, adapter: CodexCLIAdapter
     ) -> None:
-        mock_run.side_effect = subprocess.TimeoutExpired(
-            cmd=["codex"], timeout=10
-        )
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd=["codex"], timeout=10)
         req = ClaudeRequest(prompt="test", timeout_seconds=10)
 
         result = adapter.run(req)
@@ -230,9 +227,7 @@ class TestTimeoutHandling:
         assert result.duration_seconds > 0
 
     @patch("tulla.adapters.codex_cli.subprocess.run")
-    def test_no_timeout_when_zero(
-        self, mock_run: MagicMock, adapter: CodexCLIAdapter
-    ) -> None:
+    def test_no_timeout_when_zero(self, mock_run: MagicMock, adapter: CodexCLIAdapter) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["codex"],
             returncode=0,
@@ -256,9 +251,7 @@ class TestCwd:
     """Tests for cwd passthrough to subprocess."""
 
     @patch("tulla.adapters.codex_cli.subprocess.run")
-    def test_cwd_passed_to_subprocess(
-        self, mock_run: MagicMock, adapter: CodexCLIAdapter
-    ) -> None:
+    def test_cwd_passed_to_subprocess(self, mock_run: MagicMock, adapter: CodexCLIAdapter) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["codex"],
             returncode=0,

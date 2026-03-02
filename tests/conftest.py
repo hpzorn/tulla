@@ -14,13 +14,11 @@ Provides reusable fixtures that multiple test modules depend on:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from tulla.adapters.claude_mock import MockClaudeAdapter
 from tulla.ports.claude import ClaudeResult
-
 
 # ---------------------------------------------------------------------------
 # Filesystem fixtures

@@ -26,7 +26,6 @@ from tulla.phases.implementation.import_graph import (
     format_violation_report,
 )
 
-
 # ---------------------------------------------------------------------------
 # LAYER_RULES
 # ---------------------------------------------------------------------------

@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
-from tulla.phases.epistemology.models import EpistemologyOutput
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.domain import PopperPhase
+from tulla.phases.epistemology.models import EpistemologyOutput
 
 # ---------------------------------------------------------------------------
 # Sample output constant — uses Idea N: headings with Popper mode format
@@ -34,9 +34,9 @@ architectural drift would be caught by such validation before the next release.
 ## Testable Predictions
 | # | Prediction | Conditions | Measurable Outcome |
 |---|------------|------------|---------------------|
-| 1 | ADR constraints can be formalized as executable graph queries | Given a corpus of 50 real-world ADRs | At least 40 can be expressed as Cypher/SPARQL queries |
-| 2 | Runtime topology data is accessible with < 5s latency | Given a microservice system with > 20 services | API response time for full topology < 5 seconds |
-| 3 | Drift detection catches > 80% of architectural violations | Given 10 known violation scenarios injected into test system | At least 8 are detected automatically |
+| 1 | ADR constraints formalizable as graph queries | 50 ADRs | 40+ as SPARQL |
+| 2 | Topology accessible < 5s latency | > 20 services | Response < 5s |
+| 3 | Drift detection > 80% | 10 violation scenarios | 8+ detected |
 
 ## Severe Tests
 ### Test 1: ADR Formalization Failure
@@ -64,9 +64,9 @@ communication patterns, unauthorized database access, etc.) and test detection.
 ## Error Elimination
 | # | Prediction | Result | Explanation |
 |---|------------|--------|-------------|
-| 1 | ADR formalization | Falsified | Only 62% of ADRs are precise enough — below the implicit threshold needed |
-| 2 | Topology latency | Falsified | Real production systems exceed 5s for full topology queries |
-| 3 | Drift detection rate | Falsified | Behavioral violations bring overall detection well below 80% |
+| 1 | ADR formalization | Falsified | Only 62% of ADRs precise enough |
+| 2 | Topology latency | Falsified | Real systems exceed 5s for topology |
+| 3 | Drift detection rate | Falsified | Behavioral violations below 80% |
 
 ## Improved Conjectures
 The falsification reveals that the real problem is not "can we validate ADRs \
@@ -244,9 +244,7 @@ class TestParseOutput:
 class _MockedPopperPhase(PopperPhase):
     """PopperPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-popper-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

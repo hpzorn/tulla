@@ -14,12 +14,9 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from tulla.annotations import ANNOTATION_REGEX, APF_TARGET
 from tulla.phases.implementation.implement import ImplementPhase
 from tulla.phases.implementation.models import FindOutput
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -265,7 +262,8 @@ class TestBuildPromptWithAnnotations:
             resolved_principles=["isaqb:DependencyInversion"],
         )
         prompt = phase._build_prompt(
-            req, "fix the bug",
+            req,
+            "fix the bug",
             SAMPLE_ARCH_CONTEXT,
             lessons=["lesson one"],
         )

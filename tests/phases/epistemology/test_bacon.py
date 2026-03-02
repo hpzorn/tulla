@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.models import EpistemologyOutput
 from tulla.phases.epistemology.pool import BaconPhase
 
@@ -36,20 +36,20 @@ query accuracy than ad-hoc knowledge organization
 ## Table of Presence
 | # | Instance | Phenomenon Manifestation | Surrounding Conditions |
 |---|----------|--------------------------|------------------------|
-| 1 | Wikidata | High query accuracy via SPARQL over structured ontology | Massive community curation, strict schema enforcement |
-| 2 | Gene Ontology | Precise gene function queries across species | Domain-expert curation, formal axioms |
-| 3 | Schema.org | Reliable structured data extraction by search engines | Industry consortium backing, simple flat hierarchy |
-| 4 | Dublin Core | Consistent metadata retrieval across digital libraries | Minimal core vocabulary, widespread adoption |
-| 5 | SNOMED CT | Accurate clinical concept queries in healthcare systems | Professional terminology management, formal definitions |
+| 1 | Wikidata | High query accuracy via SPARQL | Community curation, strict schema |
+| 2 | Gene Ontology | Precise gene function queries | Domain-expert curation, axioms |
+| 3 | Schema.org | Reliable structured data extraction | Consortium backing, flat hierarchy |
+| 4 | Dublin Core | Consistent metadata retrieval | Minimal vocabulary, wide adoption |
+| 5 | SNOMED CT | Accurate clinical concept queries | Terminology management, definitions |
 
 ## Table of Absence
 | # | Similar Case | Why Expected | Why Absent | Differs From |
 |---|-------------|-------------|------------|---------------|
-| 1 | Wikipedia infoboxes | Structured data in ontology-adjacent format | Query accuracy is inconsistent — infobox schemas vary wildly | Presence #1 (Wikidata) |
-| 2 | Biomedical preprints | Domain knowledge similar to Gene Ontology | No formal structure — free text defeats precise querying | Presence #2 (Gene Ontology) |
-| 3 | Microformats | Structured web data like Schema.org | Adoption fragmented, no single authority — queries return inconsistent results | Presence #3 (Schema.org) |
-| 4 | Folksonomy tags (Delicious) | Metadata system like Dublin Core | User-generated tags lack controlled vocabulary — recall high but precision low | Presence #4 (Dublin Core) |
-| 5 | ICD-9 legacy codes | Medical terminology like SNOMED CT | Flat code list without formal relationships — concept queries require manual mapping | Presence #5 (SNOMED CT) |
+| 1 | Wikipedia infoboxes | Ontology-adjacent format | Schemas vary wildly | Presence #1 |
+| 2 | Biomedical preprints | Like Gene Ontology | Free text defeats querying | Presence #2 |
+| 3 | Microformats | Like Schema.org | Fragmented adoption | Presence #3 |
+| 4 | Folksonomy tags | Like Dublin Core | No controlled vocabulary | Presence #4 |
+| 5 | ICD-9 legacy codes | Like SNOMED CT | No formal relationships | Presence #5 |
 
 ## Table of Degrees
 | # | Instance | Intensity | Co-varying Factor |
@@ -150,7 +150,8 @@ class TestBuildPrompt:
         assert "Novum Organum" in prompt
 
     def test_prompt_contains_anti_collapse_table_of_absence(
-        self, ctx: PhaseContext,
+        self,
+        ctx: PhaseContext,
     ) -> None:
         prompt = BaconPhase().build_prompt(ctx)
         assert "Table of Absence" in prompt
@@ -230,9 +231,7 @@ class TestParseOutput:
 class _MockedBaconPhase(BaconPhase):
     """BaconPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-bacon-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

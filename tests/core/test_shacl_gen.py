@@ -4,10 +4,18 @@ Verifies that generate_shacl_shape() produces Turtle output matching the
 exact structure of existing shapes in phase-ontology.ttl.  Test cases cover
 D5Output, D1Output, optional IntentField handling, and SPARQL target correctness.
 
-# @principle:SeparationOfConcerns -- Shape-generation tests are isolated from persistence and validation tests in test_phase_facts.py; each test class targets one TTL aspect
-# @principle:LooseCoupling -- Tests import only generate_shacl_shape and model classes; no dependency on PhaseFactPersister, OntologyPort, or ontology-server
-# @principle:DependencyInversion -- Tests verify the generator contract (TTL string output) via string matching, not by importing internal helpers or inspecting FieldInfo
-# @principle:InformationHiding -- Inline test models (_OptionalIntentModel equivalent) encapsulate optional-field semantics without exposing generator internals
+# @principle:SeparationOfConcerns -- Shape-generation tests are isolated
+#   from persistence and validation tests in test_phase_facts.py; each
+#   test class targets one TTL aspect
+# @principle:LooseCoupling -- Tests import only generate_shacl_shape and
+#   model classes; no dependency on PhaseFactPersister, OntologyPort, or
+#   ontology-server
+# @principle:DependencyInversion -- Tests verify the generator contract
+#   (TTL string output) via string matching, not by importing internal
+#   helpers or inspecting FieldInfo
+# @principle:InformationHiding -- Inline test models
+#   (_OptionalIntentModel equivalent) encapsulate optional-field
+#   semantics without exposing generator internals
 """
 
 from __future__ import annotations
@@ -60,7 +68,7 @@ class TestGenerateD5Shape:
 
 
 class TestGenerateD1Shape:
-    """Verify generated D1 shape includes key_capabilities, ecosystem_context, reuse_opportunities."""
+    """Verify generated D1 shape includes key_capabilities, etc."""
 
     def test_d1_includes_intent_fields(self) -> None:
         """D1 shape must include preserves-key_capabilities and preserves-ecosystem_context."""
@@ -95,9 +103,7 @@ class TestSkipNoneDefaults:
 
         class ModelWithOptional(BaseModel):
             required_field: int = IntentField(description="Always present")
-            optional_field: str | None = IntentField(
-                default=None, description="Sometimes absent"
-            )
+            optional_field: str | None = IntentField(default=None, description="Sometimes absent")
 
         ttl = generate_shacl_shape(ModelWithOptional, "test")
         assert "preserves-required_field" in ttl
@@ -161,7 +167,6 @@ class TestTurtleFormat:
         ttl = generate_shacl_shape(D5Output, "d5")
         # Every property block has minCount 1
         lines = ttl.split("\n")
-        in_property = False
         property_blocks: list[list[str]] = []
         current_block: list[str] = []
         for line in lines:
@@ -179,8 +184,5 @@ class TestTurtleFormat:
     def test_sparql_target_format(self) -> None:
         """SPARQL target must use full URI for producedBy predicate."""
         ttl = generate_shacl_shape(D5Output, "d5")
-        expected_select = (
-            f'SELECT ?this WHERE {{ ?this '
-            f'<{PHASE_NS}producedBy> "d5" . }}'
-        )
+        expected_select = f'SELECT ?this WHERE {{ ?this <{PHASE_NS}producedBy> "d5" . }}'
         assert expected_select in ttl

@@ -62,13 +62,7 @@ class TestExtractRqSections:
         assert sections[0]["id"] == "RQ1"
 
     def test_body_stops_at_next_rq(self) -> None:
-        content = (
-            "### RQ1: First\n"
-            "Line 1\n"
-            "Line 2\n"
-            "### RQ2: Second\n"
-            "Line 3\n"
-        )
+        content = "### RQ1: First\nLine 1\nLine 2\n### RQ2: Second\nLine 3\n"
         sections = extract_rq_sections(content)
         assert "Line 1" in sections[0]["body"]
         assert "Line 3" not in sections[0]["body"]

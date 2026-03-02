@@ -4,8 +4,11 @@ Covers the None-skip fix (req-73-1-1) and group_upstream_facts() (req-73-1-2).
 Uses _MockOntologyPort for persist() tests and direct function calls for
 group_upstream_facts / _try_coerce.
 
-# @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort ABC to test persistence without a live ontology server
-# @pattern:LayeredArchitecture -- Tests mirror the production layers: mock adapter → PhaseFactPersister → pure functions, each test class targets exactly one layer
+# @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort
+#   ABC to test persistence without a live ontology server
+# @pattern:LayeredArchitecture -- Tests mirror the production layers:
+#   mock adapter -> PhaseFactPersister -> pure functions, each test class
+#   targets exactly one layer
 """
 
 from __future__ import annotations
@@ -20,20 +23,20 @@ from tulla.core.phase import PhaseResult, PhaseStatus
 from tulla.core.phase_facts import (
     PersistResult,
     PhaseFactPersister,
+    _try_coerce,
     collect_project_decisions,
     collect_upstream_facts,
     group_upstream_facts,
-    traverse_chain,
-    _try_coerce,
 )
-from tulla.namespaces import ARCH_NS, PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.namespaces import ARCH_NS, PHASE_NS, RDF_TYPE, TRACE_NS
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # _MockOntologyPort — in-process triple store for isolation
 # ---------------------------------------------------------------------------
-# @principle:DependencyInversion -- Tests depend on the OntologyPort abstraction; _MockOntologyPort is injected without referencing any concrete adapter
+# @principle:DependencyInversion -- Tests depend on the OntologyPort
+#   abstraction; _MockOntologyPort is injected without referencing any
+#   concrete adapter
 
 
 class _MockOntologyPort(OntologyPort):
@@ -61,12 +64,14 @@ class _MockOntologyPort(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.triples.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "is_literal": is_literal,
-        })
+        self.triples.append(
+            {
+                "subject": subject,
+                "predicate": predicate,
+                "object": object,
+                "is_literal": is_literal,
+            }
+        )
         return {"status": "added"}
 
     def remove_triples_by_subject(
@@ -205,7 +210,9 @@ class TestPersistResult:
 # ===================================================================
 # PhaseFactPersister — None-value intent fields skipped (req-73-1-1)
 # ===================================================================
-# @pattern:MVC -- Test models (_TwoIntentModel etc.) act as M, PhaseFactPersister acts as C, and _MockOntologyPort captures V-layer triple output for assertion
+# @pattern:MVC -- Test models (_TwoIntentModel etc.) act as M,
+#   PhaseFactPersister acts as C, and _MockOntologyPort captures
+#   V-layer triple output for assertion
 
 
 class TestPersistSkipsNoneIntentFields:
@@ -236,8 +243,7 @@ class TestPersistSkipsNoneIntentFields:
         assert len(mock_port.triples) == 4
 
         intent_triples = [
-            t for t in mock_port.triples
-            if f"{PHASE_NS}preserves-" in t["predicate"]
+            t for t in mock_port.triples if f"{PHASE_NS}preserves-" in t["predicate"]
         ]
         assert len(intent_triples) == 1
         assert intent_triples[0]["predicate"] == f"{PHASE_NS}preserves-goal"
@@ -260,9 +266,7 @@ class TestPersistSkipsNoneIntentFields:
         )
 
         for t in mock_port.triples:
-            assert t["object"] != "None", (
-                f"Triple object 'None' found: {t}"
-            )
+            assert t["object"] != "None", f"Triple object 'None' found: {t}"
 
     def test_all_none_fields_produce_only_metadata_triples(
         self, mock_port: _MockOntologyPort, persister: PhaseFactPersister
@@ -283,8 +287,7 @@ class TestPersistSkipsNoneIntentFields:
         # rdf:type + producedBy + forRequirement = 3 (no preserves- triples)
         assert result.stored_count == 3
         intent_triples = [
-            t for t in mock_port.triples
-            if f"{PHASE_NS}preserves-" in t["predicate"]
+            t for t in mock_port.triples if f"{PHASE_NS}preserves-" in t["predicate"]
         ]
         assert len(intent_triples) == 0
 
@@ -305,8 +308,7 @@ class TestPersistSkipsNoneIntentFields:
         )
 
         notes_triples = [
-            t for t in mock_port.triples
-            if t["predicate"] == f"{PHASE_NS}preserves-notes"
+            t for t in mock_port.triples if t["predicate"] == f"{PHASE_NS}preserves-notes"
         ]
         assert len(notes_triples) == 0
 
@@ -396,8 +398,7 @@ class TestPersistTwoIntentFields:
         )
 
         intent_triples = [
-            t for t in mock_port.triples
-            if f"{PHASE_NS}preserves-" in t["predicate"]
+            t for t in mock_port.triples if f"{PHASE_NS}preserves-" in t["predicate"]
         ]
         for t in intent_triples:
             assert t["is_literal"] is True
@@ -419,8 +420,7 @@ class TestPersistTwoIntentFields:
         )
 
         intent_triples = [
-            t for t in mock_port.triples
-            if f"{PHASE_NS}preserves-" in t["predicate"]
+            t for t in mock_port.triples if f"{PHASE_NS}preserves-" in t["predicate"]
         ]
         values = {t["predicate"]: t["object"] for t in intent_triples}
         assert values[f"{PHASE_NS}preserves-goal"] == "my goal"
@@ -555,10 +555,7 @@ class TestPersistWithPredecessor:
         # rdf:type + 2 intent + producedBy + forRequirement + tracesTo = 6
         assert result.stored_count == 6
 
-        trace_triples = [
-            t for t in mock_port.triples
-            if t["predicate"] == f"{TRACE_NS}tracesTo"
-        ]
+        trace_triples = [t for t in mock_port.triples if t["predicate"] == f"{TRACE_NS}tracesTo"]
         assert len(trace_triples) == 1
         assert trace_triples[0]["subject"] == f"{PHASE_NS}42-d2"
         assert trace_triples[0]["object"] == f"{PHASE_NS}42-d1"
@@ -579,10 +576,7 @@ class TestPersistWithPredecessor:
             shacl_shape_id=None,
         )
 
-        trace_triples = [
-            t for t in mock_port.triples
-            if t["predicate"] == f"{TRACE_NS}tracesTo"
-        ]
+        trace_triples = [t for t in mock_port.triples if t["predicate"] == f"{TRACE_NS}tracesTo"]
         assert len(trace_triples) == 1
         assert trace_triples[0]["is_literal"] is False
 
@@ -601,10 +595,7 @@ class TestPersistWithPredecessor:
             shacl_shape_id=None,
         )
 
-        trace_triples = [
-            t for t in mock_port.triples
-            if t["predicate"] == f"{TRACE_NS}tracesTo"
-        ]
+        trace_triples = [t for t in mock_port.triples if t["predicate"] == f"{TRACE_NS}tracesTo"]
         assert len(trace_triples) == 0
 
 
@@ -686,7 +677,8 @@ class TestPersistShaclValidation:
 # ===================================================================
 # _try_coerce — type coercion helper (req-73-1-2)
 # ===================================================================
-# @principle:SeparationOfConcerns -- _try_coerce is tested in isolation from group_upstream_facts, verifying each coercion path independently
+# @principle:SeparationOfConcerns -- _try_coerce is tested in isolation
+#   from group_upstream_facts, verifying each coercion path independently
 
 
 class TestTryCoerce:
@@ -717,7 +709,7 @@ class TestTryCoerce:
         assert _try_coerce("False") is False
 
     def test_coerces_json_list(self) -> None:
-        result = _try_coerce('[1, 2, 3]')
+        result = _try_coerce("[1, 2, 3]")
         assert result == [1, 2, 3]
         assert isinstance(result, list)
 
@@ -778,8 +770,13 @@ class TestGroupUpstreamFacts:
         result = group_upstream_facts(raw_facts)
 
         assert result == {
-            "d1": {"key_capabilities": [{"name": "tool1"}], "ecosystem_context": "fits into MCP ecosystem"},
-            "d2": {"primary_persona_jtbd": "When I build, I want automation, so I can ship faster"},
+            "d1": {
+                "key_capabilities": [{"name": "tool1"}],
+                "ecosystem_context": "fits into MCP ecosystem",
+            },
+            "d2": {
+                "primary_persona_jtbd": "When I build, I want automation, so I can ship faster"
+            },
         }
         # Verify Python types
         assert type(result["d1"]["key_capabilities"]) is list
@@ -791,7 +788,7 @@ class TestGroupUpstreamFacts:
         assert group_upstream_facts([]) == {}
 
     def test_metadata_predicates_skipped(self) -> None:
-        """Non-preserves predicates (producedBy, forRequirement, rdf:type, tracesTo) are skipped."""
+        """Non-preserves predicates (producedBy, forRequirement, etc.) are skipped."""
         raw_facts = [
             {
                 "subject": f"{PHASE_NS}42-d1",
@@ -915,24 +912,67 @@ class TestGroupUpstreamFacts:
         D3(quadrant, strategic_constraints, verdict),
         D4(blockers, root_blocker, recommended_next_steps)."""
         raw_facts = [
-            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-key_capabilities", "object": "[]"},
-            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-ecosystem_context", "object": "core platform"},
-            {"subject": f"{PHASE_NS}73-d1", "predicate": f"{PHASE_NS}preserves-reuse_opportunities", "object": "existing MCP tools"},
-            {"subject": f"{PHASE_NS}73-d2", "predicate": f"{PHASE_NS}preserves-personas", "object": "[]"},
-            {"subject": f"{PHASE_NS}73-d2", "predicate": f"{PHASE_NS}preserves-primary_persona_jtbd", "object": "When I build, I want speed"},
-            {"subject": f"{PHASE_NS}73-d3", "predicate": f"{PHASE_NS}preserves-quadrant", "object": "top-right"},
-            {"subject": f"{PHASE_NS}73-d3", "predicate": f"{PHASE_NS}preserves-verdict", "object": "P1-High | Strong ROI | High confidence"},
-            {"subject": f"{PHASE_NS}73-d4", "predicate": f"{PHASE_NS}preserves-blockers", "object": "No API endpoint"},
-            {"subject": f"{PHASE_NS}73-d4", "predicate": f"{PHASE_NS}preserves-root_blocker", "object": "No API endpoint: blocks core functionality"},
+            {
+                "subject": f"{PHASE_NS}73-d1",
+                "predicate": f"{PHASE_NS}preserves-key_capabilities",
+                "object": "[]",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d1",
+                "predicate": f"{PHASE_NS}preserves-ecosystem_context",
+                "object": "core platform",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d1",
+                "predicate": f"{PHASE_NS}preserves-reuse_opportunities",
+                "object": "existing MCP tools",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d2",
+                "predicate": f"{PHASE_NS}preserves-personas",
+                "object": "[]",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d2",
+                "predicate": f"{PHASE_NS}preserves-primary_persona_jtbd",
+                "object": "When I build, I want speed",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d3",
+                "predicate": f"{PHASE_NS}preserves-quadrant",
+                "object": "top-right",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d3",
+                "predicate": f"{PHASE_NS}preserves-verdict",
+                "object": "P1-High | Strong ROI | High confidence",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d4",
+                "predicate": f"{PHASE_NS}preserves-blockers",
+                "object": "No API endpoint",
+            },
+            {
+                "subject": f"{PHASE_NS}73-d4",
+                "predicate": f"{PHASE_NS}preserves-root_blocker",
+                "object": "No API endpoint: blocks core functionality",
+            },
         ]
 
         result = group_upstream_facts(raw_facts)
 
         assert result == {
-            "d1": {"key_capabilities": [], "ecosystem_context": "core platform", "reuse_opportunities": "existing MCP tools"},
+            "d1": {
+                "key_capabilities": [],
+                "ecosystem_context": "core platform",
+                "reuse_opportunities": "existing MCP tools",
+            },
             "d2": {"personas": [], "primary_persona_jtbd": "When I build, I want speed"},
             "d3": {"quadrant": "top-right", "verdict": "P1-High | Strong ROI | High confidence"},
-            "d4": {"blockers": "No API endpoint", "root_blocker": "No API endpoint: blocks core functionality"},
+            "d4": {
+                "blockers": "No API endpoint",
+                "root_blocker": "No API endpoint: blocks core functionality",
+            },
         }
 
 
@@ -981,6 +1021,7 @@ class TestTraverseChain:
     def test_default_max_depth_is_20(self) -> None:
         """Default max_depth is 20."""
         from tulla.core.phase_facts import _TRAVERSE_MAX_DEPTH
+
         assert _TRAVERSE_MAX_DEPTH == 20
 
 
@@ -1083,9 +1124,7 @@ class TestCollectProjectDecisions:
         assert adr["quality_attributes"] == []
         assert adr["status"] == ""
 
-    def test_graceful_failure_on_exception(
-        self, mock_port: _MockOntologyPort
-    ) -> None:
+    def test_graceful_failure_on_exception(self, mock_port: _MockOntologyPort) -> None:
         """SPARQL exception returns empty list (matches collect_upstream_facts pattern)."""
 
         class _FailingPort(type(mock_port)):
@@ -1116,9 +1155,7 @@ class TestCollectProjectDecisions:
         expected_keys = {"id", "title", "decision", "quality_attributes", "scope", "status"}
         assert set(result[0].keys()) == expected_keys
 
-    def test_group_concat_multiple_quality_attributes(
-        self, mock_port: _MockOntologyPort
-    ) -> None:
+    def test_group_concat_multiple_quality_attributes(self, mock_port: _MockOntologyPort) -> None:
         """GROUP_CONCAT with multiple quality attributes splits correctly (req-69-6-3c)."""
         mock_port.sparql_results = [
             {
@@ -1127,7 +1164,10 @@ class TestCollectProjectDecisions:
                 "context": "Multiple quality concerns",
                 "status": "isaqb:StatusAccepted",
                 "consequences": "(+) Addresses several qualities",
-                "quality_attributes": "isaqb:Maintainability, isaqb:Testability, isaqb:Reliability",
+                "quality_attributes": (
+                    "isaqb:Maintainability, isaqb:Testability,"
+                    " isaqb:Reliability"
+                ),
             },
         ]
 
@@ -1140,9 +1180,7 @@ class TestCollectProjectDecisions:
             "isaqb:Reliability",
         ]
 
-    def test_dual_filtering_scope_and_uri_pattern(
-        self, mock_port: _MockOntologyPort
-    ) -> None:
+    def test_dual_filtering_scope_and_uri_pattern(self, mock_port: _MockOntologyPort) -> None:
         """Dual filtering: both scope-annotated and URI-pattern ADRs returned (req-69-6-3e).
 
         The SPARQL UNION matches ADRs via either `isaqb:scope "project"` or

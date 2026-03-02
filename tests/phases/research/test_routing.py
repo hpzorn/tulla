@@ -23,7 +23,6 @@ import pytest
 from tulla.phases.research.routing import (
     ResearchMode,
     RoutingError,
-    RoutingResult,
     infer_research_mode,
 )
 

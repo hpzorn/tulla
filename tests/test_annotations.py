@@ -23,7 +23,6 @@ from tulla.annotations import (
     is_hollow,
 )
 
-
 # ---------------------------------------------------------------------------
 # TestAnnotationRegex
 # ---------------------------------------------------------------------------
@@ -50,17 +49,13 @@ class TestAnnotationRegex:
         assert m.group(2) == "SeparationOfConcerns"
 
     def test_quality_type(self):
-        m = ANNOTATION_REGEX.match(
-            "# @quality:Testability — pure validation with no side effects"
-        )
+        m = ANNOTATION_REGEX.match("# @quality:Testability — pure validation with no side effects")
         assert m is not None
         assert m.group(1) == "quality"
         assert m.group(2) == "Testability"
 
     def test_ascii_separator(self):
-        m = ANNOTATION_REGEX.match(
-            "# @pattern:Microservices -- each service owns its data store"
-        )
+        m = ANNOTATION_REGEX.match("# @pattern:Microservices -- each service owns its data store")
         assert m is not None
         assert m.group(2) == "Microservices"
         assert "data store" in m.group(3)
@@ -107,14 +102,14 @@ class TestAnnotationRegex:
 # ---------------------------------------------------------------------------
 
 MULTILINE_SOURCE = """\
-# @pattern:PortsAndAdapters — OrderService defines abstract OrderRepository port; PostgresAdapter implements it
+# @pattern:PortsAndAdapters — OrderService defines abstract OrderRepository port
 class OrderService:
     def __init__(self, repo):
-        # @principle:DependencyInversion — constructor accepts abstract repo, not concrete PostgresAdapter
+        # @principle:DependencyInversion — constructor accepts abstract repo
         self._repo = repo
 
     def place_order(self, order):
-        # @quality:Testability — pure validation with no side effects, enabling unit tests without mocking
+        # @quality:Testability — pure validation with no side effects
         self._validate(order)
 """
 
@@ -180,22 +175,17 @@ class TestIsHollow:
     """is_hollow() detects restated-name explanations vs. code-specific ones."""
 
     def test_hollow_restates_name(self):
-        assert is_hollow(
-            "uses the Ports and Adapters pattern", "PortsAndAdapters"
-        )
+        assert is_hollow("uses the Ports and Adapters pattern", "PortsAndAdapters")
 
     def test_hollow_applies(self):
-        assert is_hollow(
-            "applies Separation of Concerns", "SeparationOfConcerns"
-        )
+        assert is_hollow("applies Separation of Concerns", "SeparationOfConcerns")
 
     def test_hollow_addresses(self):
         assert is_hollow("addresses testability", "Testability")
 
     def test_adequate_with_code_specifics(self):
         assert not is_hollow(
-            "OrderService defines abstract OrderRepository port; "
-            "PostgresAdapter implements it",
+            "OrderService defines abstract OrderRepository port; PostgresAdapter implements it",
             "PortsAndAdapters",
         )
 
@@ -226,8 +216,7 @@ class TestClassifyAdequacy:
         ann = Annotation(
             "pattern",
             "PortsAndAdapters",
-            "OrderService defines abstract OrderRepository port; "
-            "PostgresAdapter implements it",
+            "OrderService defines abstract OrderRepository port; PostgresAdapter implements it",
             1,
         )
         assert classify_adequacy(ann) == "adequate"

@@ -14,17 +14,23 @@ def _init_git(root: Path) -> None:
     subprocess.run(["git", "init"], cwd=root, capture_output=True, check=True)
     subprocess.run(
         ["git", "config", "user.email", "test@test"],
-        cwd=root, capture_output=True, check=True,
+        cwd=root,
+        capture_output=True,
+        check=True,
     )
     subprocess.run(
         ["git", "config", "user.name", "test"],
-        cwd=root, capture_output=True, check=True,
+        cwd=root,
+        capture_output=True,
+        check=True,
     )
     (root / "seed.txt").write_text("seed")
     subprocess.run(["git", "add", "."], cwd=root, capture_output=True, check=True)
     subprocess.run(
         ["git", "commit", "-m", "seed"],
-        cwd=root, capture_output=True, check=True,
+        cwd=root,
+        capture_output=True,
+        check=True,
     )
 
 

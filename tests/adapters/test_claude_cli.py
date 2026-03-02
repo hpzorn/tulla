@@ -12,7 +12,6 @@ import pytest
 from tulla.adapters.claude_cli import ClaudeCLIAdapter
 from tulla.ports.claude import ClaudeRequest, ClaudeResult
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -78,9 +77,7 @@ class TestBuildCommand:
         assert "--allowedTools" in cmd
         assert cmd[cmd.index("--allowedTools") + 1] == "Read,Write,Bash"
 
-    def test_no_allowed_tools_when_empty(
-        self, adapter: ClaudeCLIAdapter
-    ) -> None:
+    def test_no_allowed_tools_when_empty(self, adapter: ClaudeCLIAdapter) -> None:
         req = ClaudeRequest(prompt="test", allowed_tools=[])
         cmd = adapter._build_command(req)
 
@@ -218,9 +215,7 @@ class TestTimeoutHandling:
     def test_timeout_returns_timed_out_result(
         self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
     ) -> None:
-        mock_run.side_effect = subprocess.TimeoutExpired(
-            cmd=["claude"], timeout=10
-        )
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd=["claude"], timeout=10)
         req = ClaudeRequest(prompt="test", timeout_seconds=10)
 
         result = adapter.run(req)
@@ -230,9 +225,7 @@ class TestTimeoutHandling:
         assert result.duration_seconds > 0
 
     @patch("tulla.adapters.claude_cli.subprocess.run")
-    def test_no_timeout_when_zero(
-        self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
-    ) -> None:
+    def test_no_timeout_when_zero(self, mock_run: MagicMock, adapter: ClaudeCLIAdapter) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["claude"],
             returncode=0,
@@ -290,9 +283,7 @@ class TestCwd:
         assert kwargs["cwd"] == "/tmp/work"
 
     @patch("tulla.adapters.claude_cli.subprocess.run")
-    def test_cwd_none_by_default(
-        self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
-    ) -> None:
+    def test_cwd_none_by_default(self, mock_run: MagicMock, adapter: ClaudeCLIAdapter) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["claude"],
             returncode=0,
@@ -349,9 +340,7 @@ class TestRun:
         assert result.cost_usd == 0.0
 
     @patch("tulla.adapters.claude_cli.subprocess.run")
-    def test_nonzero_exit_code(
-        self, mock_run: MagicMock, adapter: ClaudeCLIAdapter
-    ) -> None:
+    def test_nonzero_exit_code(self, mock_run: MagicMock, adapter: ClaudeCLIAdapter) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["claude"],
             returncode=1,

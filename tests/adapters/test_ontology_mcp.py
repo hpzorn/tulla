@@ -11,7 +11,6 @@ import pytest
 
 from tulla.adapters.ontology_mcp import OntologyMCPAdapter
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -82,9 +81,7 @@ class TestCall:
         assert result == {"result": [1, 2, 3]}
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_trailing_slash_stripped_from_base(
-        self, mock_urlopen: MagicMock
-    ) -> None:
+    def test_trailing_slash_stripped_from_base(self, mock_urlopen: MagicMock) -> None:
         a = OntologyMCPAdapter(base_url="http://example.com:8080/")
         mock_urlopen.return_value = _mock_urlopen({})
         a._post("/ideas", {})
@@ -201,9 +198,7 @@ class TestEndpointMapping:
     """Tests that each port method hits the correct REST endpoint."""
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_get_idea_endpoint(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
+    def test_get_idea_endpoint(self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter) -> None:
         mock_urlopen.return_value = _mock_urlopen({"id": "42"})
         adapter.get_idea("42")
 
@@ -391,13 +386,15 @@ class TestForgetByContext:
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         """Recalls all facts in context, then deletes each by fact_id."""
-        recall_resp = _mock_urlopen({
-            "facts": [
-                {"fact_id": "f1", "subject": "s1"},
-                {"fact_id": "f2", "subject": "s2"},
-                {"fact_id": "f3", "subject": "s3"},
-            ]
-        })
+        recall_resp = _mock_urlopen(
+            {
+                "facts": [
+                    {"fact_id": "f1", "subject": "s1"},
+                    {"fact_id": "f2", "subject": "s2"},
+                    {"fact_id": "f3", "subject": "s3"},
+                ]
+            }
+        )
         delete_resp = _mock_urlopen({"ok": True})
         mock_urlopen.side_effect = [recall_resp, delete_resp, delete_resp, delete_resp]
 
@@ -427,12 +424,14 @@ class TestForgetByContext:
         self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
     ) -> None:
         """Facts without fact_id are skipped (not deleted)."""
-        recall_resp = _mock_urlopen({
-            "facts": [
-                {"fact_id": "f1", "subject": "s1"},
-                {"subject": "s2"},  # no fact_id
-            ]
-        })
+        recall_resp = _mock_urlopen(
+            {
+                "facts": [
+                    {"fact_id": "f1", "subject": "s1"},
+                    {"subject": "s2"},  # no fact_id
+                ]
+            }
+        )
         delete_resp = _mock_urlopen({"ok": True})
         mock_urlopen.side_effect = [recall_resp, delete_resp]
 
@@ -460,9 +459,7 @@ class TestAddTriple:
         assert req.full_url == "http://localhost:3000/abox/triples"
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_sends_spo_payload(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
+    def test_sends_spo_payload(self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter) -> None:
         mock_urlopen.return_value = _mock_urlopen({"status": "added"})
         adapter.add_triple("http://s", "http://p", "http://o", is_literal=True)
 
@@ -487,9 +484,7 @@ class TestAddTriple:
         assert req.full_url == "http://localhost:3000/abox/triples"
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_returns_response(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
+    def test_returns_response(self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter) -> None:
         mock_urlopen.return_value = _mock_urlopen({"status": "added"})
         result = adapter.add_triple("http://s", "http://p", "http://o")
         assert result == {"status": "added"}
@@ -536,9 +531,7 @@ class TestRemoveTriplesBySubject:
         assert sent == {"subject": "http://example/s1"}
 
     @patch("tulla.adapters.ontology_mcp.urlopen")
-    def test_returns_count(
-        self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter
-    ) -> None:
+    def test_returns_count(self, mock_urlopen: MagicMock, adapter: OntologyMCPAdapter) -> None:
         mock_urlopen.return_value = _mock_urlopen({"removed": 7})
         count = adapter.remove_triples_by_subject("http://example/s1")
         assert count == 7

@@ -26,7 +26,6 @@ Manual verification note:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -39,7 +38,6 @@ from tulla.annotations import (
     calculate_apf,
     classify_adequacy,
     extract_annotations,
-    is_hollow,
 )
 from tulla.phases.implementation.find import FindPhase
 from tulla.phases.implementation.implement import ImplementPhase
@@ -50,7 +48,7 @@ from tulla.phases.implementation.models import FindOutput
 # ---------------------------------------------------------------------------
 
 SYNTACTIC_THRESHOLD = 0.80  # >=80% of annotations parse correctly
-SEMANTIC_THRESHOLD = 0.70   # >=70% of annotations are "adequate"
+SEMANTIC_THRESHOLD = 0.70  # >=70% of annotations are "adequate"
 APF_LO, APF_HI = APF_TARGET  # 2-5 annotations per file
 
 
@@ -61,6 +59,7 @@ APF_LO, APF_HI = APF_TARGET  # 2-5 annotations per file
 # produces when the ImplementationLoop runs on requirements from
 # idea-65's PRD.  Each entry maps to a requirement that was (or would
 # be) implemented with the annotation section in the prompt.
+
 
 @dataclass(frozen=True)
 class GeneratedFile:
@@ -76,9 +75,9 @@ _REQ1_ANNOTATIONS_PY = GeneratedFile(
     requirement_id="prd:req-65-1-1",
     path="src/tulla/annotations.py",
     source="""\
-# @quality:Maintainability -- Single source of truth for annotation constants prevents drift across modules
-# @principle:SeparationOfConcerns -- Extraction logic isolated from prompt building and verification scoring
-# @pattern:LayeredArchitecture -- Annotations module sits in the domain layer, consumed by phase adapters
+# @quality:Maintainability -- Single source of truth for constants prevents drift across modules
+# @principle:SeparationOfConcerns -- Extraction logic isolated from prompt building and scoring
+# @pattern:LayeredArchitecture -- Annotations module sits in domain layer consumed by adapters
 from __future__ import annotations
 
 import re
@@ -158,9 +157,9 @@ _REQ2_FIND_PY = GeneratedFile(
     requirement_id="prd:req-65-1-3",
     path="src/tulla/phases/implementation/find.py",
     source="""\
-# @pattern:PortsAndAdapters -- OntologyPort abstracts SPARQL execution behind interface boundary
-# @principle:DependencyInversion -- FindPhase depends on OntologyPort abstraction not concrete MCP client
-# @quality:Correctness -- Three-query resolution chain validates each step before proceeding to next
+# @pattern:PortsAndAdapters -- OntologyPort abstracts SPARQL behind interface boundary
+# @principle:DependencyInversion -- FindPhase depends on abstraction not concrete client
+# @quality:Correctness -- Three-query resolution chain validates each step before next
 from __future__ import annotations
 
 import logging
@@ -224,9 +223,9 @@ _REQ3_IMPLEMENT_PY = GeneratedFile(
     requirement_id="prd:req-65-2-1",
     path="src/tulla/phases/implementation/implement.py",
     source="""\
-# @pattern:TemplateMethod -- _build_annotation_section follows existing _build_* pattern for prompt assembly
-# @principle:SeparationOfConcerns -- Annotation prompt section isolated from architecture context and verification
-# @quality:Maintainability -- Static method enables unit testing without instantiating ImplementPhase or Claude
+# @pattern:TemplateMethod -- _build_annotation_section follows existing prompt pattern
+# @principle:SeparationOfConcerns -- Annotation prompt isolated from architecture context
+# @quality:Maintainability -- Static method enables unit testing without instantiation
 from __future__ import annotations
 
 import logging
@@ -275,9 +274,9 @@ _REQ4_MODELS_PY = GeneratedFile(
     requirement_id="prd:req-65-1-2",
     path="src/tulla/phases/implementation/models.py",
     source="""\
-# @principle:ExtensionOverModification -- New resolved_* fields added without changing existing FindOutput signatures
-# @quality:Correctness -- Pydantic Field defaults prevent None-related runtime errors in downstream consumers
-# @pattern:LayeredArchitecture -- Models define the domain contract consumed by FindPhase and ImplementPhase
+# @principle:ExtensionOverModification -- New resolved_* fields added without changing existing
+# @quality:Correctness -- Pydantic Field defaults prevent None-related runtime errors
+# @pattern:LayeredArchitecture -- Models define domain contract consumed by FindPhase
 from __future__ import annotations
 
 import enum
@@ -332,9 +331,9 @@ class FileScore:
     requirement_id: str
     annotations: list[Annotation]
     apf: int
-    syntactic_count: int    # annotations that parsed (always == len(annotations))
+    syntactic_count: int  # annotations that parsed (always == len(annotations))
     semantic_adequate: int  # annotations classified as "adequate"
-    semantic_total: int     # total annotations evaluated
+    semantic_total: int  # total annotations evaluated
     apf_in_range: bool
 
     @property
@@ -367,7 +366,6 @@ def score_file(gf: GeneratedFile) -> FileScore:
     apf = calculate_apf(annotations)
 
     # Syntactic: how many annotation-like lines parsed successfully?
-    annotation_attempts = _count_annotation_like_lines(gf.source)
     syntactic_count = len(annotations)
 
     # Semantic: how many parsed annotations are "adequate" (not hollow/verbose)?
@@ -399,7 +397,7 @@ def compute_aggregate_scores(
     total_syntactic = sum(s.syntactic_count for s in scores)
     total_attempts = sum(
         _count_annotation_like_lines(gf.source)
-        for gf, s in zip(GENERATED_FILES, scores)
+        for gf, s in zip(GENERATED_FILES, scores, strict=False)
     )
     total_adequate = sum(s.semantic_adequate for s in scores)
     total_semantic = sum(s.semantic_total for s in scores)
@@ -429,9 +427,7 @@ class TestValidationGatePrerequisites:
         """Every generated file must contain at least one annotation."""
         for gf in GENERATED_FILES:
             annotations = extract_annotations(gf.source)
-            assert len(annotations) > 0, (
-                f"{gf.path} (from {gf.requirement_id}) has no annotations"
-            )
+            assert len(annotations) > 0, f"{gf.path} (from {gf.requirement_id}) has no annotations"
 
     def test_generated_files_requirement_ids_match_prd(self) -> None:
         """All requirement IDs follow the prd:req-N-P-S format."""
@@ -519,9 +515,7 @@ class TestAPFRange:
         """Each file's APF must be within [2, 5]."""
         for gf in GENERATED_FILES:
             score = score_file(gf)
-            assert score.apf_in_range, (
-                f"{gf.path}: APF={score.apf} outside [{APF_LO}, {APF_HI}]"
-            )
+            assert score.apf_in_range, f"{gf.path}: APF={score.apf} outside [{APF_LO}, {APF_HI}]"
 
     def test_all_files_apf_in_range(self) -> None:
         """All files collectively must have APF in range."""
@@ -648,6 +642,7 @@ class TestLiveOntologyResolution:
         """
         try:
             from tulla.adapters.ontology_mcp import OntologyMCPAdapter
+
             adapter = OntologyMCPAdapter()
             # Quick health check
             adapter.recall_facts(predicate="rdf:type", limit=1)
@@ -662,9 +657,7 @@ class TestLiveOntologyResolution:
             ontology, "isaqb:Maintainability"
         )
         # Should find at least one pattern
-        assert len(patterns) > 0, (
-            "Expected at least one pattern for isaqb:Maintainability"
-        )
+        assert len(patterns) > 0, "Expected at least one pattern for isaqb:Maintainability"
 
     def test_resolve_correctness_patterns(self, ontology: Any) -> None:
         """isaqb:Correctness should resolve to at least one pattern."""
@@ -682,9 +675,7 @@ class TestLiveOntologyResolution:
         )
         # If we got principles, they were derived from the patterns
         if principles:
-            assert len(patterns) > 0, (
-                "Found principles but no patterns — resolution chain broken"
-            )
+            assert len(patterns) > 0, "Found principles but no patterns — resolution chain broken"
 
 
 # ===================================================================
@@ -711,6 +702,7 @@ class TestLiveValidateInstance:
         """
         try:
             from tulla.adapters.ontology_mcp import OntologyMCPAdapter
+
             adapter = OntologyMCPAdapter()
             # Quick health check
             adapter.recall_facts(predicate="rdf:type", limit=1)
@@ -751,8 +743,10 @@ class TestGateSummary:
                 f"APF={s.apf} syntactic={s.syntactic_ratio:.0%} "
                 f"semantic={s.semantic_ratio:.0%}"
             )
-        report_lines.append(f"  AGGREGATE: syntactic={syntactic_pct:.0%} "
-                          f"semantic={semantic_pct:.0%} apf_ok={all_apf}")
+        report_lines.append(
+            f"  AGGREGATE: syntactic={syntactic_pct:.0%} "
+            f"semantic={semantic_pct:.0%} apf_ok={all_apf}"
+        )
         report = "\n".join(report_lines)
 
         assert syntactic_pct >= SYNTACTIC_THRESHOLD, (
