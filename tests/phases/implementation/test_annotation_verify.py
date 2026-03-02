@@ -15,13 +15,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from tulla.annotations import ANNOTATION_REGEX, APF_TARGET
 from tulla.phases.implementation.import_graph import LAYER_RULES
 from tulla.phases.implementation.models import FindOutput, ImplementOutput
 from tulla.phases.implementation.verify import VerifyPhase
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -240,7 +237,7 @@ class TestBuildAnnotationVerification:
         assert "### Structural Import Check" in section
         assert "isaqb:PortsAndAdapters" in section
         # CQRS should be in coverage check but NOT in structural import check
-        structural_section = section[section.index("### Structural Import Check"):]
+        structural_section = section[section.index("### Structural Import Check") :]
         assert "isaqb:CQRS" not in structural_section
 
     # --- design patterns not included ---

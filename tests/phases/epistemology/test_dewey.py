@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.models import EpistemologyOutput
 from tulla.phases.epistemology.problem import DeweyPhase
 
@@ -152,7 +152,8 @@ class TestBuildPrompt:
         assert "felt difficulty" in prompt.lower()
 
     def test_prompt_contains_anti_collapse_no_five_whys(
-        self, ctx: PhaseContext,
+        self,
+        ctx: PhaseContext,
     ) -> None:
         prompt = DeweyPhase().build_prompt(ctx)
         assert "Do NOT use Five Whys" in prompt
@@ -227,9 +228,7 @@ class TestParseOutput:
 class _MockedDeweyPhase(DeweyPhase):
     """DeweyPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-dewey-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

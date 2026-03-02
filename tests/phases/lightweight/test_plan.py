@@ -1,9 +1,13 @@
 """Tests for PlanPhase — Claude-invoked tactical planning.
 
-# @pattern:PortsAndAdapters -- Tests use MockClaudeAdapter injected via claude_port config key, no real subprocess
-# @principle:FailSafeRouting -- Tests verify that missing optional fields default safely (empty risk_notes, empty lists)
-# @pattern:LooseCoupling -- Tests exercise PlanPhase through the Phase.execute() public API, not internal methods
-# @principle:DependencyInversion -- Tests depend on ClaudePort abstraction, never on concrete subprocess adapter
+# @pattern:PortsAndAdapters -- Tests use MockClaudeAdapter injected via
+#   claude_port config key, no real subprocess
+# @principle:FailSafeRouting -- Tests verify that missing optional
+#   fields default safely (empty risk_notes, empty lists)
+# @pattern:LooseCoupling -- Tests exercise PlanPhase through the
+#   Phase.execute() public API, not internal methods
+# @principle:DependencyInversion -- Tests depend on ClaudePort
+#   abstraction, never on concrete subprocess adapter
 
 Verification criteria (prd:req-53-3-3):
 - Prompt construction includes conformance data (violations, patterns, conformance_status).
@@ -24,7 +28,6 @@ from tulla.core.phase import PhaseContext, PhaseStatus
 from tulla.phases.lightweight.models import ContextScanOutput, PlanOutput
 from tulla.phases.lightweight.plan import PlanPhase
 from tulla.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
-
 
 # ---------------------------------------------------------------------------
 # Mock Claude port
@@ -78,7 +81,10 @@ CANNED_PLAN = {
         "Update tests to reflect the new import structure",
     ],
     "files_to_modify": ["src/tulla/core/bad.py", "src/tulla/cli.py", "tests/test_bad.py"],
-    "risk_notes": "Moving imports may break downstream consumers; run full test suite after change.",
+    "risk_notes": (
+        "Moving imports may break downstream consumers;"
+        " run full test suite after change."
+    ),
 }
 
 
@@ -127,9 +133,7 @@ def _make_context_scan_output(**overrides: Any) -> ContextScanOutput:
 class TestSuccessfulExecution:
     """Verify execute() produces PhaseResult[PlanOutput] with SUCCESS."""
 
-    def test_execute_with_canned_json(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_execute_with_canned_json(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Mock Claude returns canned JSON -> SUCCESS with correctly parsed fields."""
         port = MockClaudePort(CANNED_PLAN)
         prev = _make_context_scan_output()
@@ -144,9 +148,7 @@ class TestSuccessfulExecution:
         assert result.data.files_to_modify == CANNED_PLAN["files_to_modify"]
         assert result.data.risk_notes == CANNED_PLAN["risk_notes"]
 
-    def test_execute_with_text_only_response(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_execute_with_text_only_response(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Mock Claude returns JSON as text only -> SUCCESS with parsed fields."""
         port = MockClaudePortTextOnly(json.dumps(CANNED_PLAN))
         prev = _make_context_scan_output()
@@ -159,9 +161,7 @@ class TestSuccessfulExecution:
         assert result.data.plan_summary == CANNED_PLAN["plan_summary"]
         assert result.data.plan_steps == CANNED_PLAN["plan_steps"]
 
-    def test_execute_with_markdown_fenced_json(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_execute_with_markdown_fenced_json(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Mock Claude returns JSON wrapped in markdown code fences -> SUCCESS."""
         fenced = f"```json\n{json.dumps(CANNED_PLAN, indent=2)}\n```"
         port = MockClaudePortTextOnly(fenced)
@@ -174,9 +174,7 @@ class TestSuccessfulExecution:
         assert isinstance(result.data, PlanOutput)
         assert result.data.plan_summary == CANNED_PLAN["plan_summary"]
 
-    def test_execute_records_cost_metadata(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_execute_records_cost_metadata(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Cost metadata from ClaudeResult is captured in PhaseResult."""
         port = MockClaudePort(CANNED_PLAN)
         prev = _make_context_scan_output()
@@ -196,9 +194,7 @@ class TestSuccessfulExecution:
 class TestDefaults:
     """Verify reasonable defaults when Claude's response is incomplete."""
 
-    def test_missing_risk_notes_defaults_to_empty(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_missing_risk_notes_defaults_to_empty(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Missing risk_notes -> defaults to empty string."""
         partial = {
             "plan_summary": "Minimal plan",
@@ -215,9 +211,7 @@ class TestDefaults:
         assert isinstance(result.data, PlanOutput)
         assert result.data.risk_notes == ""
 
-    def test_missing_fields_default_to_empty(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_missing_fields_default_to_empty(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Missing plan_steps and files_to_modify -> default to empty lists."""
         minimal = {"plan_summary": "Just a summary"}
         port = MockClaudePort(minimal)
@@ -258,9 +252,7 @@ class TestDefaults:
 class TestBuildPrompt:
     """Verify build_prompt() includes conformance context."""
 
-    def test_prompt_includes_violation_report(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_violation_report(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes the violation report from ContextScanOutput."""
         prev = _make_context_scan_output()
         port = MockClaudePort(CANNED_PLAN)
@@ -271,9 +263,7 @@ class TestBuildPrompt:
         assert "Violation Report" in prompt
         assert "core/bad.py" in prompt
 
-    def test_prompt_includes_patterns(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_patterns(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes detected patterns."""
         prev = _make_context_scan_output(patterns=["Singleton", "Observer"])
         port = MockClaudePort(CANNED_PLAN)
@@ -284,14 +274,14 @@ class TestBuildPrompt:
         assert "Singleton" in prompt
         assert "Observer" in prompt
 
-    def test_prompt_includes_change_description(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_change_description(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes the change description from config."""
         prev = _make_context_scan_output()
         port = MockClaudePort(CANNED_PLAN)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             change_description="Fix the import cycle in core module",
         )
 
@@ -299,9 +289,7 @@ class TestBuildPrompt:
 
         assert "Fix the import cycle in core module" in prompt
 
-    def test_prompt_includes_conformance_status(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_conformance_status(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes the conformance_status from ContextScanOutput."""
         prev = _make_context_scan_output(
             conformance_status="structural-only:violations-found",
@@ -313,14 +301,14 @@ class TestBuildPrompt:
 
         assert "structural-only:violations-found" in prompt
 
-    def test_prompt_includes_affected_files(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_affected_files(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes affected_files from config."""
         prev = _make_context_scan_output()
         port = MockClaudePort(CANNED_PLAN)
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             affected_files=["src/core.py", "tests/test_core.py"],
         )
 
@@ -345,15 +333,15 @@ class TestBuildPrompt:
 
         assert "No violations detected" in prompt
 
-    def test_prompt_includes_upstream_facts(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_upstream_facts(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes upstream ontology facts when available."""
         prev = _make_context_scan_output()
         port = MockClaudePort(CANNED_PLAN)
         facts = [{"predicate": "hasPattern", "object": "PortsAndAdapters"}]
         ctx = _make_ctx(
-            tmp_path, port, prev_output=prev,
+            tmp_path,
+            port,
+            prev_output=prev,
             upstream_facts=facts,
         )
 
@@ -374,9 +362,7 @@ class TestBuildPrompt:
 
         assert "Upstream Ontology Facts" not in prompt
 
-    def test_prompt_includes_idea_id(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_includes_idea_id(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt includes the idea_id from PhaseContext."""
         prev = _make_context_scan_output()
         port = MockClaudePort(CANNED_PLAN)
@@ -386,9 +372,7 @@ class TestBuildPrompt:
 
         assert "test-idea" in prompt
 
-    def test_prompt_without_prev_output(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_without_prev_output(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt can be built without prev_output (graceful degradation)."""
         port = MockClaudePort(CANNED_PLAN)
         ctx = _make_ctx(tmp_path, port)
@@ -397,9 +381,7 @@ class TestBuildPrompt:
 
         assert "No violations detected" in prompt
 
-    def test_prompt_with_dict_prev_output(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_prompt_with_dict_prev_output(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Prompt works with prev_output as a plain dict."""
         prev_dict = {
             "violations": [],
@@ -425,9 +407,7 @@ class TestBuildPrompt:
 class TestGetTools:
     """Verify get_tools() returns empty list (analysis-only phase)."""
 
-    def test_get_tools_returns_empty(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_get_tools_returns_empty(self, phase: PlanPhase, tmp_path: Path) -> None:
         port = MockClaudePort(CANNED_PLAN)
         ctx = _make_ctx(tmp_path, port)
         assert phase.get_tools(ctx) == []
@@ -441,9 +421,7 @@ class TestGetTools:
 class TestParseOutputErrors:
     """Verify parse_output raises ParseError for unparseable responses."""
 
-    def test_unparseable_response_fails(
-        self, phase: PlanPhase, tmp_path: Path
-    ) -> None:
+    def test_unparseable_response_fails(self, phase: PlanPhase, tmp_path: Path) -> None:
         """Non-JSON response -> FAILURE status."""
         port = MockClaudePortTextOnly("This is not JSON at all")
         prev = _make_context_scan_output()

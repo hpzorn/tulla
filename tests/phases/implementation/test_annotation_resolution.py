@@ -17,10 +17,9 @@ from typing import Any
 
 import pytest
 
-from tulla.phases.implementation.find import FindPhase, _REVERSE_PREFIXES
+from tulla.phases.implementation.find import _REVERSE_PREFIXES, FindPhase
 from tulla.phases.implementation.models import FindOutput
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Test double: SPARQL-aware ontology stub
@@ -102,7 +101,15 @@ class SparqlStubOntology(OntologyPort):
     ) -> dict[str, Any]:
         return {}
 
-    def add_triple(self, subject: str, predicate: str, object: str, *, is_literal: bool = False, ontology: str | None = None) -> dict[str, Any]:
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
         return {"status": "added"}
 
     def remove_triples_by_subject(self, subject: str, *, ontology: str | None = None) -> int:
@@ -124,10 +131,7 @@ class TestExpandUri:
         )
 
     def test_prd_prefix(self) -> None:
-        assert (
-            FindPhase._expand_uri("prd:qualityFocus")
-            == "http://tulla.dev/prd#qualityFocus"
-        )
+        assert FindPhase._expand_uri("prd:qualityFocus") == "http://tulla.dev/prd#qualityFocus"
 
     def test_unknown_prefix_returns_unchanged(self) -> None:
         assert FindPhase._expand_uri("foo:Bar") == "foo:Bar"
@@ -156,9 +160,7 @@ class TestResolvePatternsViaSparql:
     def test_empty_quality_focus_returns_empty(self) -> None:
         ontology = SparqlStubOntology()
         phase = FindPhase()
-        patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
-            ontology, ""
-        )
+        patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(ontology, "")
         assert patterns == []
         assert principles == []
         assert design_patterns == []
@@ -166,23 +168,46 @@ class TestResolvePatternsViaSparql:
 
     def test_full_resolution_chain(self) -> None:
         """Three queries resolve quality → patterns → principles → design patterns."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            # Query 1: quality → architectural patterns
-            {"results": [
-                {"pattern": "isaqb:LayeredArchitecture", "quality": "isaqb:Maintainability"},
-                {"pattern": "isaqb:PortsAndAdapters", "quality": "isaqb:Testability"},
-            ]},
-            # Query 2: patterns → principles
-            {"results": [
-                {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:LayeredArchitecture"},
-                {"principle": "isaqb:DependencyInversion", "pattern": "isaqb:PortsAndAdapters"},
-            ]},
-            # Query 3: principles → design patterns
-            {"results": [
-                {"designPattern": "isaqb:AdapterPattern", "principle": "isaqb:DependencyInversion"},
-                {"designPattern": "isaqb:StrategyPattern", "principle": "isaqb:SeparationOfConcerns"},
-            ]},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                # Query 1: quality → architectural patterns
+                {
+                    "results": [
+                        {
+                            "pattern": "isaqb:LayeredArchitecture",
+                            "quality": "isaqb:Maintainability",
+                        },
+                        {"pattern": "isaqb:PortsAndAdapters", "quality": "isaqb:Testability"},
+                    ]
+                },
+                # Query 2: patterns → principles
+                {
+                    "results": [
+                        {
+                            "principle": "isaqb:SeparationOfConcerns",
+                            "pattern": "isaqb:LayeredArchitecture",
+                        },
+                        {
+                            "principle": "isaqb:DependencyInversion",
+                            "pattern": "isaqb:PortsAndAdapters",
+                        },
+                    ]
+                },
+                # Query 3: principles → design patterns
+                {
+                    "results": [
+                        {
+                            "designPattern": "isaqb:AdapterPattern",
+                            "principle": "isaqb:DependencyInversion",
+                        },
+                        {
+                            "designPattern": "isaqb:StrategyPattern",
+                            "principle": "isaqb:SeparationOfConcerns",
+                        },
+                    ]
+                },
+            ]
+        )
         phase = FindPhase()
         patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
             ontology, "isaqb:Maintainability"
@@ -195,11 +220,13 @@ class TestResolvePatternsViaSparql:
 
     def test_three_separate_queries_not_optional(self) -> None:
         """Verifies arch:adr-65-2 — three separate queries, no OPTIONAL clauses."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": [{"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"}]},
-            {"results": []},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {"results": [{"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"}]},
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
 
@@ -209,10 +236,12 @@ class TestResolvePatternsViaSparql:
 
     def test_query1_contains_union_for_sub_attributes(self) -> None:
         """Query 1 uses UNION to include direct + hasSubAttribute paths."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": []},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
 
@@ -223,13 +252,20 @@ class TestResolvePatternsViaSparql:
 
     def test_query2_uses_values_from_query1(self) -> None:
         """Query 2 uses VALUES clause with patterns discovered in query 1."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [
-                {"pattern": "isaqb:LayeredArchitecture", "quality": "isaqb:Maintainability"},
-                {"pattern": "isaqb:MVC", "quality": "isaqb:Testability"},
-            ]},
-            {"results": []},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {
+                    "results": [
+                        {
+                            "pattern": "isaqb:LayeredArchitecture",
+                            "quality": "isaqb:Maintainability",
+                        },
+                        {"pattern": "isaqb:MVC", "quality": "isaqb:Testability"},
+                    ]
+                },
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
 
@@ -241,14 +277,25 @@ class TestResolvePatternsViaSparql:
 
     def test_query3_uses_values_from_query2(self) -> None:
         """Query 3 uses VALUES clause with principles from query 2."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": [
-                {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"},
-                {"principle": "isaqb:LooseCoupling", "pattern": "isaqb:MVC"},
-            ]},
-            {"results": [{"designPattern": "isaqb:ObserverPattern", "principle": "isaqb:LooseCoupling"}]},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {
+                    "results": [
+                        {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"},
+                        {"principle": "isaqb:LooseCoupling", "pattern": "isaqb:MVC"},
+                    ]
+                },
+                {
+                    "results": [
+                        {
+                            "designPattern": "isaqb:ObserverPattern",
+                            "principle": "isaqb:LooseCoupling",
+                        }
+                    ]
+                },
+            ]
+        )
         phase = FindPhase()
         phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
 
@@ -260,9 +307,11 @@ class TestResolvePatternsViaSparql:
 
     def test_no_patterns_found_skips_query2_and_query3(self) -> None:
         """When query 1 returns no patterns, queries 2 and 3 are not issued."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": []},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
             ontology, "isaqb:FunctionalSuitability"
@@ -275,10 +324,12 @@ class TestResolvePatternsViaSparql:
 
     def test_no_principles_found_skips_query3(self) -> None:
         """When query 2 returns no principles, query 3 is not issued."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": []},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
             ontology, "isaqb:Maintainability"
@@ -291,51 +342,75 @@ class TestResolvePatternsViaSparql:
 
     def test_deduplicates_patterns(self) -> None:
         """Duplicate patterns in query 1 results are deduplicated."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [
-                {"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"},
-                {"pattern": "isaqb:MVC", "quality": "isaqb:Testability"},
-            ]},
-            {"results": []},
-        ])
-        phase = FindPhase()
-        patterns, _, _ = phase._resolve_patterns_via_sparql(
-            ontology, "isaqb:Maintainability"
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {
+                    "results": [
+                        {"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"},
+                        {"pattern": "isaqb:MVC", "quality": "isaqb:Testability"},
+                    ]
+                },
+                {"results": []},
+            ]
         )
+        phase = FindPhase()
+        patterns, _, _ = phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
         assert patterns == ["isaqb:MVC"]
 
     def test_deduplicates_principles(self) -> None:
         """Duplicate principles in query 2 results are deduplicated."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [
-                {"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"},
-                {"pattern": "isaqb:LayeredArchitecture", "quality": "isaqb:Maintainability"},
-            ]},
-            {"results": [
-                {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"},
-                {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:LayeredArchitecture"},
-            ]},
-            {"results": []},
-        ])
-        phase = FindPhase()
-        _, principles, _ = phase._resolve_patterns_via_sparql(
-            ontology, "isaqb:Maintainability"
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {
+                    "results": [
+                        {"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"},
+                        {
+                            "pattern": "isaqb:LayeredArchitecture",
+                            "quality": "isaqb:Maintainability",
+                        },
+                    ]
+                },
+                {
+                    "results": [
+                        {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"},
+                        {
+                            "principle": "isaqb:SeparationOfConcerns",
+                            "pattern": "isaqb:LayeredArchitecture",
+                        },
+                    ]
+                },
+                {"results": []},
+            ]
         )
+        phase = FindPhase()
+        _, principles, _ = phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
         assert principles == ["isaqb:SeparationOfConcerns"]
 
     def test_deduplicates_design_patterns(self) -> None:
         """Duplicate design patterns in query 3 results are deduplicated."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": [
-                {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"},
-                {"principle": "isaqb:LooseCoupling", "pattern": "isaqb:MVC"},
-            ]},
-            {"results": [
-                {"designPattern": "isaqb:VisitorPattern", "principle": "isaqb:SeparationOfConcerns"},
-                {"designPattern": "isaqb:VisitorPattern", "principle": "isaqb:LooseCoupling"},
-            ]},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {
+                    "results": [
+                        {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"},
+                        {"principle": "isaqb:LooseCoupling", "pattern": "isaqb:MVC"},
+                    ]
+                },
+                {
+                    "results": [
+                        {
+                            "designPattern": "isaqb:VisitorPattern",
+                            "principle": "isaqb:SeparationOfConcerns",
+                        },
+                        {
+                            "designPattern": "isaqb:VisitorPattern",
+                            "principle": "isaqb:LooseCoupling",
+                        },
+                    ]
+                },
+            ]
+        )
         phase = FindPhase()
         _, _, design_patterns = phase._resolve_patterns_via_sparql(
             ontology, "isaqb:Maintainability"
@@ -344,9 +419,11 @@ class TestResolvePatternsViaSparql:
 
     def test_query1_failure_returns_empty(self, caplog: pytest.LogCaptureFixture) -> None:
         """SPARQL query 1 failure returns three empty lists gracefully."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            RuntimeError("connection refused"),
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                RuntimeError("connection refused"),
+            ]
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING):
             patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
@@ -359,10 +436,12 @@ class TestResolvePatternsViaSparql:
 
     def test_query2_failure_returns_partial(self, caplog: pytest.LogCaptureFixture) -> None:
         """SPARQL query 2 failure returns patterns from query 1 only."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            RuntimeError("timeout"),
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                RuntimeError("timeout"),
+            ]
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING):
             patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
@@ -375,11 +454,13 @@ class TestResolvePatternsViaSparql:
 
     def test_query3_failure_returns_partial(self, caplog: pytest.LogCaptureFixture) -> None:
         """SPARQL query 3 failure returns patterns and principles only."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": [{"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"}]},
-            RuntimeError("server error"),
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {"results": [{"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:MVC"}]},
+                RuntimeError("server error"),
+            ]
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING):
             patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
@@ -392,20 +473,28 @@ class TestResolvePatternsViaSparql:
 
     def test_empty_binding_values_filtered(self) -> None:
         """Empty string values in bindings are filtered out."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [
-                {"pattern": "", "quality": "isaqb:Maintainability"},
-                {"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"},
-            ]},
-            {"results": [
-                {"principle": "", "pattern": "isaqb:MVC"},
-                {"principle": "isaqb:DRY", "pattern": "isaqb:MVC"},
-            ]},
-            {"results": [
-                {"designPattern": "", "principle": "isaqb:DRY"},
-                {"designPattern": "isaqb:TemplateMethodPattern", "principle": "isaqb:DRY"},
-            ]},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {
+                    "results": [
+                        {"pattern": "", "quality": "isaqb:Maintainability"},
+                        {"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"},
+                    ]
+                },
+                {
+                    "results": [
+                        {"principle": "", "pattern": "isaqb:MVC"},
+                        {"principle": "isaqb:DRY", "pattern": "isaqb:MVC"},
+                    ]
+                },
+                {
+                    "results": [
+                        {"designPattern": "", "principle": "isaqb:DRY"},
+                        {"designPattern": "isaqb:TemplateMethodPattern", "principle": "isaqb:DRY"},
+                    ]
+                },
+            ]
+        )
         phase = FindPhase()
         patterns, principles, design_patterns = phase._resolve_patterns_via_sparql(
             ontology, "isaqb:Maintainability"
@@ -417,10 +506,12 @@ class TestResolvePatternsViaSparql:
 
     def test_uri_expansion_in_sparql_queries(self) -> None:
         """SPARQL queries use expanded full URIs, not compact prefixes."""
-        ontology = SparqlStubOntology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": []},
-        ])
+        ontology = SparqlStubOntology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         phase._resolve_patterns_via_sparql(ontology, "isaqb:Maintainability")
 
@@ -445,10 +536,13 @@ class TestLoadRequirementResolution:
             "context=prd-idea-65|subject=prd:req-65-1-3": [
                 {"predicate": "rdf:type", "object": "prd:Requirement"},
                 {"predicate": "prd:title", "object": "Add SPARQL resolution"},
-                {"predicate": "prd:description", "object": (
-                    "Add _expand_uri helper and _resolve_patterns_via_sparql method "
-                    "to FindPhase for resolving quality focus to patterns"
-                )},
+                {
+                    "predicate": "prd:description",
+                    "object": (
+                        "Add _expand_uri helper and _resolve_patterns_via_sparql method "
+                        "to FindPhase for resolving quality focus to patterns"
+                    ),
+                },
                 {"predicate": "prd:files", "object": "src/tulla/phases/implementation/find.py"},
                 {"predicate": "prd:action", "object": "modify"},
                 {"predicate": "prd:verification", "object": "pytest tests/"},
@@ -462,18 +556,35 @@ class TestLoadRequirementResolution:
         )
 
     def test_resolved_fields_populated(self) -> None:
-        """_load_requirement populates resolved_patterns, resolved_principles, resolved_design_patterns."""
-        ontology = self._make_ontology(sparql_responses=[
-            {"results": [
-                {"pattern": "isaqb:LayeredArchitecture", "quality": "isaqb:Maintainability"},
-            ]},
-            {"results": [
-                {"principle": "isaqb:SeparationOfConcerns", "pattern": "isaqb:LayeredArchitecture"},
-            ]},
-            {"results": [
-                {"designPattern": "isaqb:AdapterPattern", "principle": "isaqb:SeparationOfConcerns"},
-            ]},
-        ])
+        """_load_requirement populates resolved_patterns, resolved_principles, etc."""
+        ontology = self._make_ontology(
+            sparql_responses=[
+                {
+                    "results": [
+                        {
+                            "pattern": "isaqb:LayeredArchitecture",
+                            "quality": "isaqb:Maintainability",
+                        },
+                    ]
+                },
+                {
+                    "results": [
+                        {
+                            "principle": "isaqb:SeparationOfConcerns",
+                            "pattern": "isaqb:LayeredArchitecture",
+                        },
+                    ]
+                },
+                {
+                    "results": [
+                        {
+                            "designPattern": "isaqb:AdapterPattern",
+                            "principle": "isaqb:SeparationOfConcerns",
+                        },
+                    ]
+                },
+            ]
+        )
         phase = FindPhase()
         result = phase._load_requirement(ontology, "prd:req-65-1-3", "prd-idea-65")
 
@@ -496,9 +607,11 @@ class TestLoadRequirementResolution:
 
     def test_sparql_failure_does_not_break_load(self) -> None:
         """SPARQL failure still returns a valid FindOutput with empty resolved fields."""
-        ontology = self._make_ontology(sparql_responses=[
-            RuntimeError("ontology server unavailable"),
-        ])
+        ontology = self._make_ontology(
+            sparql_responses=[
+                RuntimeError("ontology server unavailable"),
+            ]
+        )
         phase = FindPhase()
         result = phase._load_requirement(ontology, "prd:req-65-1-3", "prd-idea-65")
 
@@ -511,10 +624,12 @@ class TestLoadRequirementResolution:
 
     def test_other_fields_unaffected(self) -> None:
         """Adding resolution does not affect existing FindOutput fields."""
-        ontology = self._make_ontology(sparql_responses=[
-            {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
-            {"results": []},
-        ])
+        ontology = self._make_ontology(
+            sparql_responses=[
+                {"results": [{"pattern": "isaqb:MVC", "quality": "isaqb:Maintainability"}]},
+                {"results": []},
+            ]
+        )
         phase = FindPhase()
         result = phase._load_requirement(ontology, "prd:req-65-1-3", "prd-idea-65")
 

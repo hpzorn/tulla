@@ -13,16 +13,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import pytest
 from pydantic import BaseModel
 
 from tulla.core.checkpoint import CheckpointStore
 from tulla.core.intent import IntentField
 from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
-from tulla.core.pipeline import Pipeline, PipelineResult
-from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.core.pipeline import Pipeline
+from tulla.namespaces import PHASE_NS, RDF_TYPE
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Helpers – annotated & unannotated outputs, minimal phases, mock port
@@ -33,7 +31,8 @@ class _AnnotatedOutput(BaseModel):
     """Pydantic model with an IntentField for integration testing."""
 
     summary: str = IntentField(
-        default="", description="Intent-annotated summary",
+        default="",
+        description="Intent-annotated summary",
     )
 
 
@@ -146,7 +145,10 @@ class _MockOntologyPort(OntologyPort):
         return {"facts": []}
 
     def sparql_query(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         self.sparql_query_calls.append(query)
         if self._sparql_results is not None:
@@ -154,7 +156,10 @@ class _MockOntologyPort(OntologyPort):
         return {"results": []}
 
     def sparql_update(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"status": "ok"}
 
@@ -165,7 +170,11 @@ class _MockOntologyPort(OntologyPort):
         return 0
 
     def set_lifecycle(
-        self, idea_id: str, new_state: str, *, reason: str = "",
+        self,
+        idea_id: str,
+        new_state: str,
+        *,
+        reason: str = "",
     ) -> dict[str, Any]:
         return {}
 
@@ -178,12 +187,14 @@ class _MockOntologyPort(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.add_triple_calls.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "is_literal": is_literal,
-        })
+        self.add_triple_calls.append(
+            {
+                "subject": subject,
+                "predicate": predicate,
+                "object": object,
+                "is_literal": is_literal,
+            }
+        )
         return {"status": "added"}
 
     def remove_triples_by_subject(
@@ -262,7 +273,8 @@ class TestAnnotatedPhasePersistsTriples:
         assert saved["status"] == "SUCCESS"
 
     def test_add_triple_receives_correct_subject(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """Subject follows the full-URI naming convention."""
         ontology = _MockOntologyPort()
@@ -329,7 +341,8 @@ class TestShaclValidationFailureStopsPipeline:
     FAILURE status."""
 
     def test_validation_failure_marks_failure_and_stops(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         ontology = _MockOntologyPort(
             validate_conforms=False,
@@ -410,7 +423,8 @@ class TestUpstreamFactsInjected:
     """upstream_facts from phase A are injected into phase B context."""
 
     def test_second_phase_receives_upstream_facts(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         upstream_fact = {
             "s": f"{PHASE_NS}idea-500-pa",
@@ -459,15 +473,19 @@ class TestResumeCollectsUpstreamFacts:
     via SPARQL."""
 
     def test_resume_injects_upstream_from_prior_phase(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         # Pre-create checkpoint for phase-a so pipeline can skip it.
         store = CheckpointStore(tmp_path)
-        store.save("pa", {
-            "status": "SUCCESS",
-            "data": {"summary": "persisted-earlier"},
-            "metadata": {"cost_usd": 0.01},
-        })
+        store.save(
+            "pa",
+            {
+                "status": "SUCCESS",
+                "data": {"summary": "persisted-earlier"},
+                "metadata": {"cost_usd": 0.01},
+            },
+        )
 
         prior_fact = {
             "s": f"{PHASE_NS}idea-600-pa",

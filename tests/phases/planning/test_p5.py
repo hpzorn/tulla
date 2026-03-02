@@ -106,21 +106,15 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_research_output_path(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_research_output_path(self, phase: P5Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p5-research-requests.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: P5Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase P5: Research Requests" in prompt
 
-    def test_reads_p4_and_p4b(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_reads_p4_and_p4b(self, phase: P5Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p4-implementation-plan.md" in prompt
         assert "p4b-persona-walkthrough.md" in prompt
@@ -134,17 +128,13 @@ class TestBuildPrompt:
 class TestGetTools:
     """P5Phase.get_tools() tests."""
 
-    def test_includes_read_write(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write(self, phase: P5Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
         assert "Write" in tool_names
 
-    def test_tool_count(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_tool_count(self, phase: P5Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         assert len(tools) == 2
 
@@ -157,15 +147,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """P5Phase.parse_output() when p5-research-requests.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: P5Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="p5-research-requests.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: P5Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -179,9 +165,7 @@ class TestParseOutputMissing:
 class TestParseOutputReady:
     """P5Phase.parse_output() with ready status."""
 
-    def test_returns_ready_p5_output(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_ready_p5_output(self, phase: P5Phase, ctx: PhaseContext) -> None:
         research_file = ctx.work_dir / "p5-research-requests.md"
         research_file.write_text(SAMPLE_READY, encoding="utf-8")
 
@@ -200,9 +184,7 @@ class TestParseOutputReady:
 class TestParseOutputBlocked:
     """P5Phase.parse_output() with blocked status."""
 
-    def test_returns_blocked_p5_output(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_blocked_p5_output(self, phase: P5Phase, ctx: PhaseContext) -> None:
         research_file = ctx.work_dir / "p5-research-requests.md"
         research_file.write_text(SAMPLE_BLOCKED, encoding="utf-8")
 
@@ -211,9 +193,7 @@ class TestParseOutputBlocked:
         assert result.prd_file == research_file
         assert result.total_requirements == 2  # RR1 and RR2
 
-    def test_blocked_status_detected(
-        self, phase: P5Phase, ctx: PhaseContext
-    ) -> None:
+    def test_blocked_status_detected(self, phase: P5Phase, ctx: PhaseContext) -> None:
         research_file = ctx.work_dir / "p5-research-requests.md"
         research_file.write_text(SAMPLE_BLOCKED, encoding="utf-8")
 
@@ -235,9 +215,7 @@ class _MockP5PhaseReady(P5Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "p5-research-requests.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"

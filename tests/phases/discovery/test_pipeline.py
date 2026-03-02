@@ -15,7 +15,6 @@ from tulla.phases.discovery.d4 import D4Phase
 from tulla.phases.discovery.d5 import D5Phase
 from tulla.phases.discovery.pipeline import discovery_pipeline
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -59,7 +58,7 @@ class TestDiscoveryPipelinePhases:
 
     def test_phase_types(self, pipeline: Pipeline) -> None:
         expected_types = [D1Phase, D2Phase, D3Phase, D4Phase, D5Phase]
-        for (_, phase), expected in zip(pipeline._phases, expected_types):
+        for (_, phase), expected in zip(pipeline._phases, expected_types, strict=False):
             assert isinstance(phase, expected)
 
 

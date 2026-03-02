@@ -8,8 +8,6 @@ status ``prd:Pending`` that has all dependencies satisfied.
 from __future__ import annotations
 
 import logging
-import sys
-from typing import Any
 
 import click
 

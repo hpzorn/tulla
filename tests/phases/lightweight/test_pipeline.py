@@ -1,9 +1,13 @@
 """Integration tests for the full 5-phase lightweight pipeline (prd:req-53-4-4).
 
-# @pattern:PortsAndAdapters -- Mock ClaudePort and OntologyPort injected via Pipeline config; phases consume them through port interfaces
-# @principle:DependencyInversion -- Tests depend on Phase[T] / OntologyPort abstractions, not concrete adapters or subprocess invocations
-# @principle:LooseCoupling -- Stub phases override only run_claude(); Pipeline mediates data flow without phases knowing about each other
-# @quality:Testability -- Full pipeline exercised end-to-end with deterministic stubs, verifying phase order, data propagation, and budget
+# @pattern:PortsAndAdapters -- Mock ClaudePort and OntologyPort injected
+#   via Pipeline config; phases consume them through port interfaces
+# @principle:DependencyInversion -- Tests depend on Phase[T] /
+#   OntologyPort abstractions, not concrete adapters or subprocess calls
+# @principle:LooseCoupling -- Stub phases override only run_claude();
+#   Pipeline mediates data flow without phases knowing about each other
+# @quality:Testability -- Full pipeline exercised end-to-end with
+#   deterministic stubs, verifying phase order, data propagation, budget
 
 Exercises the full pipeline loop with mocked ClaudePort (canned Plan/Execute
 responses), a mock OntologyPort, and stub local-compute phases.  Verifies:
@@ -24,8 +28,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
-from tulla.core.pipeline import Pipeline, PipelineResult
+from tulla.core.phase import Phase, PhaseContext, PhaseStatus
+from tulla.core.pipeline import Pipeline
 from tulla.phases.lightweight.context_scan import ContextScanPhase
 from tulla.phases.lightweight.execute import ExecutePhase
 from tulla.phases.lightweight.intake import IntakePhase
@@ -40,10 +44,10 @@ from tulla.phases.lightweight.plan import PlanPhase
 from tulla.phases.lightweight.trace import TracePhase
 from tulla.ports.ontology import OntologyPort
 
-
 # ---------------------------------------------------------------------------
 # Mock OntologyPort
-# @pattern:PortsAndAdapters -- Concrete mock implements OntologyPort ABC; phases interact only through the port interface
+# @pattern:PortsAndAdapters -- Concrete mock implements OntologyPort
+#   ABC; phases interact only through the port interface
 # ---------------------------------------------------------------------------
 
 
@@ -87,13 +91,19 @@ class _MockOntologyPort(OntologyPort):
         return {"facts": []}
 
     def sparql_query(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         self.sparql_query_calls.append(query)
         return {"results": []}
 
     def sparql_update(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"status": "ok"}
 
@@ -104,7 +114,11 @@ class _MockOntologyPort(OntologyPort):
         return 0
 
     def set_lifecycle(
-        self, idea_id: str, new_state: str, *, reason: str = "",
+        self,
+        idea_id: str,
+        new_state: str,
+        *,
+        reason: str = "",
     ) -> dict[str, Any]:
         return {}
 
@@ -117,16 +131,21 @@ class _MockOntologyPort(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.add_triple_calls.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "is_literal": is_literal,
-        })
+        self.add_triple_calls.append(
+            {
+                "subject": subject,
+                "predicate": predicate,
+                "object": object,
+                "is_literal": is_literal,
+            }
+        )
         return {"status": "added"}
 
     def remove_triples_by_subject(
-        self, subject: str, *, ontology: str | None = None,
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
     ) -> int:
         self.remove_triples_by_subject_calls.append(subject)
         return 0
@@ -155,8 +174,10 @@ class _StubClaudePort:
 
 # ---------------------------------------------------------------------------
 # Stub phases — override run_claude() for deterministic integration testing
-# @principle:DependencyInversion -- Stubs subclass the real phase classes, overriding only the Claude call boundary
-# @principle:SeparationOfConcerns -- Each stub isolates a single phase's side-effects, keeping test data flow deterministic
+# @principle:DependencyInversion -- Stubs subclass the real phase
+#   classes, overriding only the Claude call boundary
+# @principle:SeparationOfConcerns -- Each stub isolates a single
+#   phase's side-effects, keeping test data flow deterministic
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +188,10 @@ class _StubIntakePhase(IntakePhase):
         self._eligible = eligible
 
     def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]],
+        self,
+        ctx: PhaseContext,
+        prompt: str,
+        tools: list[dict[str, Any]],
     ) -> Any:
         return {
             "change_type": "bugfix",
@@ -182,11 +206,18 @@ class _StubContextScanPhase(ContextScanPhase):
     """Returns canned ContextScanOutput without filesystem or SPARQL access."""
 
     def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]],
+        self,
+        ctx: PhaseContext,
+        prompt: str,
+        tools: list[dict[str, Any]],
     ) -> Any:
         prev = ctx.config.get("prev_output")
-        # @principle:FailSafeRouting -- Check lightweight eligibility from intake; abort if ineligible
-        if prev is not None and hasattr(prev, "lightweight_eligible") and not prev.lightweight_eligible:
+        # @principle:FailSafeRouting -- Check eligibility; abort if ineligible
+        if (
+            prev is not None
+            and hasattr(prev, "lightweight_eligible")
+            and not prev.lightweight_eligible
+        ):
             raise ValueError(
                 "Change is not lightweight-eligible. Please run the full pipeline instead."
             )
@@ -204,7 +235,10 @@ class _StubPlanPhase(PlanPhase):
     """Returns canned PlanOutput without invoking Claude."""
 
     def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]],
+        self,
+        ctx: PhaseContext,
+        prompt: str,
+        tools: list[dict[str, Any]],
     ) -> Any:
         return {
             "plan_summary": "Fix null-pointer by adding guard clause",
@@ -221,7 +255,10 @@ class _StubExecutePhase(ExecutePhase):
     """Returns canned ExecuteOutput without invoking Claude."""
 
     def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]],
+        self,
+        ctx: PhaseContext,
+        prompt: str,
+        tools: list[dict[str, Any]],
     ) -> Any:
         return {
             "changes_summary": "Added None guard in login handler",
@@ -235,7 +272,10 @@ class _StubTracePhase(TracePhase):
     """Returns canned trace data; uses the real parse_output() to build LightweightTraceResult."""
 
     def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]],
+        self,
+        ctx: PhaseContext,
+        prompt: str,
+        tools: list[dict[str, Any]],
     ) -> Any:
         # Retrieve upstream outputs from prev_output chain for realistic assembly
         prev = ctx.config.get("prev_output")
@@ -341,7 +381,8 @@ class TestLightweightPipelineHappyPath:
             )
 
     def test_final_phase_produces_lightweight_trace_result(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """The lw-trace phase data is a LightweightTraceResult instance."""
         pipeline = _build_pipeline(tmp_path)
@@ -513,7 +554,8 @@ class TestLightweightPipelineAbortPath:
         assert "lw-trace" not in executed_ids
 
     def test_ineligible_error_mentions_full_pipeline(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """The failure error message directs the user to the full pipeline."""
         pipeline = _build_pipeline(tmp_path, intake_eligible=False)

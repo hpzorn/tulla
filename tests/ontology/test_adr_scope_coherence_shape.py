@@ -11,9 +11,8 @@ Verification criteria (prd:req-69-3-1):
 
 from __future__ import annotations
 
-import pytest
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import RDF, RDFS, XSD
+from rdflib import Graph, Literal, Namespace
+from rdflib.namespace import RDF, RDFS
 
 ISAQB = Namespace("http://tulla.dev/isaqb#")
 SH = Namespace("http://www.w3.org/ns/shacl#")

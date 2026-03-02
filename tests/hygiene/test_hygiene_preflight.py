@@ -19,10 +19,10 @@ from tulla.hygiene.preflight import (
     run_preflight_hygiene,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_config(mode: HygieneMode) -> HygieneConfig:
     return HygieneConfig(mode=mode, remaining_args=[])
@@ -41,6 +41,7 @@ def _touch(path: Path, age_secs: float = 0) -> Path:
 # ---------------------------------------------------------------------------
 # StaleFile dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestStaleFile:
     def test_creation(self, tmp_path: Path) -> None:
@@ -69,6 +70,7 @@ class TestStaleFile:
 # ---------------------------------------------------------------------------
 # HygieneReport dataclass
 # ---------------------------------------------------------------------------
+
 
 class TestHygieneReport:
     def test_empty_report_is_clean(self) -> None:
@@ -139,6 +141,7 @@ class TestHygieneReport:
 # Constants
 # ---------------------------------------------------------------------------
 
+
 class TestConstants:
     def test_lock_suffixes(self) -> None:
         assert ".lock" in LOCK_SUFFIXES
@@ -162,6 +165,7 @@ class TestConstants:
 # ---------------------------------------------------------------------------
 # inspect_directory
 # ---------------------------------------------------------------------------
+
 
 class TestInspectDirectory:
     def test_empty_directory(self, tmp_path: Path) -> None:
@@ -244,6 +248,7 @@ class TestInspectDirectory:
 # run_preflight_hygiene
 # ---------------------------------------------------------------------------
 
+
 class TestRunPreflightHygiene:
     def test_no_clean_mode_skips_everything(self, tmp_path: Path) -> None:
         _touch(tmp_path / "stale.lock", age_secs=9999)
@@ -257,7 +262,9 @@ class TestRunPreflightHygiene:
         _touch(tmp_path / "stale.lock", age_secs=7200)
         config = _make_config(HygieneMode.CHECK)
         report = run_preflight_hygiene(
-            config, [tmp_path], stale_threshold_secs=3600,
+            config,
+            [tmp_path],
+            stale_threshold_secs=3600,
         )
         assert report.mode_used == "check"
         assert report.issues_found == 1
@@ -268,7 +275,9 @@ class TestRunPreflightHygiene:
         _touch(tmp_path / "stale.tmp", age_secs=7200)
         config = _make_config(HygieneMode.CLEAN)
         report = run_preflight_hygiene(
-            config, [tmp_path], stale_threshold_secs=3600,
+            config,
+            [tmp_path],
+            stale_threshold_secs=3600,
         )
         assert report.mode_used == "clean"
         assert report.issues_found == 1
@@ -279,7 +288,9 @@ class TestRunPreflightHygiene:
         _touch(tmp_path / "fresh.lock", age_secs=10)
         config = _make_config(HygieneMode.CLEAN)
         report = run_preflight_hygiene(
-            config, [tmp_path], stale_threshold_secs=3600,
+            config,
+            [tmp_path],
+            stale_threshold_secs=3600,
         )
         assert report.is_clean is True
         assert (tmp_path / "fresh.lock").exists()
@@ -291,7 +302,9 @@ class TestRunPreflightHygiene:
         _touch(dir_b / "y.tmp", age_secs=7200)
         config = _make_config(HygieneMode.CLEAN)
         report = run_preflight_hygiene(
-            config, [dir_a, dir_b], stale_threshold_secs=3600,
+            config,
+            [dir_a, dir_b],
+            stale_threshold_secs=3600,
         )
         assert report.cleaned_count == 2
         assert not (dir_a / "x.lock").exists()
@@ -304,13 +317,15 @@ class TestRunPreflightHygiene:
         assert report.cleaned_count == 0
 
     def test_clean_handles_deletion_error(self, tmp_path: Path) -> None:
-        lock_file = _touch(tmp_path / "readonly.lock", age_secs=7200)
+        _touch(tmp_path / "readonly.lock", age_secs=7200)
         # Make the parent directory read-only so unlink fails.
         tmp_path.chmod(0o555)
         try:
             config = _make_config(HygieneMode.CLEAN)
             report = run_preflight_hygiene(
-                config, [tmp_path], stale_threshold_secs=3600,
+                config,
+                [tmp_path],
+                stale_threshold_secs=3600,
             )
             assert report.issues_found == 1
             assert len(report.errors) == 1

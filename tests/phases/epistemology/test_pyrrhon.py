@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.models import EpistemologyOutput
 from tulla.phases.epistemology.signal import PyrrhonPhase
 
@@ -122,22 +122,16 @@ class TestBuildPrompt:
         prompt = PyrrhonPhase().build_prompt(ctx)
         assert "Sextus Empiricus" in prompt
 
-    def test_prompt_contains_anti_collapse_do_not_resolve(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_anti_collapse_do_not_resolve(self, ctx: PhaseContext) -> None:
         prompt = PyrrhonPhase().build_prompt(ctx)
         assert "Do NOT resolve" in prompt
 
-    def test_prompt_contains_equipollence_framework(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_equipollence_framework(self, ctx: PhaseContext) -> None:
         prompt = PyrrhonPhase().build_prompt(ctx)
         assert "isostheneia" in prompt
         assert "Equipollence" in prompt
 
-    def test_prompt_contains_all_anti_collapse_guards(
-        self, ctx: PhaseContext
-    ) -> None:
+    def test_prompt_contains_all_anti_collapse_guards(self, ctx: PhaseContext) -> None:
         prompt = PyrrhonPhase().build_prompt(ctx)
         assert "Do NOT pick a side" in prompt
         assert "both sides have valid points" in prompt
@@ -215,9 +209,7 @@ class TestParseOutput:
 class _MockedPyrrhonPhase(PyrrhonPhase):
     """PyrrhonPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-pyrrhon-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

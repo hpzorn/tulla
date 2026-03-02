@@ -9,11 +9,21 @@ Simulates a 5-phase Discovery pipeline run using _MockOntologyPort:
      has correct phase keys and typed values.
   5. Calls traverse_chain() from D5, verifying it walks back through D4-D1.
 
-# @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort ABC so the full persist/collect/traverse cycle runs without a live ontology-server
-# @principle:DependencyInversion -- All test code depends on OntologyPort and PhaseFactPersister abstractions; the mock adapter is injected at fixture level
-# @principle:LooseCoupling -- Each test class validates one integration concern (persist, collect, group, traverse) and couples only to phase_facts public API
-# @pattern:LayeredArchitecture -- Tests exercise the full layer stack: D1-D5 models -> PhaseFactPersister -> _MockOntologyPort, each assertion targets a specific layer boundary
-# @principle:SeparationOfConcerns -- persist/collect/group/traverse are tested as composable stages; group_upstream_facts wraps collect output without changing its contract
+# @pattern:PortsAndAdapters -- _MockOntologyPort implements OntologyPort
+#   ABC so the full persist/collect/traverse cycle runs without a live
+#   ontology-server
+# @principle:DependencyInversion -- All test code depends on OntologyPort
+#   and PhaseFactPersister abstractions; the mock adapter is injected at
+#   fixture level
+# @principle:LooseCoupling -- Each test class validates one integration
+#   concern (persist, collect, group, traverse) and couples only to
+#   phase_facts public API
+# @pattern:LayeredArchitecture -- Tests exercise the full layer stack:
+#   D1-D5 models -> PhaseFactPersister -> _MockOntologyPort, each
+#   assertion targets a specific layer boundary
+# @principle:SeparationOfConcerns -- persist/collect/group/traverse are
+#   tested as composable stages; group_upstream_facts wraps collect output
+#   without changing its contract
 """
 
 from __future__ import annotations
@@ -23,7 +33,6 @@ from typing import Any
 
 import pytest
 
-from tulla.core.intent import IntentField, extract_intent_fields
 from tulla.core.phase import PhaseResult, PhaseStatus
 from tulla.core.phase_facts import (
     PhaseFactPersister,
@@ -31,7 +40,7 @@ from tulla.core.phase_facts import (
     group_upstream_facts,
     traverse_chain,
 )
-from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.namespaces import PHASE_NS, TRACE_NS
 from tulla.phases.discovery.models import (
     D1Output,
     D2Output,
@@ -40,7 +49,6 @@ from tulla.phases.discovery.models import (
     D5Output,
 )
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Discovery pipeline constants
@@ -107,12 +115,14 @@ class _MockOntologyPort(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.triples.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "is_literal": is_literal,
-        })
+        self.triples.append(
+            {
+                "subject": subject,
+                "predicate": predicate,
+                "object": object,
+                "is_literal": is_literal,
+            }
+        )
         return {"status": "added"}
 
     def remove_triples_by_subject(
@@ -140,9 +150,14 @@ class _MockOntologyPort(OntologyPort):
         """Simulate SPARQL by inspecting stored triples.
 
         Handles three query patterns used by phase_facts:
-        1. collect_upstream_facts: SELECT ?s ?p ?o WHERE { ?s phase:forRequirement "ID" . ?s ?p ?o }
-        2. traverse_chain ancestor query: SELECT ?ancestor WHERE { <subject> trace:tracesTo+ ?ancestor }
-        3. traverse_chain facts query: SELECT ?p ?o WHERE { <subject> ?p ?o }
+        1. collect_upstream_facts:
+           SELECT ?s ?p ?o WHERE { ?s phase:forRequirement "ID" .
+           ?s ?p ?o }
+        2. traverse_chain ancestor query:
+           SELECT ?ancestor WHERE { <subject> trace:tracesTo+
+           ?ancestor }
+        3. traverse_chain facts query:
+           SELECT ?p ?o WHERE { <subject> ?p ?o }
         """
         import re
 
@@ -161,11 +176,13 @@ class _MockOntologyPort(OntologyPort):
                         for tr in self.triples
                     )
                     if has_req:
-                        results.append({
-                            "s": t["subject"],
-                            "p": t["predicate"],
-                            "o": t["object"],
-                        })
+                        results.append(
+                            {
+                                "s": t["subject"],
+                                "p": t["predicate"],
+                                "o": t["object"],
+                            }
+                        )
                 return {"results": results}
 
         # Pattern 2: traverse_chain ancestor query (trace:tracesTo+)
@@ -199,10 +216,7 @@ class _MockOntologyPort(OntologyPort):
         while True:
             next_uri = None
             for t in self.triples:
-                if (
-                    t["subject"] == current
-                    and t["predicate"] == f"{TRACE_NS}tracesTo"
-                ):
+                if t["subject"] == current and t["predicate"] == f"{TRACE_NS}tracesTo":
                     next_uri = t["object"]
                     break
             if next_uri is None or next_uri in seen:
@@ -342,8 +356,11 @@ class TestPersistDiscoveryPipeline:
         self, mock_port: _MockOntologyPort, persister: PhaseFactPersister
     ) -> None:
         result = persister.persist(
-            idea_id=IDEA_ID, phase_id="d1", phase_result=_make_d1(),
-            predecessor_phase_id=None, shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d1",
+            phase_result=_make_d1(),
+            predecessor_phase_id=None,
+            shacl_shape_id=None,
         )
         assert result.stored_count == 6
         assert len(mock_port.triples) == 6
@@ -352,12 +369,18 @@ class TestPersistDiscoveryPipeline:
         self, mock_port: _MockOntologyPort, persister: PhaseFactPersister
     ) -> None:
         persister.persist(
-            idea_id=IDEA_ID, phase_id="d1", phase_result=_make_d1(),
-            predecessor_phase_id=None, shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d1",
+            phase_result=_make_d1(),
+            predecessor_phase_id=None,
+            shacl_shape_id=None,
         )
         result = persister.persist(
-            idea_id=IDEA_ID, phase_id="d2", phase_result=_make_d2(),
-            predecessor_phase_id="d1", shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d2",
+            phase_result=_make_d2(),
+            predecessor_phase_id="d1",
+            shacl_shape_id=None,
         )
         assert result.stored_count == 7
 
@@ -365,16 +388,25 @@ class TestPersistDiscoveryPipeline:
         self, mock_port: _MockOntologyPort, persister: PhaseFactPersister
     ) -> None:
         persister.persist(
-            idea_id=IDEA_ID, phase_id="d1", phase_result=_make_d1(),
-            predecessor_phase_id=None, shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d1",
+            phase_result=_make_d1(),
+            predecessor_phase_id=None,
+            shacl_shape_id=None,
         )
         persister.persist(
-            idea_id=IDEA_ID, phase_id="d2", phase_result=_make_d2(),
-            predecessor_phase_id="d1", shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d2",
+            phase_result=_make_d2(),
+            predecessor_phase_id="d1",
+            shacl_shape_id=None,
         )
         result = persister.persist(
-            idea_id=IDEA_ID, phase_id="d3", phase_result=_make_d3(),
-            predecessor_phase_id="d2", shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d3",
+            phase_result=_make_d3(),
+            predecessor_phase_id="d2",
+            shacl_shape_id=None,
         )
         assert result.stored_count == 7
 
@@ -387,12 +419,18 @@ class TestPersistDiscoveryPipeline:
             ("d3", _make_d3, "d2"),
         ]:
             persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
         result = persister.persist(
-            idea_id=IDEA_ID, phase_id="d4", phase_result=_make_d4(),
-            predecessor_phase_id="d3", shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d4",
+            phase_result=_make_d4(),
+            predecessor_phase_id="d3",
+            shacl_shape_id=None,
         )
         assert result.stored_count == 7
 
@@ -406,12 +444,18 @@ class TestPersistDiscoveryPipeline:
             ("d4", _make_d4, "d3"),
         ]:
             persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
         result = persister.persist(
-            idea_id=IDEA_ID, phase_id="d5", phase_result=_make_d5(),
-            predecessor_phase_id="d4", shacl_shape_id=None,
+            idea_id=IDEA_ID,
+            phase_id="d5",
+            phase_result=_make_d5(),
+            predecessor_phase_id="d4",
+            shacl_shape_id=None,
         )
         assert result.stored_count == 9
 
@@ -429,8 +473,11 @@ class TestPersistDiscoveryPipeline:
         total = 0
         for phase_id, make_fn, pred in pipeline:
             result = persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
             total += result.stored_count
         assert total == 36
@@ -449,8 +496,11 @@ class TestPersistDiscoveryPipeline:
         ]
         for phase_id, make_fn, pred in pipeline:
             persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
 
         # Collect all preserves- triples keyed by phase
@@ -507,8 +557,11 @@ class TestCollectUpstreamFacts:
         ]
         for phase_id, make_fn, pred in pipeline:
             persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
 
     def test_d1_has_no_upstream(self, mock_port: _MockOntologyPort) -> None:
@@ -581,8 +634,11 @@ class TestGroupUpstreamFacts:
         ]
         for phase_id, make_fn, pred in pipeline:
             persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
 
     def test_d5_grouped_has_correct_phase_keys(self, mock_port: _MockOntologyPort) -> None:
@@ -637,7 +693,10 @@ class TestGroupUpstreamFacts:
             "d2": {
                 "personas": [{"name": "Dev", "role": "Engineer", "primary_jtbd": "Automate"}],
                 "non_negotiable_needs": ["Fast iteration"],
-                "primary_persona_jtbd": "When I build features, I want automation, so I can ship faster",
+                "primary_persona_jtbd": (
+                    "When I build features, I want automation,"
+                    " so I can ship faster"
+                ),
             },
             "d3": {
                 "quadrant": "high-value-low-effort",
@@ -673,8 +732,11 @@ class TestTraverseChain:
         ]
         for phase_id, make_fn, pred in pipeline:
             persister.persist(
-                idea_id=IDEA_ID, phase_id=phase_id, phase_result=make_fn(),
-                predecessor_phase_id=pred, shacl_shape_id=None,
+                idea_id=IDEA_ID,
+                phase_id=phase_id,
+                phase_result=make_fn(),
+                predecessor_phase_id=pred,
+                shacl_shape_id=None,
             )
 
     def test_d5_chain_has_5_entries(self, mock_port: _MockOntologyPort) -> None:

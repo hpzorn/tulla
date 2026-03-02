@@ -132,28 +132,20 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_architecture_output_path(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_architecture_output_path(self, phase: P3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p3-architecture-design.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: P3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase P3: Architecture Design" in prompt
 
-    def test_reads_p1_and_p2(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_reads_p1_and_p2(self, phase: P3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p1-discovery-context.md" in prompt
         assert "p2-codebase-analysis.md" in prompt
 
-    def test_includes_schema_context_when_provided(
-        self, phase: P3Phase, tmp_path: Path
-    ) -> None:
+    def test_includes_schema_context_when_provided(self, phase: P3Phase, tmp_path: Path) -> None:
         ctx = PhaseContext(
             idea_id="idea-42",
             work_dir=tmp_path,
@@ -165,15 +157,11 @@ class TestBuildPrompt:
         assert "iSAQB quality attributes here" in prompt
         assert "iSAQB Architecture Schema" in prompt
 
-    def test_no_schema_block_when_absent(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_no_schema_block_when_absent(self, phase: P3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "iSAQB Architecture Schema" not in prompt
 
-    def test_project_adr_section_with_decisions(
-        self, phase: P3Phase, tmp_path: Path
-    ) -> None:
+    def test_project_adr_section_with_decisions(self, phase: P3Phase, tmp_path: Path) -> None:
         decisions = [
             {
                 "title": "ADR-P-1: Use Event Sourcing",
@@ -242,9 +230,7 @@ class TestBuildPrompt:
         goal_pos = prompt.index("## Goal")
         assert upstream_pos < adr_pos < goal_pos
 
-    def test_project_adr_section_omitted_when_empty(
-        self, phase: P3Phase, tmp_path: Path
-    ) -> None:
+    def test_project_adr_section_omitted_when_empty(self, phase: P3Phase, tmp_path: Path) -> None:
         ctx = PhaseContext(
             idea_id="idea-42",
             work_dir=tmp_path,
@@ -309,17 +295,13 @@ class TestBuildPrompt:
 class TestGetTools:
     """P3Phase.get_tools() tests."""
 
-    def test_includes_ontology_server_tools(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_ontology_server_tools(self, phase: P3Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
         assert "mcp__ontology-server__query_ontology" in tool_names
         assert "mcp__ontology-server__sparql_query" in tool_names
 
-    def test_includes_read_write(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write(self, phase: P3Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
@@ -334,15 +316,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """P3Phase.parse_output() when p3-architecture-design.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: P3Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="p3-architecture-design.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: P3Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -356,9 +334,7 @@ class TestParseOutputMissing:
 class TestParseOutputSuccess:
     """P3Phase.parse_output() when p3-architecture-design.md is present."""
 
-    def test_returns_p3_output(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_p3_output(self, phase: P3Phase, ctx: PhaseContext) -> None:
         arch_file = ctx.work_dir / "p3-architecture-design.md"
         arch_file.write_text(SAMPLE_ARCHITECTURE, encoding="utf-8")
 
@@ -368,9 +344,7 @@ class TestParseOutputSuccess:
         assert result.total_dependencies == 2  # 2 unknowns in table
         assert result.circular_dependencies == 1  # 1 with "Yes"
 
-    def test_zero_unknowns_when_table_empty(
-        self, phase: P3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_zero_unknowns_when_table_empty(self, phase: P3Phase, ctx: PhaseContext) -> None:
         minimal = (
             "# P3: Architecture Design\n"
             "## Unknowns Requiring Research\n"
@@ -397,9 +371,7 @@ class _MockP3Phase(P3Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "p3-architecture-design.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"

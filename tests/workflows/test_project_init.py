@@ -16,20 +16,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from tulla.namespaces import ARCH_NS, ISAQB_NS, PRD_NS, RDF_TYPE
 from tulla.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
 from tulla.ports.ontology import OntologyPort
 from tulla.workflows.project_init import (
     RDFS_LABEL,
     CandidateADR,
-    InitProjectResult,
     init_project,
     migrate_existing_adrs,
     promote_adr,
 )
-
 
 # ---------------------------------------------------------------------------
 # Mock OntologyPort with scope-aware SPARQL simulation
@@ -58,24 +54,33 @@ class _MockOntologyPort(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.add_triple_calls.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "is_literal": is_literal,
-        })
+        self.add_triple_calls.append(
+            {
+                "subject": subject,
+                "predicate": predicate,
+                "object": object,
+                "is_literal": is_literal,
+            }
+        )
         # Simulate the triple being stored — mark this ADR as scoped
         if predicate == f"{ISAQB_NS}scope" and subject in self._adrs:
             self._adrs[subject] = True
         return {"status": "added"}
 
     def remove_triples_by_subject(
-        self, subject: str, *, ontology: str | None = None,
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
     ) -> int:
         return 0
 
     def validate_instance(
-        self, instance_uri: str, shape_uri: str, *, ontology: str | None = None,
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
     ) -> dict[str, Any]:
         return {"conforms": True, "violations": []}
 
@@ -84,9 +89,7 @@ class _MockOntologyPort(OntologyPort):
         if "FILTER NOT EXISTS" in query and "isaqb:scope" in query:
             return {
                 "results": [
-                    {"adr": uri}
-                    for uri, has_scope in self._adrs.items()
-                    if not has_scope
+                    {"adr": uri} for uri, has_scope in self._adrs.items() if not has_scope
                 ],
             }
         return {"results": []}
@@ -131,12 +134,14 @@ class TestMigrateExistingAdrs:
 
     def test_annotates_unscoped_adrs(self) -> None:
         """3 unscoped + 1 scoped => 3 add_triple calls, returns 3."""
-        port = _MockOntologyPort(adrs=[
-            {"uri": "arch:adr-1", "has_scope": False},
-            {"uri": "arch:adr-2", "has_scope": False},
-            {"uri": "arch:adr-3", "has_scope": False},
-            {"uri": "arch:adr-4", "has_scope": True},
-        ])
+        port = _MockOntologyPort(
+            adrs=[
+                {"uri": "arch:adr-1", "has_scope": False},
+                {"uri": "arch:adr-2", "has_scope": False},
+                {"uri": "arch:adr-3", "has_scope": False},
+                {"uri": "arch:adr-4", "has_scope": True},
+            ]
+        )
 
         result = migrate_existing_adrs(port)
 
@@ -155,12 +160,14 @@ class TestMigrateExistingAdrs:
 
     def test_idempotent_second_call(self) -> None:
         """Second call after migration returns 0 — all ADRs already scoped."""
-        port = _MockOntologyPort(adrs=[
-            {"uri": "arch:adr-1", "has_scope": False},
-            {"uri": "arch:adr-2", "has_scope": False},
-            {"uri": "arch:adr-3", "has_scope": False},
-            {"uri": "arch:adr-4", "has_scope": True},
-        ])
+        port = _MockOntologyPort(
+            adrs=[
+                {"uri": "arch:adr-1", "has_scope": False},
+                {"uri": "arch:adr-2", "has_scope": False},
+                {"uri": "arch:adr-3", "has_scope": False},
+                {"uri": "arch:adr-4", "has_scope": True},
+            ]
+        )
 
         first = migrate_existing_adrs(port)
         assert first == 3
@@ -174,10 +181,12 @@ class TestMigrateExistingAdrs:
 
     def test_all_already_scoped(self) -> None:
         """If every ADR already has a scope, returns 0 immediately."""
-        port = _MockOntologyPort(adrs=[
-            {"uri": "arch:adr-1", "has_scope": True},
-            {"uri": "arch:adr-2", "has_scope": True},
-        ])
+        port = _MockOntologyPort(
+            adrs=[
+                {"uri": "arch:adr-1", "has_scope": True},
+                {"uri": "arch:adr-2", "has_scope": True},
+            ]
+        )
 
         assert migrate_existing_adrs(port) == 0
         assert len(port.add_triple_calls) == 0
@@ -194,32 +203,45 @@ class TestMigrateExistingAdrs:
 # Mock ClaudePort that returns 4 candidate ADRs as JSON
 # ---------------------------------------------------------------------------
 
-_FOUR_ADR_JSON = json.dumps([
-    {
-        "title": "Use Python 3.11+ for new code",
-        "context": "Consistency with existing infrastructure (ontology-server, MCP tools)",
-        "consequences": "(+) Uniform toolchain. (-) Excludes older runtimes. (~) Migration path clear.",
-        "arc42_section": 4,
-    },
-    {
-        "title": "Ports and Adapters architecture",
-        "context": "Decoupling domain from infrastructure for testability",
-        "consequences": "(+) Easy mocking. (+) Swap adapters. (-) More boilerplate.",
-        "arc42_section": 5,
-    },
-    {
-        "title": "RDF/Turtle for ontology storage",
-        "context": "Knowledge graph approach for semantic queries and SHACL validation",
-        "consequences": "(+) SPARQL queries. (+) SHACL validation. (-) Learning curve.",
-        "arc42_section": 9,
-    },
-    {
-        "title": "Additive-only ontology changes",
-        "context": "Prevent breaking existing data when evolving the schema",
-        "consequences": "(+) Backwards compatible. (-) Schema bloat over time. (~) Requires migration helpers.",
-        "arc42_section": 9,
-    },
-])
+_FOUR_ADR_JSON = json.dumps(
+    [
+        {
+            "title": "Use Python 3.11+ for new code",
+            "context": (
+                "Consistency with existing infrastructure"
+                " (ontology-server, MCP tools)"
+            ),
+            "consequences": (
+                "(+) Uniform toolchain."
+                " (-) Excludes older runtimes."
+                " (~) Migration path clear."
+            ),
+            "arc42_section": 4,
+        },
+        {
+            "title": "Ports and Adapters architecture",
+            "context": "Decoupling domain from infrastructure for testability",
+            "consequences": "(+) Easy mocking. (+) Swap adapters. (-) More boilerplate.",
+            "arc42_section": 5,
+        },
+        {
+            "title": "RDF/Turtle for ontology storage",
+            "context": "Knowledge graph approach for semantic queries and SHACL validation",
+            "consequences": "(+) SPARQL queries. (+) SHACL validation. (-) Learning curve.",
+            "arc42_section": 9,
+        },
+        {
+            "title": "Additive-only ontology changes",
+            "context": "Prevent breaking existing data when evolving the schema",
+            "consequences": (
+                "(+) Backwards compatible."
+                " (-) Schema bloat over time."
+                " (~) Requires migration helpers."
+            ),
+            "arc42_section": 9,
+        },
+    ]
+)
 
 
 class _MockClaudePort(ClaudePort):
@@ -272,23 +294,28 @@ class TestInitProject:
         project_uri = f"{PRD_NS}project-test-proj"
 
         # rdf:type prd:Project
-        type_calls = [c for c in calls
-                      if c["subject"] == project_uri
-                      and c["predicate"] == RDF_TYPE
-                      and c["object"] == f"{PRD_NS}Project"]
+        type_calls = [
+            c
+            for c in calls
+            if c["subject"] == project_uri
+            and c["predicate"] == RDF_TYPE
+            and c["object"] == f"{PRD_NS}Project"
+        ]
         assert len(type_calls) == 1
 
         # rdfs:label
-        label_calls = [c for c in calls
-                       if c["subject"] == project_uri
-                       and c["predicate"] == RDFS_LABEL]
+        label_calls = [
+            c for c in calls if c["subject"] == project_uri and c["predicate"] == RDFS_LABEL
+        ]
         assert len(label_calls) == 1
         assert label_calls[0]["is_literal"] is True
 
         # prd:projectId
-        pid_calls = [c for c in calls
-                     if c["subject"] == project_uri
-                     and c["predicate"] == f"{PRD_NS}projectId"]
+        pid_calls = [
+            c
+            for c in calls
+            if c["subject"] == project_uri and c["predicate"] == f"{PRD_NS}projectId"
+        ]
         assert len(pid_calls) == 1
         assert pid_calls[0]["object"] == "test-proj"
         assert pid_calls[0]["is_literal"] is True
@@ -298,42 +325,59 @@ class TestInitProject:
             adr_uri = f"{ARCH_NS}adr-test-proj-{idx}"
 
             # rdf:type isaqb:ArchitectureDecision
-            adr_type = [c for c in calls
-                        if c["subject"] == adr_uri
-                        and c["predicate"] == RDF_TYPE
-                        and c["object"] == f"{ISAQB_NS}ArchitectureDecision"]
+            adr_type = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri
+                and c["predicate"] == RDF_TYPE
+                and c["object"] == f"{ISAQB_NS}ArchitectureDecision"
+            ]
             assert len(adr_type) == 1, f"ADR {idx} missing rdf:type"
 
             # isaqb:scope "project"
-            scope = [c for c in calls
-                     if c["subject"] == adr_uri
-                     and c["predicate"] == f"{ISAQB_NS}scope"
-                     and c["object"] == "project"]
+            scope = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri
+                and c["predicate"] == f"{ISAQB_NS}scope"
+                and c["object"] == "project"
+            ]
             assert len(scope) == 1, f"ADR {idx} missing scope"
             assert scope[0]["is_literal"] is True
 
             # prd:hasADR link from project
-            has_adr = [c for c in calls
-                       if c["subject"] == project_uri
-                       and c["predicate"] == f"{PRD_NS}hasADR"
-                       and c["object"] == adr_uri]
+            has_adr = [
+                c
+                for c in calls
+                if c["subject"] == project_uri
+                and c["predicate"] == f"{PRD_NS}hasADR"
+                and c["object"] == adr_uri
+            ]
             assert len(has_adr) == 1, f"ADR {idx} missing prd:hasADR link"
 
             # isaqb:documentedIn link to arc42 section
-            doc_in = [c for c in calls
-                      if c["subject"] == adr_uri
-                      and c["predicate"] == f"{ISAQB_NS}documentedIn"]
+            doc_in = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri and c["predicate"] == f"{ISAQB_NS}documentedIn"
+            ]
             assert len(doc_in) == 1, f"ADR {idx} missing documentedIn"
 
         # Verify specific arc42 section mappings
-        adr1_doc = [c for c in calls
-                    if c["subject"] == f"{ARCH_NS}adr-test-proj-1"
-                    and c["predicate"] == f"{ISAQB_NS}documentedIn"]
+        adr1_doc = [
+            c
+            for c in calls
+            if c["subject"] == f"{ARCH_NS}adr-test-proj-1"
+            and c["predicate"] == f"{ISAQB_NS}documentedIn"
+        ]
         assert adr1_doc[0]["object"] == f"{ISAQB_NS}Arc42_04"  # section 4
 
-        adr3_doc = [c for c in calls
-                    if c["subject"] == f"{ARCH_NS}adr-test-proj-3"
-                    and c["predicate"] == f"{ISAQB_NS}documentedIn"]
+        adr3_doc = [
+            c
+            for c in calls
+            if c["subject"] == f"{ARCH_NS}adr-test-proj-3"
+            and c["predicate"] == f"{ISAQB_NS}documentedIn"
+        ]
         assert adr3_doc[0]["object"] == f"{ISAQB_NS}Arc42_09"  # section 9
 
     def test_interactive_reject(self, tmp_path: Path) -> None:
@@ -425,18 +469,24 @@ class TestPromoteAdr:
         calls = port.add_triple_calls
 
         # Verify isaqb:scope "project" was added
-        scope_calls = [c for c in calls
-                       if c["subject"] == adr_uri
-                       and c["predicate"] == f"{ISAQB_NS}scope"
-                       and c["object"] == "project"]
+        scope_calls = [
+            c
+            for c in calls
+            if c["subject"] == adr_uri
+            and c["predicate"] == f"{ISAQB_NS}scope"
+            and c["object"] == "project"
+        ]
         assert len(scope_calls) == 1
         assert scope_calls[0]["is_literal"] is True
 
         # Verify prd:hasADR link from project to ADR
-        link_calls = [c for c in calls
-                      if c["subject"] == project_uri
-                      and c["predicate"] == f"{PRD_NS}hasADR"
-                      and c["object"] == adr_uri]
+        link_calls = [
+            c
+            for c in calls
+            if c["subject"] == project_uri
+            and c["predicate"] == f"{PRD_NS}hasADR"
+            and c["object"] == adr_uri
+        ]
         assert len(link_calls) == 1
 
     def test_sparql_delete_attempted(self) -> None:
@@ -466,12 +516,14 @@ class TestMigrateIdempotency:
 
     def test_only_unscoped_adrs_annotated(self) -> None:
         """Mixed set: 2 unscoped + 2 scoped => only 2 annotated."""
-        port = _MockOntologyPort(adrs=[
-            {"uri": f"{ARCH_NS}adr-a", "has_scope": False},
-            {"uri": f"{ARCH_NS}adr-b", "has_scope": True},
-            {"uri": f"{ARCH_NS}adr-c", "has_scope": False},
-            {"uri": f"{ARCH_NS}adr-d", "has_scope": True},
-        ])
+        port = _MockOntologyPort(
+            adrs=[
+                {"uri": f"{ARCH_NS}adr-a", "has_scope": False},
+                {"uri": f"{ARCH_NS}adr-b", "has_scope": True},
+                {"uri": f"{ARCH_NS}adr-c", "has_scope": False},
+                {"uri": f"{ARCH_NS}adr-d", "has_scope": True},
+            ]
+        )
 
         count = migrate_existing_adrs(port)
 
@@ -491,10 +543,12 @@ class TestMigrateIdempotency:
 
     def test_idempotent_returns_zero_on_rerun(self) -> None:
         """Second call after first migration returns 0 — all already scoped."""
-        port = _MockOntologyPort(adrs=[
-            {"uri": f"{ARCH_NS}adr-x", "has_scope": False},
-            {"uri": f"{ARCH_NS}adr-y", "has_scope": False},
-        ])
+        port = _MockOntologyPort(
+            adrs=[
+                {"uri": f"{ARCH_NS}adr-x", "has_scope": False},
+                {"uri": f"{ARCH_NS}adr-y", "has_scope": False},
+            ]
+        )
 
         first = migrate_existing_adrs(port)
         assert first == 2
@@ -535,25 +589,30 @@ class TestInitProjectEntity:
         calls = ont_port.add_triple_calls
 
         # rdf:type prd:Project
-        type_calls = [c for c in calls
-                      if c["subject"] == project_uri
-                      and c["predicate"] == RDF_TYPE
-                      and c["object"] == f"{PRD_NS}Project"]
+        type_calls = [
+            c
+            for c in calls
+            if c["subject"] == project_uri
+            and c["predicate"] == RDF_TYPE
+            and c["object"] == f"{PRD_NS}Project"
+        ]
         assert len(type_calls) == 1
         assert type_calls[0]["is_literal"] is False
 
         # rdfs:label "Project entity-test" (literal)
-        label_calls = [c for c in calls
-                       if c["subject"] == project_uri
-                       and c["predicate"] == RDFS_LABEL]
+        label_calls = [
+            c for c in calls if c["subject"] == project_uri and c["predicate"] == RDFS_LABEL
+        ]
         assert len(label_calls) == 1
         assert label_calls[0]["object"] == "Project entity-test"
         assert label_calls[0]["is_literal"] is True
 
         # prd:projectId "entity-test" (literal)
-        pid_calls = [c for c in calls
-                     if c["subject"] == project_uri
-                     and c["predicate"] == f"{PRD_NS}projectId"]
+        pid_calls = [
+            c
+            for c in calls
+            if c["subject"] == project_uri and c["predicate"] == f"{PRD_NS}projectId"
+        ]
         assert len(pid_calls) == 1
         assert pid_calls[0]["object"] == "entity-test"
         assert pid_calls[0]["is_literal"] is True
@@ -587,54 +646,70 @@ class TestInitProjectConfirmedADRs:
             adr_uri = f"{ARCH_NS}adr-scope-test-{idx}"
 
             # isaqb:scope "project" (literal)
-            scope = [c for c in calls
-                     if c["subject"] == adr_uri
-                     and c["predicate"] == f"{ISAQB_NS}scope"]
+            scope = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri and c["predicate"] == f"{ISAQB_NS}scope"
+            ]
             assert len(scope) == 1, f"ADR {idx} missing scope"
             assert scope[0]["object"] == "project"
             assert scope[0]["is_literal"] is True
 
             # prd:hasADR link from project to ADR (not a literal)
-            has_adr = [c for c in calls
-                       if c["subject"] == project_uri
-                       and c["predicate"] == f"{PRD_NS}hasADR"
-                       and c["object"] == adr_uri]
+            has_adr = [
+                c
+                for c in calls
+                if c["subject"] == project_uri
+                and c["predicate"] == f"{PRD_NS}hasADR"
+                and c["object"] == adr_uri
+            ]
             assert len(has_adr) == 1, f"ADR {idx} missing hasADR link"
             assert has_adr[0]["is_literal"] is False
 
             # rdf:type isaqb:ArchitectureDecision
-            adr_type = [c for c in calls
-                        if c["subject"] == adr_uri
-                        and c["predicate"] == RDF_TYPE
-                        and c["object"] == f"{ISAQB_NS}ArchitectureDecision"]
+            adr_type = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri
+                and c["predicate"] == RDF_TYPE
+                and c["object"] == f"{ISAQB_NS}ArchitectureDecision"
+            ]
             assert len(adr_type) == 1, f"ADR {idx} missing rdf:type"
 
             # isaqb:context (literal)
-            ctx = [c for c in calls
-                   if c["subject"] == adr_uri
-                   and c["predicate"] == f"{ISAQB_NS}context"]
+            ctx = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri and c["predicate"] == f"{ISAQB_NS}context"
+            ]
             assert len(ctx) == 1, f"ADR {idx} missing context"
             assert ctx[0]["is_literal"] is True
 
             # isaqb:consequences (literal)
-            cons = [c for c in calls
-                    if c["subject"] == adr_uri
-                    and c["predicate"] == f"{ISAQB_NS}consequences"]
+            cons = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri and c["predicate"] == f"{ISAQB_NS}consequences"
+            ]
             assert len(cons) == 1, f"ADR {idx} missing consequences"
             assert cons[0]["is_literal"] is True
 
             # isaqb:decisionStatus (URI, not literal)
-            status = [c for c in calls
-                      if c["subject"] == adr_uri
-                      and c["predicate"] == f"{ISAQB_NS}decisionStatus"]
+            status = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri and c["predicate"] == f"{ISAQB_NS}decisionStatus"
+            ]
             assert len(status) == 1, f"ADR {idx} missing decisionStatus"
             assert status[0]["object"] == f"{ISAQB_NS}StatusProposed"
             assert status[0]["is_literal"] is False
 
             # isaqb:documentedIn (URI)
-            doc_in = [c for c in calls
-                      if c["subject"] == adr_uri
-                      and c["predicate"] == f"{ISAQB_NS}documentedIn"]
+            doc_in = [
+                c
+                for c in calls
+                if c["subject"] == adr_uri and c["predicate"] == f"{ISAQB_NS}documentedIn"
+            ]
             assert len(doc_in) == 1, f"ADR {idx} missing documentedIn"
             assert doc_in[0]["is_literal"] is False
 
@@ -671,9 +746,9 @@ class TestInitProjectConfirmedADRs:
         calls = ont_port.add_triple_calls
 
         # Only 2 ADR URIs should have scope triples
-        scope_calls = [c for c in calls
-                       if c["predicate"] == f"{ISAQB_NS}scope"
-                       and c["object"] == "project"]
+        scope_calls = [
+            c for c in calls if c["predicate"] == f"{ISAQB_NS}scope" and c["object"] == "project"
+        ]
         assert len(scope_calls) == 2
 
         # No rejected ADR URIs should appear
@@ -700,18 +775,24 @@ class TestPromoteAdrReq69_6_9:
         calls = port.add_triple_calls
 
         # isaqb:scope "project" as literal
-        scope = [c for c in calls
-                 if c["subject"] == adr_uri
-                 and c["predicate"] == f"{ISAQB_NS}scope"
-                 and c["object"] == "project"]
+        scope = [
+            c
+            for c in calls
+            if c["subject"] == adr_uri
+            and c["predicate"] == f"{ISAQB_NS}scope"
+            and c["object"] == "project"
+        ]
         assert len(scope) == 1
         assert scope[0]["is_literal"] is True
 
         # prd:hasADR link (not a literal)
-        link = [c for c in calls
-                if c["subject"] == project_uri
-                and c["predicate"] == f"{PRD_NS}hasADR"
-                and c["object"] == adr_uri]
+        link = [
+            c
+            for c in calls
+            if c["subject"] == project_uri
+            and c["predicate"] == f"{PRD_NS}hasADR"
+            and c["object"] == adr_uri
+        ]
         assert len(link) == 1
         assert link[0]["is_literal"] is False
 
@@ -753,16 +834,22 @@ class TestPromoteAdrReq69_6_9:
         calls = port.add_triple_calls
 
         # Scope and link must still be added despite DELETE failure
-        scope = [c for c in calls
-                 if c["subject"] == adr_uri
-                 and c["predicate"] == f"{ISAQB_NS}scope"
-                 and c["object"] == "project"]
+        scope = [
+            c
+            for c in calls
+            if c["subject"] == adr_uri
+            and c["predicate"] == f"{ISAQB_NS}scope"
+            and c["object"] == "project"
+        ]
         assert len(scope) == 1
 
-        link = [c for c in calls
-                if c["subject"] == project_uri
-                and c["predicate"] == f"{PRD_NS}hasADR"
-                and c["object"] == adr_uri]
+        link = [
+            c
+            for c in calls
+            if c["subject"] == project_uri
+            and c["predicate"] == f"{PRD_NS}hasADR"
+            and c["object"] == adr_uri
+        ]
         assert len(link) == 1
 
 
@@ -796,14 +883,21 @@ class _InMemoryOntologyPort(OntologyPort):
         return {"status": "added"}
 
     def remove_triples_by_subject(
-        self, subject: str, *, ontology: str | None = None,
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
     ) -> int:
         before = len(self.triples)
         self.triples = [t for t in self.triples if t[0] != subject]
         return before - len(self.triples)
 
     def validate_instance(
-        self, instance_uri: str, shape_uri: str, *, ontology: str | None = None,
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
     ) -> dict[str, Any]:
         return {"conforms": True, "violations": []}
 
@@ -815,15 +909,9 @@ class _InMemoryOntologyPort(OntologyPort):
             scope_pred = f"{ISAQB_NS}scope"
             adr_type = f"{ISAQB_NS}ArchitectureDecision"
             # Find all ADRs
-            adr_uris = {
-                t[0] for t in self.triples
-                if t[1] == RDF_TYPE and t[2] == adr_type
-            }
+            adr_uris = {t[0] for t in self.triples if t[1] == RDF_TYPE and t[2] == adr_type}
             # Find which have a scope
-            scoped_uris = {
-                t[0] for t in self.triples
-                if t[1] == scope_pred
-            }
+            scoped_uris = {t[0] for t in self.triples if t[1] == scope_pred}
             unscoped = adr_uris - scoped_uris
             return {"results": [{"adr": uri} for uri in sorted(unscoped)]}
 
@@ -834,19 +922,21 @@ class _InMemoryOntologyPort(OntologyPort):
 
             # Find ADRs with scope "project"
             project_scoped = {
-                t[0] for t in self.triples
+                t[0]
+                for t in self.triples
                 if t[1] == scope_pred and t[2] == "project" and t[3] is True
             }
             # Also include URI-prefix matches (STRSTARTS pattern)
             # Extract project_id from query: STRSTARTS(STR(?adr), "...adr-{pid}-")
             import re as _re
+
             prefix_match = _re.search(r'STRSTARTS\(STR\(\?adr\),\s*"([^"]+)"\)', query)
             if prefix_match:
                 uri_prefix = prefix_match.group(1)
                 uri_matched = {
-                    t[0] for t in self.triples
-                    if t[1] == RDF_TYPE and t[2] == adr_type
-                    and t[0].startswith(uri_prefix)
+                    t[0]
+                    for t in self.triples
+                    if t[1] == RDF_TYPE and t[2] == adr_type and t[0].startswith(uri_prefix)
                 }
                 project_scoped = project_scoped | uri_matched
 
@@ -911,26 +1001,28 @@ class _InMemoryOntologyPort(OntologyPort):
 # ---------------------------------------------------------------------------
 
 # Three-ADR JSON for the mock LLM to return during init_project
-_THREE_ADR_JSON = json.dumps([
-    {
-        "title": "Use Python 3.11+ for new code",
-        "context": "Consistency with existing infrastructure",
-        "consequences": "(+) Uniform toolchain. (-) Excludes older runtimes.",
-        "arc42_section": 4,
-    },
-    {
-        "title": "Ports and Adapters architecture",
-        "context": "Decoupling domain from infrastructure for testability",
-        "consequences": "(+) Easy mocking. (+) Swap adapters. (-) Boilerplate.",
-        "arc42_section": 5,
-    },
-    {
-        "title": "RDF/Turtle for ontology storage",
-        "context": "Knowledge graph approach for semantic queries",
-        "consequences": "(+) SPARQL queries. (+) SHACL validation. (-) Learning curve.",
-        "arc42_section": 9,
-    },
-])
+_THREE_ADR_JSON = json.dumps(
+    [
+        {
+            "title": "Use Python 3.11+ for new code",
+            "context": "Consistency with existing infrastructure",
+            "consequences": "(+) Uniform toolchain. (-) Excludes older runtimes.",
+            "arc42_section": 4,
+        },
+        {
+            "title": "Ports and Adapters architecture",
+            "context": "Decoupling domain from infrastructure for testability",
+            "consequences": "(+) Easy mocking. (+) Swap adapters. (-) Boilerplate.",
+            "arc42_section": 5,
+        },
+        {
+            "title": "RDF/Turtle for ontology storage",
+            "context": "Knowledge graph approach for semantic queries",
+            "consequences": "(+) SPARQL queries. (+) SHACL validation. (-) Learning curve.",
+            "arc42_section": 9,
+        },
+    ]
+)
 
 
 class TestIntegration:
@@ -971,10 +1063,7 @@ class TestIntegration:
         assert migrated == 2, f"Expected 2 migrated, got {migrated}"
 
         # Verify both now carry isaqb:scope "idea"
-        scope_triples = [
-            t for t in ont.triples
-            if t[1] == f"{ISAQB_NS}scope" and t[2] == "idea"
-        ]
+        scope_triples = [t for t in ont.triples if t[1] == f"{ISAQB_NS}scope" and t[2] == "idea"]
         assert len(scope_triples) == 2
 
         # -----------------------------------------------------------------
@@ -1000,9 +1089,7 @@ class TestIntegration:
         # -----------------------------------------------------------------
         decisions = collect_project_decisions(ont, "integ")
 
-        assert len(decisions) == 3, (
-            f"Expected 3 project decisions, got {len(decisions)}"
-        )
+        assert len(decisions) == 3, f"Expected 3 project decisions, got {len(decisions)}"
         for d in decisions:
             assert d["scope"] == "project"
             assert d["title"]  # non-empty title
@@ -1052,9 +1139,7 @@ class TestIntegration:
 """
         feature_adrs = _extract_adrs(feature_adr_content)
 
-        assert len(feature_adrs) == 2, (
-            f"Expected 2 feature ADRs, got {len(feature_adrs)}"
-        )
+        assert len(feature_adrs) == 2, f"Expected 2 feature ADRs, got {len(feature_adrs)}"
         for adr in feature_adrs:
             assert adr["scope"] == "idea", (
                 f"Feature ADR scope should be 'idea', got {adr['scope']}"
@@ -1065,9 +1150,9 @@ class TestIntegration:
 # pyshacl Integration Tests (req-69-6-8)
 # ---------------------------------------------------------------------------
 
-import pyshacl
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import RDF, RDFS, XSD
+import pyshacl  # noqa: E402
+from rdflib import Graph, Literal, Namespace, URIRef  # noqa: E402
+from rdflib.namespace import RDF, RDFS, XSD  # noqa: E402
 
 PRD = Namespace("http://tulla.dev/prd#")
 ISAQB = Namespace("http://tulla.dev/isaqb#")
@@ -1146,9 +1231,12 @@ class TestProjectShapePyshacl:
             severity = list(results_graph.objects(result, SH["resultSeverity"]))
             path = list(results_graph.objects(result, SH["resultPath"]))
             if (
-                focus and focus[0] == proj
-                and severity and severity[0] == SH["Violation"]
-                and path and path[0] == RDFS.label
+                focus
+                and focus[0] == proj
+                and severity
+                and severity[0] == SH["Violation"]
+                and path
+                and path[0] == RDFS.label
             ):
                 label_violations.append(result)
 
@@ -1182,9 +1270,12 @@ class TestProjectShapePyshacl:
             severity = list(results_graph.objects(result, SH["resultSeverity"]))
             path = list(results_graph.objects(result, SH["resultPath"]))
             if (
-                focus and focus[0] == proj
-                and severity and severity[0] == SH["Warning"]
-                and path and path[0] == PRD["hasADR"]
+                focus
+                and focus[0] == proj
+                and severity
+                and severity[0] == SH["Warning"]
+                and path
+                and path[0] == PRD["hasADR"]
             ):
                 adr_warnings.append(result)
 
@@ -1257,8 +1348,10 @@ class TestADRScopeCoherenceShapePyshacl:
             focus = list(results_graph.objects(result, SH["focusNode"]))
             source = list(results_graph.objects(result, SH["sourceShape"]))
             if (
-                focus and focus[0] == adr_idea
-                and source and source[0] == ISAQB["ADRScopeCoherenceShape"]
+                focus
+                and focus[0] == adr_idea
+                and source
+                and source[0] == ISAQB["ADRScopeCoherenceShape"]
             ):
                 coherence_warnings.append(result)
 
@@ -1298,8 +1391,10 @@ class TestADRScopeCoherenceShapePyshacl:
             focus = list(results_graph.objects(result, SH["focusNode"]))
             source = list(results_graph.objects(result, SH["sourceShape"]))
             if (
-                focus and focus[0] == adr_idea
-                and source and source[0] == ISAQB["ADRScopeCoherenceShape"]
+                focus
+                and focus[0] == adr_idea
+                and source
+                and source[0] == ISAQB["ADRScopeCoherenceShape"]
             ):
                 coherence_warnings.append(result)
 
@@ -1331,8 +1426,10 @@ class TestADRScopeCoherenceShapePyshacl:
             focus = list(results_graph.objects(result, SH["focusNode"]))
             source = list(results_graph.objects(result, SH["sourceShape"]))
             if (
-                focus and focus[0] == adr_idea
-                and source and source[0] == ISAQB["ADRScopeCoherenceShape"]
+                focus
+                and focus[0] == adr_idea
+                and source
+                and source[0] == ISAQB["ADRScopeCoherenceShape"]
             ):
                 coherence_warnings.append(result)
 

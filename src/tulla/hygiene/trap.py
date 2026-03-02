@@ -24,13 +24,14 @@ Usage::
 from __future__ import annotations
 
 import atexit
+import contextlib
 import logging
 import signal
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from types import FrameType
-from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -185,9 +186,7 @@ def install_trap_handler(
         for sig in signals:
             original = ctx.original_handlers.get(sig.value)
             if original is not None:
-                try:
+                with contextlib.suppress(OSError, ValueError):
                     signal.signal(sig, original)
-                except (OSError, ValueError):
-                    pass
 
     return cleanup

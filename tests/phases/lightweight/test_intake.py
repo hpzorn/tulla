@@ -1,7 +1,9 @@
 """Tests for IntakePhase — change classification and lightweight eligibility.
 
-# @pattern:EventSourcing -- Tests verify that IntakePhase produces correct immutable facts from mocked git state
-# @principle:FailSafeRouting -- Tests verify that uncertain/refactor cases always route to full pipeline
+# @pattern:EventSourcing -- Tests verify IntakePhase produces correct
+#   immutable facts from mocked git state
+# @principle:FailSafeRouting -- Tests verify uncertain/refactor cases
+#   always route to full pipeline
 
 Verification criteria (prd:req-53-2-1):
 - Each of the 6 change types is correctly classified via keyword matching.
@@ -13,10 +15,10 @@ Verification criteria (prd:req-53-2-1):
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch, MagicMock
-import subprocess
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -29,7 +31,6 @@ from tulla.phases.lightweight.intake import (
     _is_lightweight_eligible,
 )
 from tulla.phases.lightweight.models import IntakeOutput
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -142,9 +143,7 @@ class TestGetAffectedFiles:
 
     @patch("tulla.phases.lightweight.intake.subprocess.run")
     def test_returns_files_from_git_diff(self, mock_run: MagicMock) -> None:
-        mock_run.side_effect = _mock_git_diff(
-            ["src/parser.py", "tests/test_parser.py"]
-        )
+        mock_run.side_effect = _mock_git_diff(["src/parser.py", "tests/test_parser.py"])
         result = _get_affected_files()
         assert result == ["src/parser.py", "tests/test_parser.py"]
         assert mock_run.call_count == 2
@@ -310,15 +309,19 @@ class TestIsLightweightEligible:
 
     def test_feature_ineligible_new_public_api(self) -> None:
         files = ["src/a.py"]
-        assert _is_lightweight_eligible(
-            "feature", files, "single-package", "Add new public API endpoint"
-        ) is False
+        assert (
+            _is_lightweight_eligible(
+                "feature", files, "single-package", "Add new public API endpoint"
+            )
+            is False
+        )
 
     def test_feature_ineligible_expose(self) -> None:
         files = ["src/a.py"]
-        assert _is_lightweight_eligible(
-            "feature", files, "single-package", "Expose internal service"
-        ) is False
+        assert (
+            _is_lightweight_eligible("feature", files, "single-package", "Expose internal service")
+            is False
+        )
 
     def test_feature_eligible_zero_files(self) -> None:
         assert _is_lightweight_eligible("feature", [], "single-package", "add thing") is True
@@ -454,9 +457,7 @@ class TestIntakePhaseExecute:
     def test_enhancement_at_boundary_3_files(
         self, mock_run: MagicMock, phase: IntakePhase, tmp_path: Path
     ) -> None:
-        mock_run.side_effect = _mock_git_diff(
-            ["src/a.py", "src/b.py", "src/c.py"]
-        )
+        mock_run.side_effect = _mock_git_diff(["src/a.py", "src/b.py", "src/c.py"])
         ctx = _make_ctx(tmp_path, "Improve error handling")
 
         result = phase.execute(ctx)
@@ -468,9 +469,7 @@ class TestIntakePhaseExecute:
     def test_test_type_eligible(
         self, mock_run: MagicMock, phase: IntakePhase, tmp_path: Path
     ) -> None:
-        mock_run.side_effect = _mock_git_diff(
-            ["tests/test_a.py", "tests/test_b.py"]
-        )
+        mock_run.side_effect = _mock_git_diff(["tests/test_a.py", "tests/test_b.py"])
         ctx = _make_ctx(tmp_path, "Add test for auth module")
 
         result = phase.execute(ctx)

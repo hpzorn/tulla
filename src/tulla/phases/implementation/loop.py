@@ -659,7 +659,7 @@ class ImplementationLoop:
     ) -> None:
         """Print the loop execution plan without running anything."""
         click.echo("=== Dry-run plan ===")
-        click.echo(f"Agent:      implementation")
+        click.echo("Agent:      implementation")
         click.echo(f"Idea:       {idea_id}")
         click.echo(f"Work dir:   {work_dir}")
         click.echo(f"PRD context: {self._prd_context}")

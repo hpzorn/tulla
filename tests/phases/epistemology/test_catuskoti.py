@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.catuskoti import CatuskotiPhase
 from tulla.phases.epistemology.models import EpistemologyOutput
 
@@ -35,9 +35,9 @@ C3: A solo ideator benefits more from mode quantity than mode quality.
 ## Claims Table
 | # | Claim | True | False | Both True and False | Neither True nor False |
 |---|-------|------|-------|---------------------|------------------------|
-| C1 | Epistemology modes produce structurally distinct outputs when given distinct philosophical grounding. | True when the 5-layer encoding is fully implemented: persona, rules, phases, format, and anti-collapse guards each contribute to output divergence. | False when only Layer 1 (persona/label) changes — the LLM's default reasoning style overwhelms superficial framing. | Both: the claim is true at the structural level (different graph topologies produce different traversals) AND false at the surface level (outputs may read similarly despite different underlying reasoning). This is a genuine paradox, not ambiguity. | [empirical — binary sufficient] |
-| C2 | Anti-collapse guards are necessary for maintaining mode distinctness. | True: experimental evidence shows 5-6 of 6 rubric dimensions degrade without guards, confirming they are load-bearing. | False: if the philosophical grounding is deep enough (e.g. truly different reasoning graphs), guards become redundant safety nets. | Both: guards are necessary in practice (current LLMs collapse without them) AND unnecessary in principle (a sufficiently capable reasoner would not need them). The paradox reveals that guards compensate for a capability gap. | Neither: the concept of 'necessity' presupposes a fixed capability level. As models improve, the boundary between necessary and unnecessary shifts — the question is not well-formed without specifying the capability baseline. |
-| C3 | A solo ideator benefits more from mode quantity than mode quality. | True under exploration: more modes means more diverse starting points, increasing the chance of stumbling on breakthrough framings. | False under exploitation: a solo ideator has limited attention and benefits more from 3 excellent modes than 15 mediocre ones. | Both: the claim is simultaneously true (for the divergent phase of ideation) and false (for the convergent phase). The ideation process itself is paradoxical — it requires both maximal divergence and ruthless convergence. | Neither: the quantity/quality framing is a false dichotomy. The real variable is topological distinctness — 9 topologically distinct modes is not 'more quantity' or 'more quality' but a different category entirely. |
+| C1 | Distinct outputs | True: 5-layer | False: Layer 1 | Both | [empirical] |
+| C2 | Guards needed | True: dims degrade | False: grounding | Both | Neither |
+| C3 | Quantity vs quality | True: breadth | False: attention | Both | Neither |
 
 ## Paradox Map
 **P1: The Structural-Surface Paradox** (from C1)
@@ -220,9 +220,7 @@ class TestParseOutput:
 class _MockedCatuskotiPhase(CatuskotiPhase):
     """CatuskotiPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-catuskoti-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

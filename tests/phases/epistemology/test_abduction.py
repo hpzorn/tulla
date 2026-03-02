@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
+from tulla.core.phase import ParseError, PhaseContext, PhaseStatus
 from tulla.phases.epistemology.abduction import AbductionPhase
 from tulla.phases.epistemology.models import EpistemologyOutput
 
@@ -37,9 +37,9 @@ philosophical tradition.
 ## Competing Hypotheses
 | # | Hypothesis | Explanatory Scope | Predictive Novelty | Simplicity | Falsifiability | Rank |
 |---|-----------|-------------------|-------------------|------------|----------------|------|
-| H1 | Anti-collapse guards are missing, so prompts converge to default CoT | High | High | High | High | 1 |
-| H2 | Output format constraints force structural similarity regardless of reasoning | Medium | Medium | High | Medium | 2 |
-| H3 | The LLM's training distribution overwhelms prompt-level philosophical framing | Medium | Low | Low | Low | 3 |
+| H1 | Anti-collapse guards missing, prompts converge to CoT | High | High | High | High | 1 |
+| H2 | Output format forces structural similarity | Medium | Medium | High | Medium | 2 |
+| H3 | LLM training distribution overwhelms philosophical framing | Medium | Low | Low | Low | 3 |
 
 ## Top Hypothesis
 **Selected**: H1 — Anti-collapse guards are missing, so prompts converge to default CoT
@@ -204,9 +204,7 @@ class TestParseOutput:
 class _MockedAbductionPhase(AbductionPhase):
     """AbductionPhase subclass that writes sample output instead of calling Claude."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "ep-abduction-ideas.md"
         output_file.write_text(SAMPLE_OUTPUT, encoding="utf-8")
         return "mock"

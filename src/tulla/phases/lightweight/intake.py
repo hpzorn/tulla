@@ -1,8 +1,13 @@
 """IntakePhase — classifies a change and determines lightweight eligibility.
 
-# @pattern:EventSourcing -- Phase produces an immutable IntakeOutput fact from git state and description, consumed downstream
-# @pattern:PortsAndAdapters -- Overrides run_claude() to perform local computation, keeping the Phase[T] port contract intact
-# @principle:FailSafeRouting -- Composite heuristic defaults to ineligible for uncertain/refactor cases (0% false-lightweight)
+# @pattern:EventSourcing -- Phase produces an immutable
+#   IntakeOutput fact from git state and description, consumed
+#   downstream
+# @pattern:PortsAndAdapters -- Overrides run_claude() to perform
+#   local computation, keeping the Phase[T] port contract intact
+# @principle:FailSafeRouting -- Composite heuristic defaults to
+#   ineligible for uncertain/refactor cases (0%
+#   false-lightweight)
 
 Architecture decisions: arch:adr-53-3, arch:adr-53-1
 Quality focus: isaqb:Reliability

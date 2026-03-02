@@ -1,8 +1,14 @@
 """ContextScanPhase — structural conformance checking for the lightweight pipeline.
 
-# @pattern:EventSourcing -- Produces an immutable ContextScanOutput from file analysis, consumed by downstream Plan/Trace phases
-# @pattern:PortsAndAdapters -- Overrides run_claude() for local computation; delegates SPARQL resolution to FindPhase behind OntologyPort
-# @principle:FailSafeRouting -- SPARQL unavailability degrades gracefully to structural-only:sparql-unavailable rather than failing the phase
+# @pattern:EventSourcing -- Produces an immutable
+#   ContextScanOutput from file analysis, consumed by downstream
+#   Plan/Trace phases
+# @pattern:PortsAndAdapters -- Overrides run_claude() for local
+#   computation; delegates SPARQL resolution to FindPhase behind
+#   OntologyPort
+# @principle:FailSafeRouting -- SPARQL unavailability degrades
+#   gracefully to structural-only:sparql-unavailable rather than
+#   failing the phase
 
 Architecture decisions: arch:adr-53-1, arch:adr-53-2, arch:adr-53-5
 Quality focus: isaqb:Reliability

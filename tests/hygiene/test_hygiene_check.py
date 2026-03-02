@@ -143,7 +143,9 @@ class TestRunCheckModeCli:
 
         buf = io.StringIO()
         code = run_check_mode_cli(
-            [tmp_path], stale_threshold_secs=3600, output_stream=buf,
+            [tmp_path],
+            stale_threshold_secs=3600,
+            output_stream=buf,
         )
         assert code == 1
         output = buf.getvalue()
@@ -170,7 +172,9 @@ class TestRunCheckModeCli:
 
         buf = io.StringIO()
         code = run_check_mode_cli(
-            [tmp_path], stale_threshold_secs=3600, output_stream=buf,
+            [tmp_path],
+            stale_threshold_secs=3600,
+            output_stream=buf,
         )
         assert code == 1
         output = buf.getvalue()

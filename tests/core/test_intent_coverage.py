@@ -6,11 +6,18 @@ then asserts each model has at least one IntentField-annotated field.
 
 Models that intentionally lack IntentField are listed in _EXCEPTIONS.
 
-# @pattern:PortsAndAdapters -- pkgutil.walk_packages discovers models at package boundaries without coupling to specific module paths
-# @principle:LooseCoupling -- Test couples only to pydantic.BaseModel and the json_schema_extra marker; no import of specific DxOutput classes needed
-# @principle:SeparationOfConcerns -- Discovery logic (collect_output_result_models) separated from assertion logic (test body); each can evolve independently
-# @principle:InformationHiding -- _has_intent_field inspects FieldInfo internals in one place; test cases see only a bool predicate
-# @principle:DependencyInversion -- Test depends on the abstract preserves_intent marker convention, not on concrete IntentField or extract_intent_fields callables
+# @pattern:PortsAndAdapters -- pkgutil.walk_packages discovers models at
+#   package boundaries without coupling to specific module paths
+# @principle:LooseCoupling -- Test couples only to pydantic.BaseModel and
+#   the json_schema_extra marker; no import of specific DxOutput classes
+# @principle:SeparationOfConcerns -- Discovery logic
+#   (collect_output_result_models) separated from assertion logic (test
+#   body); each can evolve independently
+# @principle:InformationHiding -- _has_intent_field inspects FieldInfo
+#   internals in one place; test cases see only a bool predicate
+# @principle:DependencyInversion -- Test depends on the abstract
+#   preserves_intent marker convention, not on concrete IntentField or
+#   extract_intent_fields callables
 """
 
 from __future__ import annotations
@@ -22,8 +29,6 @@ from typing import Any
 
 import pytest
 from pydantic import BaseModel
-from pydantic.fields import FieldInfo
-
 
 # ---------------------------------------------------------------------------
 # Exception set — models intentionally exempt from IntentField requirement
@@ -84,9 +89,7 @@ def _collect_output_result_models() -> list[type[BaseModel]]:
 
     models: dict[str, type[BaseModel]] = {}
 
-    for importer, modname, ispkg in pkgutil.walk_packages(
-        tulla.__path__, prefix="tulla."
-    ):
+    for _importer, modname, _ispkg in pkgutil.walk_packages(tulla.__path__, prefix="tulla."):
         try:
             module = importlib.import_module(modname)
         except Exception:

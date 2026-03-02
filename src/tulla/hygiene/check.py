@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from tulla.hygiene.args import HygieneConfig, HygieneMode
 from tulla.hygiene.preflight import (

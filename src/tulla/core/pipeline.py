@@ -12,7 +12,6 @@ from tulla.core.phase import Phase, PhaseContext, PhaseResult, PhaseStatus
 from tulla.core.phase_facts import PhaseFactPersister, collect_upstream_facts
 from tulla.ports.ontology import OntologyPort
 
-
 # ---------------------------------------------------------------------------
 # Result dataclass
 # ---------------------------------------------------------------------------

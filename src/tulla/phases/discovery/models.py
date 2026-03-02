@@ -1,12 +1,28 @@
 """Pydantic data models for the Discovery phase (D1–D5).
 
-# @pattern:PipesAndFilters -- D1-D5 outputs form a typed pipeline; each phase consumes the previous DxOutput and produces a new one that feeds downstream phases
-# @pattern:Plugin -- Each DxOutput is a self-describing plugin; adding IntentField annotations registers new facts without modifying core persistence code
-# @pattern:Blackboard -- IntentField-annotated fields on each DxOutput constitute a shared fact blackboard; PhaseFactPersister and extract_intent_fields read/write these slots independently
-# @principle:SingleResponsibility -- Each DxOutput model owns exactly one phase's output schema; D4Output holds only gap-analysis results, not summary or value data
-# @principle:SeparationOfConcerns -- Plain Path fields carry artefact locations while IntentField-annotated fields carry decision metrics; persistence reads only the intent subset
-# @principle:DependencyInversion -- DxOutput models depend on the abstract IntentField marker, not on concrete PhaseFactPersister; persistence discovers fields at runtime via extract_intent_fields
-# @principle:OpenClosedPrinciple -- New intent fields extend phase outputs via IntentField annotation only; extract_intent_fields discovers them without core code changes
+# @pattern:PipesAndFilters -- D1-D5 outputs form a typed pipeline;
+#   each phase consumes the previous DxOutput and produces a new
+#   one that feeds downstream phases
+# @pattern:Plugin -- Each DxOutput is a self-describing plugin;
+#   adding IntentField annotations registers new facts without
+#   modifying core persistence code
+# @pattern:Blackboard -- IntentField-annotated fields on each
+#   DxOutput constitute a shared fact blackboard;
+#   PhaseFactPersister and extract_intent_fields read/write
+#   these slots independently
+# @principle:SingleResponsibility -- Each DxOutput model owns
+#   exactly one phase's output schema; D4Output holds only
+#   gap-analysis results, not summary or value data
+# @principle:SeparationOfConcerns -- Plain Path fields carry
+#   artefact locations while IntentField-annotated fields carry
+#   decision metrics; persistence reads only the intent subset
+# @principle:DependencyInversion -- DxOutput models depend on
+#   the abstract IntentField marker, not on concrete
+#   PhaseFactPersister; persistence discovers fields at runtime
+#   via extract_intent_fields
+# @principle:OpenClosedPrinciple -- New intent fields extend
+#   phase outputs via IntentField annotation only;
+#   extract_intent_fields discovers them without core code changes
 """
 
 from __future__ import annotations
@@ -59,7 +75,10 @@ class D2Output(BaseModel):
     )
     primary_persona_jtbd: str = IntentField(
         default="",
-        description="Synthesized JTBD statement: When I [situation], I want [motivation], so I can [outcome]",
+        description=(
+            "Synthesized JTBD statement: When I [situation], "
+            "I want [motivation], so I can [outcome]"
+        ),
     )
 
 

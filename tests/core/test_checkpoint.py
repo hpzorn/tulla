@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from tulla.core.checkpoint import CheckpointStore
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -61,9 +59,7 @@ class TestSaveLoadRoundTrip:
 class TestLoadMissing:
     """load() must return None when no checkpoint exists."""
 
-    def test_missing_checkpoint_returns_none(
-        self, store: CheckpointStore
-    ) -> None:
+    def test_missing_checkpoint_returns_none(self, store: CheckpointStore) -> None:
         assert store.load("nonexistent") is None
 
     def test_missing_after_other_save(self, store: CheckpointStore) -> None:
@@ -86,9 +82,7 @@ class TestExists:
         store.save("phase-1", {"data": 1})
         assert store.exists("phase-1") is True
 
-    def test_exists_false_for_other_phase(
-        self, store: CheckpointStore
-    ) -> None:
+    def test_exists_false_for_other_phase(self, store: CheckpointStore) -> None:
         store.save("phase-1", {"data": 1})
         assert store.exists("phase-2") is False
 
@@ -114,9 +108,7 @@ class TestListCheckpoints:
         store.save("phase-b", {"b": 2})
         assert store.list_checkpoints() == ["phase-a", "phase-b", "phase-c"]
 
-    def test_ignores_non_checkpoint_files(
-        self, store: CheckpointStore, tmp_path: Path
-    ) -> None:
+    def test_ignores_non_checkpoint_files(self, store: CheckpointStore, tmp_path: Path) -> None:
         store.save("phase-1", {"ok": True})
         # Create a file that does NOT match the checkpoint pattern
         (tmp_path / "random.txt").write_text("noise")
@@ -131,36 +123,36 @@ class TestListCheckpoints:
 class TestAtomicWriteSafety:
     """save() must not leave corrupt files if writing fails mid-stream."""
 
-    def test_failed_write_does_not_create_checkpoint(
-        self, store: CheckpointStore
-    ) -> None:
-        with patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")):
-            with pytest.raises(OSError, match="disk full"):
-                store.save("phase-x", {"will": "fail"})
+    def test_failed_write_does_not_create_checkpoint(self, store: CheckpointStore) -> None:
+        with (
+            patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")),
+            pytest.raises(OSError, match="disk full"),
+        ):
+            store.save("phase-x", {"will": "fail"})
 
         # No checkpoint should exist after the failure
         assert store.exists("phase-x") is False
         assert store.load("phase-x") is None
 
-    def test_failed_write_preserves_previous_checkpoint(
-        self, store: CheckpointStore
-    ) -> None:
+    def test_failed_write_preserves_previous_checkpoint(self, store: CheckpointStore) -> None:
         store.save("phase-x", {"version": 1})
 
-        with patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")):
-            with pytest.raises(OSError, match="disk full"):
-                store.save("phase-x", {"version": 2})
+        with (
+            patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")),
+            pytest.raises(OSError, match="disk full"),
+        ):
+            store.save("phase-x", {"version": 2})
 
         # The original checkpoint must still be intact
         loaded = store.load("phase-x")
         assert loaded == {"version": 1}
 
-    def test_no_temp_files_left_on_failure(
-        self, store: CheckpointStore, tmp_path: Path
-    ) -> None:
-        with patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")):
-            with pytest.raises(OSError):
-                store.save("phase-y", {"data": "test"})
+    def test_no_temp_files_left_on_failure(self, store: CheckpointStore, tmp_path: Path) -> None:
+        with (
+            patch("tulla.core.checkpoint.json.dump", side_effect=OSError("disk full")),
+            pytest.raises(OSError),
+        ):
+            store.save("phase-y", {"data": "test"})
 
         # No .tmp files should remain
         tmp_files = list(tmp_path.glob("*.tmp"))

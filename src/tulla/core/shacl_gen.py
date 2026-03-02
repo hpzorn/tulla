@@ -6,11 +6,20 @@ used by the existing shapes in phase-ontology.ttl.
 
 Architecture decision: arch:adr-73-2
 
-# @principle:SingleResponsibility -- This module owns only SHACL TTL generation; it does not persist, validate, or query shapes
-# @principle:OpenClosedPrinciple -- New phases produce shapes by adding IntentField annotations to their output model; no changes to this generator needed
-# @pattern:PipesAndFilters -- generate_shacl_shape transforms a model class into TTL text, acting as a pure filter in the shape-generation pipeline
-# @principle:DependencyInversion -- Depends on the abstract IntentField marker (json_schema_extra) rather than concrete model classes or phase_facts
-# @principle:LooseCoupling -- Reads only pydantic FieldInfo metadata; no import of any DxOutput model or PhaseFactPersister required
+# @principle:SingleResponsibility -- This module owns only SHACL
+#   TTL generation; it does not persist, validate, or query shapes
+# @principle:OpenClosedPrinciple -- New phases produce shapes by
+#   adding IntentField annotations to their output model; no
+#   changes to this generator needed
+# @pattern:PipesAndFilters -- generate_shacl_shape transforms a
+#   model class into TTL text, acting as a pure filter in the
+#   shape-generation pipeline
+# @principle:DependencyInversion -- Depends on the abstract
+#   IntentField marker (json_schema_extra) rather than concrete
+#   model classes or phase_facts
+# @principle:LooseCoupling -- Reads only pydantic FieldInfo
+#   metadata; no import of any DxOutput model or
+#   PhaseFactPersister required
 """
 
 from __future__ import annotations

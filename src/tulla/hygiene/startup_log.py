@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Sequence
 
 from tulla.hygiene.args import HygieneConfig, HygieneMode
 

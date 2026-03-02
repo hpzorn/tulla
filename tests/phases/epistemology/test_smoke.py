@@ -14,12 +14,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
 
 import pytest
 
 from tulla.core.phase import PhaseContext, PhaseStatus
-from tulla.phases.epistemology._helpers import count_idea_headings
 from tulla.phases.epistemology.models import EpistemologyOutput
 
 # ---------------------------------------------------------------------------
@@ -28,20 +26,51 @@ from tulla.phases.epistemology.models import EpistemologyOutput
 
 _MODES = [
     ("auto", "tulla.phases.epistemology.auto", "AutoPhase", "auto", "ep-auto-ideas.md"),
-    ("pyrrhon", "tulla.phases.epistemology.signal", "PyrrhonPhase", "pyrrhon", "ep-pyrrhon-ideas.md"),
-    ("aristotle", "tulla.phases.epistemology.idea", "AristotlePhase", "aristotle", "ep-aristotle-ideas.md"),
-    ("hegel", "tulla.phases.epistemology.contradiction", "ContradictionPhase", "contradiction", "ep-contradiction-ideas.md"),
-    ("abduction", "tulla.phases.epistemology.abduction", "AbductionPhase", "abduction", "ep-abduction-ideas.md"),
+    (
+        "pyrrhon",
+        "tulla.phases.epistemology.signal",
+        "PyrrhonPhase",
+        "pyrrhon",
+        "ep-pyrrhon-ideas.md",
+    ),
+    (
+        "aristotle",
+        "tulla.phases.epistemology.idea",
+        "AristotlePhase",
+        "aristotle",
+        "ep-aristotle-ideas.md",
+    ),
+    (
+        "hegel",
+        "tulla.phases.epistemology.contradiction",
+        "ContradictionPhase",
+        "contradiction",
+        "ep-contradiction-ideas.md",
+    ),
+    (
+        "abduction",
+        "tulla.phases.epistemology.abduction",
+        "AbductionPhase",
+        "abduction",
+        "ep-abduction-ideas.md",
+    ),
     ("dewey", "tulla.phases.epistemology.problem", "DeweyPhase", "dewey", "ep-dewey-ideas.md"),
     ("popper", "tulla.phases.epistemology.domain", "PopperPhase", "popper", "ep-popper-ideas.md"),
     ("bacon", "tulla.phases.epistemology.pool", "BaconPhase", "bacon", "ep-bacon-ideas.md"),
-    ("catuskoti", "tulla.phases.epistemology.catuskoti", "CatuskotiPhase", "catuskoti", "ep-catuskoti-ideas.md"),
+    (
+        "catuskoti",
+        "tulla.phases.epistemology.catuskoti",
+        "CatuskotiPhase",
+        "catuskoti",
+        "ep-catuskoti-ideas.md",
+    ),
 ]
 
 
 def _import_phase(module_path: str, class_name: str):
     """Dynamically import a phase class."""
     import importlib
+
     mod = importlib.import_module(module_path)
     return getattr(mod, class_name)
 
@@ -93,21 +122,39 @@ class TestAllModes:
         assert phase is not None
 
     def test_build_prompt_contains_idea_id(
-        self, ctx, cli_key, module_path, class_name, mode_name, output_file,
+        self,
+        ctx,
+        cli_key,
+        module_path,
+        class_name,
+        mode_name,
+        output_file,
     ):
         cls = _import_phase(module_path, class_name)
         prompt = cls().build_prompt(ctx)
         assert "idea-99" in prompt
 
     def test_build_prompt_has_anti_collapse_guard(
-        self, ctx, cli_key, module_path, class_name, mode_name, output_file,
+        self,
+        ctx,
+        cli_key,
+        module_path,
+        class_name,
+        mode_name,
+        output_file,
     ):
         cls = _import_phase(module_path, class_name)
         prompt = cls().build_prompt(ctx)
         assert "Do NOT" in prompt, f"{class_name} prompt missing anti-collapse guard"
 
     def test_get_tools_includes_core_mcp(
-        self, ctx, cli_key, module_path, class_name, mode_name, output_file,
+        self,
+        ctx,
+        cli_key,
+        module_path,
+        class_name,
+        mode_name,
+        output_file,
     ):
         cls = _import_phase(module_path, class_name)
         tools = cls().get_tools(ctx)
@@ -116,7 +163,13 @@ class TestAllModes:
         assert "Write" in names
 
     def test_parse_output_with_sample(
-        self, ctx, cli_key, module_path, class_name, mode_name, output_file,
+        self,
+        ctx,
+        cli_key,
+        module_path,
+        class_name,
+        mode_name,
+        output_file,
     ):
         content = SAMPLE_MD.format(mode=mode_name, idea_id="idea-99")
         (ctx.work_dir / output_file).write_text(content, encoding="utf-8")
@@ -129,7 +182,13 @@ class TestAllModes:
         assert result.mode == mode_name
 
     def test_execute_mock_succeeds(
-        self, ctx, cli_key, module_path, class_name, mode_name, output_file,
+        self,
+        ctx,
+        cli_key,
+        module_path,
+        class_name,
+        mode_name,
+        output_file,
     ):
         cls = _import_phase(module_path, class_name)
         content = SAMPLE_MD.format(mode=mode_name, idea_id="idea-99")

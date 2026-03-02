@@ -14,19 +14,14 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
-
-import pytest
 
 from tulla.adapters.claude_mock import MockClaudeAdapter
 from tulla.config import TullaConfig
 from tulla.core.checkpoint import CheckpointStore
 from tulla.core.phase import PhaseStatus
-from tulla.ontology.phase_shapes import PHASE_SHAPES
 from tulla.phases.research.pipeline import research_pipeline
 from tulla.ports.claude import ClaudeRequest, ClaudeResult
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Markdown fixtures — one per phase, minimal but parseable
@@ -318,7 +313,13 @@ class _MockOntologyPort(OntologyPort):
         return {}
 
     def add_triple(
-        self, subject: str, predicate: str, object: str, *, is_literal: bool = False, ontology: str | None = None,
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
     ) -> dict[str, Any]:
         self.add_triple_calls.append((subject, predicate, object))
         return {"status": "added"}
@@ -328,7 +329,11 @@ class _MockOntologyPort(OntologyPort):
         return 0
 
     def validate_instance(
-        self, instance_uri: str, shape_uri: str, *, ontology: str | None = None,
+        self,
+        instance_uri: str,
+        shape_uri: str,
+        *,
+        ontology: str | None = None,
     ) -> dict[str, Any]:
         self.validate_calls.append((instance_uri, shape_uri))
         return {"conforms": True, "violations": []}
@@ -383,9 +388,7 @@ class TestGroundworkEndToEnd:
         # All 6 phase results present and SUCCESS
         assert len(result.phase_results) == 6
         for phase_id, pr in result.phase_results:
-            assert pr.status == PhaseStatus.SUCCESS, (
-                f"Phase {phase_id} failed: {pr.error}"
-            )
+            assert pr.status == PhaseStatus.SUCCESS, f"Phase {phase_id} failed: {pr.error}"
 
         # Checkpoint files exist for all phases
         store = CheckpointStore(tmp_work_dir)
@@ -491,7 +494,8 @@ class TestGroundworkEarlyTermination:
         def _derivative_fn(request: ClaudeRequest) -> ClaudeResult:
             content = R1_DERIVATIVE_MD.format(idea_id=idea_id)
             (tmp_work_dir / "r1-question-refinement.md").write_text(
-                content, encoding="utf-8",
+                content,
+                encoding="utf-8",
             )
             return ClaudeResult(exit_code=0, output_text="ok", cost_usd=0.01)
 
@@ -578,6 +582,7 @@ class TestShaclValidationFires:
         pipeline._config["ontology_port"] = ontology
         # Re-create persister now that ontology_port is a real OntologyPort
         from tulla.core.phase_facts import PhaseFactPersister
+
         pipeline._persister = PhaseFactPersister(ontology)
 
         result = pipeline.run()

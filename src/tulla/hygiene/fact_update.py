@@ -19,8 +19,9 @@ This module provides:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Callable, Protocol, Sequence
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 

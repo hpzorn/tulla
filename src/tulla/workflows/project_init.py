@@ -24,11 +24,11 @@ RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label"
 # ---------------------------------------------------------------------------
 # SPARQL: find ADRs that have no isaqb:scope annotation yet
 # ---------------------------------------------------------------------------
-_UNSCOPED_ADRS_QUERY = f"""\
-SELECT ?adr WHERE {{
+_UNSCOPED_ADRS_QUERY = """\
+SELECT ?adr WHERE {
   ?adr a isaqb:ArchitectureDecision .
-  FILTER NOT EXISTS {{ ?adr isaqb:scope ?s }}
-}}
+  FILTER NOT EXISTS { ?adr isaqb:scope ?s }
+}
 """
 
 
@@ -146,7 +146,7 @@ def _parse_candidates(raw_text: str) -> list[CandidateADR]:
     if text.startswith("```"):
         lines = text.splitlines()
         # Remove first and last fence lines
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         text = "\n".join(lines).strip()
 
     try:
@@ -219,7 +219,7 @@ def init_project(
     # (1) Read CLAUDE.md
     try:
         claude_md_content = claude_md_path.read_text(encoding="utf-8")
-    except (OSError, IOError) as exc:
+    except OSError as exc:
         logger.error("Failed to read CLAUDE.md at %s: %s", claude_md_path, exc)
         return result
 

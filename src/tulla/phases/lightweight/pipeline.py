@@ -4,11 +4,20 @@ Provides :func:`lightweight_pipeline`, a convenience factory that assembles
 the five lightweight sub-phases (Intake, ContextScan, Plan, Execute, Trace)
 into a :class:`~tulla.core.pipeline.Pipeline` ready for execution.
 
-# @pattern:PipesAndFilters -- Five phases chained as filters: each consumes prev_output and produces typed output for the next
-# @pattern:PortsAndAdapters -- OntologyMCPAdapter instantiated from config URL; Pipeline receives it via config dict, not direct import
-# @pattern:Blackboard -- Pipeline config dict acts as shared data store: phases read ontology_port, shape_registry, change_description
-# @principle:LooseCoupling -- Factory wires phases together without phases knowing about each other; Pipeline mediates data flow
-# @principle:SingleResponsibility -- Factory's sole job is assembly; phase logic, persistence, and execution live elsewhere
+# @pattern:PipesAndFilters -- Five phases chained as filters:
+#   each consumes prev_output and produces typed output for the next
+# @pattern:PortsAndAdapters -- OntologyMCPAdapter instantiated
+#   from config URL; Pipeline receives it via config dict,
+#   not direct import
+# @pattern:Blackboard -- Pipeline config dict acts as shared data
+#   store: phases read ontology_port, shape_registry,
+#   change_description
+# @principle:LooseCoupling -- Factory wires phases together
+#   without phases knowing about each other; Pipeline mediates
+#   data flow
+# @principle:SingleResponsibility -- Factory's sole job is
+#   assembly; phase logic, persistence, and execution live
+#   elsewhere
 
 Architecture decisions: arch:adr-53-1
 Quality focus: isaqb:Maintainability

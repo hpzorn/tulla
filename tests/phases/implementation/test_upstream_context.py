@@ -11,13 +11,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from tulla.phases.implementation.implement import ImplementPhase
 from tulla.phases.implementation.loop import _reconstruct_adrs_from_facts
-from tulla.phases.implementation.models import FindOutput, ImplementOutput
+from tulla.phases.implementation.models import FindOutput
 from tulla.phases.implementation.verify import VerifyPhase
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,10 +53,26 @@ class TestReconstructAdrsFromFacts:
 
     def test_reconstructs_adrs(self) -> None:
         facts = [
-            {"subject": "arch:adr-78-1", "predicate": "rdfs:label", "object": "Use Ports and Adapters"},
-            {"subject": "arch:adr-78-1", "predicate": "isaqb:consequences", "object": "All I/O behind ports"},
-            {"subject": "arch:adr-78-2", "predicate": "rdfs:label", "object": "Use Event Sourcing"},
-            {"subject": "arch:adr-78-2", "predicate": "isaqb:consequences", "object": "Immutable event log"},
+            {
+                "subject": "arch:adr-78-1",
+                "predicate": "rdfs:label",
+                "object": "Use Ports and Adapters",
+            },
+            {
+                "subject": "arch:adr-78-1",
+                "predicate": "isaqb:consequences",
+                "object": "All I/O behind ports",
+            },
+            {
+                "subject": "arch:adr-78-2",
+                "predicate": "rdfs:label",
+                "object": "Use Event Sourcing",
+            },
+            {
+                "subject": "arch:adr-78-2",
+                "predicate": "isaqb:consequences",
+                "object": "Immutable event log",
+            },
             # Unrelated fact — should be ignored
             {"subject": "prd:req-78-1-1", "predicate": "prd:title", "object": "Some Req"},
         ]

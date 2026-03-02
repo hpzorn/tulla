@@ -13,16 +13,20 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
 from tulla.phases.implementation.find import FindPhase
 from tulla.phases.implementation.implement import ImplementPhase
-from tulla.phases.implementation.models import FindOutput, ImplementOutput, RequirementStatus, VerifyOutput
+from tulla.phases.implementation.models import (
+    FindOutput,
+    ImplementOutput,
+    RequirementStatus,
+    VerifyOutput,
+)
 from tulla.phases.implementation.verify import VerifyPhase
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -110,7 +114,15 @@ class StubOntology(OntologyPort):
     ) -> dict[str, Any]:
         return {}
 
-    def add_triple(self, subject: str, predicate: str, object: str, *, is_literal: bool = False, ontology: str | None = None) -> dict[str, Any]:
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
         return {"status": "added"}
 
     def remove_triples_by_subject(self, subject: str, *, ontology: str | None = None) -> int:
@@ -174,19 +186,21 @@ class TestLoadRequirementArchRefs:
     """FindPhase._load_requirement() collects prd:relatedADR and prd:qualityFocus."""
 
     def test_collects_related_adrs(self) -> None:
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "rdf:type", "object": "prd:Requirement"},
-                {"predicate": "prd:title", "object": "My Task"},
-                {"predicate": "prd:description", "object": "Do stuff"},
-                {"predicate": "prd:files", "object": "src/a.py"},
-                {"predicate": "prd:action", "object": "modify"},
-                {"predicate": "prd:verification", "object": "pytest"},
-                {"predicate": "prd:relatedADR", "object": "arch:adr-42-1"},
-                {"predicate": "prd:relatedADR", "object": "arch:adr-42-2"},
-                {"predicate": "prd:qualityFocus", "object": "Testability"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "rdf:type", "object": "prd:Requirement"},
+                    {"predicate": "prd:title", "object": "My Task"},
+                    {"predicate": "prd:description", "object": "Do stuff"},
+                    {"predicate": "prd:files", "object": "src/a.py"},
+                    {"predicate": "prd:action", "object": "modify"},
+                    {"predicate": "prd:verification", "object": "pytest"},
+                    {"predicate": "prd:relatedADR", "object": "arch:adr-42-1"},
+                    {"predicate": "prd:relatedADR", "object": "arch:adr-42-2"},
+                    {"predicate": "prd:qualityFocus", "object": "Testability"},
+                ],
+            }
+        )
         phase = FindPhase()
         result = phase._load_requirement(ontology, "prd:req-42-1-1", "prd-idea-42")
 
@@ -194,15 +208,17 @@ class TestLoadRequirementArchRefs:
         assert result.quality_focus == "Testability"
 
     def test_empty_when_no_arch_refs(self) -> None:
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-1-1": [
-                {"predicate": "prd:title", "object": "Plain Task"},
-                {"predicate": "prd:description", "object": "No arch refs"},
-                {"predicate": "prd:files", "object": "src/b.py"},
-                {"predicate": "prd:action", "object": "create"},
-                {"predicate": "prd:verification", "object": "exists"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-1-1": [
+                    {"predicate": "prd:title", "object": "Plain Task"},
+                    {"predicate": "prd:description", "object": "No arch refs"},
+                    {"predicate": "prd:files", "object": "src/b.py"},
+                    {"predicate": "prd:action", "object": "create"},
+                    {"predicate": "prd:verification", "object": "exists"},
+                ],
+            }
+        )
         phase = FindPhase()
         result = phase._load_requirement(ontology, "prd:req-42-1-1", "prd-idea-42")
 
@@ -219,12 +235,20 @@ class TestLoadLessons:
     """FindPhase.load_lessons() retrieves lesson facts."""
 
     def test_returns_lesson_strings(self) -> None:
-        ontology = StubOntology({
-            "context=lesson-idea-42|predicate=lesson:text": [
-                {"subject": "lesson:42", "object": "req-42-1-1: Fixed after 1 retry. Issue: missing import"},
-                {"subject": "lesson:42", "object": "req-42-1-2: Failed. Issue: wrong return type"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=lesson-idea-42|predicate=lesson:text": [
+                    {
+                        "subject": "lesson:42",
+                        "object": "req-42-1-1: Fixed after 1 retry. Issue: missing import",
+                    },
+                    {
+                        "subject": "lesson:42",
+                        "object": "req-42-1-2: Failed. Issue: wrong return type",
+                    },
+                ],
+            }
+        )
         phase = FindPhase()
         lessons = phase.load_lessons(ontology, "lesson-idea-42")
         assert len(lessons) == 2
@@ -236,12 +260,14 @@ class TestLoadLessons:
         assert phase.load_lessons(ontology, "lesson-idea-99") == []
 
     def test_filters_empty_objects(self) -> None:
-        ontology = StubOntology({
-            "context=lesson-idea-42|predicate=lesson:text": [
-                {"subject": "lesson:42", "object": "a real lesson"},
-                {"subject": "lesson:42", "object": ""},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=lesson-idea-42|predicate=lesson:text": [
+                    {"subject": "lesson:42", "object": "a real lesson"},
+                    {"subject": "lesson:42", "object": ""},
+                ],
+            }
+        )
         phase = FindPhase()
         lessons = phase.load_lessons(ontology, "lesson-idea-42")
         assert lessons == ["a real lesson"]
@@ -434,20 +460,22 @@ class TestLoopLoadArchAndLessons:
     def test_loads_all_context(self) -> None:
         from tulla.phases.implementation.loop import ImplementationLoop
 
-        ontology = StubOntology({
-            "context=arch-idea-42|predicate=arch:qualityGoal": [
-                {"subject": "arch:idea-42", "object": "Testability: needed"},
-            ],
-            "context=arch-idea-42|predicate=arch:designPrinciple": [
-                {"subject": "arch:idea-42", "object": "SoC: modules independent"},
-            ],
-            "context=arch-idea-42|predicate=arch:decision": [
-                {"subject": "arch:adr-42-1", "object": "Template Method for phases"},
-            ],
-            "context=lesson-idea-42|predicate=lesson:text": [
-                {"subject": "lesson:42", "object": "lesson one"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=arch-idea-42|predicate=arch:qualityGoal": [
+                    {"subject": "arch:idea-42", "object": "Testability: needed"},
+                ],
+                "context=arch-idea-42|predicate=arch:designPrinciple": [
+                    {"subject": "arch:idea-42", "object": "SoC: modules independent"},
+                ],
+                "context=arch-idea-42|predicate=arch:decision": [
+                    {"subject": "arch:adr-42-1", "object": "Template Method for phases"},
+                ],
+                "context=lesson-idea-42|predicate=lesson:text": [
+                    {"subject": "lesson:42", "object": "lesson one"},
+                ],
+            }
+        )
 
         config = MagicMock()
         loop = ImplementationLoop(
@@ -462,7 +490,9 @@ class TestLoopLoadArchAndLessons:
         assert loop._architecture_context is not None
         assert loop._architecture_context["quality_goals"] == ["Testability: needed"]
         assert loop._architecture_context["design_principles"] == ["SoC: modules independent"]
-        assert loop._architecture_context["adrs"] == {"arch:adr-42-1": "Template Method for phases"}
+        assert loop._architecture_context["adrs"] == {
+            "arch:adr-42-1": "Template Method for phases"
+        }
         assert loop._lessons == ["lesson one"]
 
     def test_no_context_when_empty(self) -> None:
@@ -533,7 +563,9 @@ class TestLoopProjectAdrs:
         # project_adrs is a raw list of 2 dicts
         assert len(loop._architecture_context["project_adrs"]) == 2
         assert loop._architecture_context["project_adrs"][0]["title"] == "Additive-Only Changes"
-        assert loop._architecture_context["project_adrs"][1]["title"] == "Composition Over Invention"
+        assert (
+            loop._architecture_context["project_adrs"][1]["title"] == "Composition Over Invention"
+        )
 
         # project_adr_summary is a formatted string with both ADRs
         summary = loop._architecture_context["project_adr_summary"]
@@ -804,16 +836,21 @@ class TestLoadRequirementAdvisoryWarning:
 
     def test_warns_on_many_files_short_description(self, caplog: pytest.LogCaptureFixture) -> None:
         """5-file requirement with short description triggers warning."""
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-2-1": [
-                {"predicate": "rdf:type", "object": "prd:Requirement"},
-                {"predicate": "prd:title", "object": "Big Task"},
-                {"predicate": "prd:description", "object": "Do the thing quickly"},
-                {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py, src/d.py, src/e.py"},
-                {"predicate": "prd:action", "object": "modify"},
-                {"predicate": "prd:verification", "object": "pytest"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-2-1": [
+                    {"predicate": "rdf:type", "object": "prd:Requirement"},
+                    {"predicate": "prd:title", "object": "Big Task"},
+                    {"predicate": "prd:description", "object": "Do the thing quickly"},
+                    {
+                        "predicate": "prd:files",
+                        "object": "src/a.py, src/b.py, src/c.py, src/d.py, src/e.py",
+                    },
+                    {"predicate": "prd:action", "object": "modify"},
+                    {"predicate": "prd:verification", "object": "pytest"},
+                ],
+            }
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
             result = phase._load_requirement(ontology, "prd:req-42-2-1", "prd-idea-42")
@@ -827,16 +864,18 @@ class TestLoadRequirementAdvisoryWarning:
         """3 files with long enough description does not trigger warning."""
         # 3 files, 50 words → wpf ~16.7 → no warning
         long_desc = " ".join(["word"] * 50)
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-3-1": [
-                {"predicate": "rdf:type", "object": "prd:Requirement"},
-                {"predicate": "prd:title", "object": "OK Task"},
-                {"predicate": "prd:description", "object": long_desc},
-                {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py"},
-                {"predicate": "prd:action", "object": "modify"},
-                {"predicate": "prd:verification", "object": "pytest"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-3-1": [
+                    {"predicate": "rdf:type", "object": "prd:Requirement"},
+                    {"predicate": "prd:title", "object": "OK Task"},
+                    {"predicate": "prd:description", "object": long_desc},
+                    {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py"},
+                    {"predicate": "prd:action", "object": "modify"},
+                    {"predicate": "prd:verification", "object": "pytest"},
+                ],
+            }
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
             result = phase._load_requirement(ontology, "prd:req-42-3-1", "prd-idea-42")
@@ -847,16 +886,21 @@ class TestLoadRequirementAdvisoryWarning:
     def test_warns_on_low_wpf(self, caplog: pytest.LogCaptureFixture) -> None:
         """2 files but wpf < 15 triggers warning."""
         # 2 files, 10 words → wpf = 5 → warning
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-4-1": [
-                {"predicate": "rdf:type", "object": "prd:Requirement"},
-                {"predicate": "prd:title", "object": "Small Task"},
-                {"predicate": "prd:description", "object": "Fix the bug in the module now please ok"},
-                {"predicate": "prd:files", "object": "src/a.py, src/b.py"},
-                {"predicate": "prd:action", "object": "modify"},
-                {"predicate": "prd:verification", "object": "pytest"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-4-1": [
+                    {"predicate": "rdf:type", "object": "prd:Requirement"},
+                    {"predicate": "prd:title", "object": "Small Task"},
+                    {
+                        "predicate": "prd:description",
+                        "object": "Fix the bug in the module now please ok",
+                    },
+                    {"predicate": "prd:files", "object": "src/a.py, src/b.py"},
+                    {"predicate": "prd:action", "object": "modify"},
+                    {"predicate": "prd:verification", "object": "pytest"},
+                ],
+            }
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
             result = phase._load_requirement(ontology, "prd:req-42-4-1", "prd-idea-42")
@@ -886,16 +930,18 @@ class TestFindPhaseAdvisory:
             "where no warning is expected and the coarse-grained case where "
             "a warning is emitted to stderr"
         )
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-5-1": [
-                {"predicate": "rdf:type", "object": "prd:Requirement"},
-                {"predicate": "prd:title", "object": "Fine Requirement"},
-                {"predicate": "prd:description", "object": detailed_desc},
-                {"predicate": "prd:files", "object": "tests/test_advisory.py"},
-                {"predicate": "prd:action", "object": "create"},
-                {"predicate": "prd:verification", "object": "pytest tests/"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-5-1": [
+                    {"predicate": "rdf:type", "object": "prd:Requirement"},
+                    {"predicate": "prd:title", "object": "Fine Requirement"},
+                    {"predicate": "prd:description", "object": detailed_desc},
+                    {"predicate": "prd:files", "object": "tests/test_advisory.py"},
+                    {"predicate": "prd:action", "object": "create"},
+                    {"predicate": "prd:verification", "object": "pytest tests/"},
+                ],
+            }
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
             result = phase._load_requirement(ontology, "prd:req-42-5-1", "prd-idea-42")
@@ -906,16 +952,21 @@ class TestFindPhaseAdvisory:
 
     def test_warning_for_coarse_requirement(self, caplog: pytest.LogCaptureFixture) -> None:
         """5 files with short description → advisory warning emitted."""
-        ontology = StubOntology({
-            "context=prd-idea-42|subject=prd:req-42-5-2": [
-                {"predicate": "rdf:type", "object": "prd:Requirement"},
-                {"predicate": "prd:title", "object": "Coarse Requirement"},
-                {"predicate": "prd:description", "object": "Update all modules"},
-                {"predicate": "prd:files", "object": "src/a.py, src/b.py, src/c.py, src/d.py, src/e.py"},
-                {"predicate": "prd:action", "object": "modify"},
-                {"predicate": "prd:verification", "object": "pytest"},
-            ],
-        })
+        ontology = StubOntology(
+            {
+                "context=prd-idea-42|subject=prd:req-42-5-2": [
+                    {"predicate": "rdf:type", "object": "prd:Requirement"},
+                    {"predicate": "prd:title", "object": "Coarse Requirement"},
+                    {"predicate": "prd:description", "object": "Update all modules"},
+                    {
+                        "predicate": "prd:files",
+                        "object": "src/a.py, src/b.py, src/c.py, src/d.py, src/e.py",
+                    },
+                    {"predicate": "prd:action", "object": "modify"},
+                    {"predicate": "prd:verification", "object": "pytest"},
+                ],
+            }
+        )
         phase = FindPhase()
         with caplog.at_level(logging.WARNING, logger="tulla.phases.implementation.find"):
             result = phase._load_requirement(ontology, "prd:req-42-5-2", "prd-idea-42")
@@ -1044,6 +1095,7 @@ class TestLoopPersistenceWiring:
         # Patch _status
         def mock_status_execute(**kwargs: Any) -> StatusOutput:
             from tulla.phases.implementation.models import RequirementStatus
+
             return StatusOutput(
                 requirement_id=kwargs.get("requirement_id", ""),
                 new_status=kwargs.get("new_status", RequirementStatus.COMPLETE),
@@ -1162,7 +1214,8 @@ class TestLoopPersistenceWiring:
         loop._implement = MagicMock()
         loop._implement.execute = MagicMock(
             return_value=ImplementOutput(
-                requirement_id="prd:req-42-1-1", cost_usd=0.1,
+                requirement_id="prd:req-42-1-1",
+                cost_usd=0.1,
             ),
         )
         loop._commit = MagicMock()

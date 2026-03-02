@@ -12,10 +12,10 @@ from tulla.hygiene.fact_update import (
     validate_fact_update,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 class CallRecorder:
     """Records calls to mock store/forget functions in order."""
@@ -49,6 +49,7 @@ def make_update(**overrides) -> FactUpdate:
 # ---------------------------------------------------------------------------
 # FactUpdate dataclass tests
 # ---------------------------------------------------------------------------
+
 
 class TestFactUpdate:
     """Tests for the FactUpdate frozen dataclass."""
@@ -99,6 +100,7 @@ class TestFactUpdate:
 # validate_fact_update tests
 # ---------------------------------------------------------------------------
 
+
 class TestValidateFactUpdate:
     """Tests for the validate_fact_update function."""
 
@@ -142,15 +144,14 @@ class TestValidateFactUpdate:
         assert validate_fact_update(make_update(confidence=1.0)) == []
 
     def test_multiple_errors_reported(self) -> None:
-        errors = validate_fact_update(
-            make_update(old_fact_id="", subject="", predicate="")
-        )
+        errors = validate_fact_update(make_update(old_fact_id="", subject="", predicate=""))
         assert len(errors) >= 3
 
 
 # ---------------------------------------------------------------------------
 # apply_fact_update tests — ordering guarantee
 # ---------------------------------------------------------------------------
+
 
 class TestApplyFactUpdate:
     """Tests for the apply_fact_update function.
@@ -287,6 +288,7 @@ class TestApplyFactUpdate:
 # FactUpdateError tests
 # ---------------------------------------------------------------------------
 
+
 class TestFactUpdateError:
     """Tests for the FactUpdateError exception."""
 
@@ -305,14 +307,13 @@ class TestFactUpdateError:
 # apply_fact_updates batch tests
 # ---------------------------------------------------------------------------
 
+
 class TestApplyFactUpdates:
     """Tests for the batch apply_fact_updates function."""
 
     def test_empty_list_returns_empty(self) -> None:
         recorder = CallRecorder()
-        results = apply_fact_updates(
-            [], store_fn=recorder.store, forget_fn=recorder.forget
-        )
+        results = apply_fact_updates([], store_fn=recorder.store, forget_fn=recorder.forget)
         assert results == []
         assert len(recorder.calls) == 0
 
@@ -335,9 +336,7 @@ class TestApplyFactUpdates:
             make_update(old_fact_id="old2", subject="s2"),
             make_update(old_fact_id="old3", subject="s3"),
         ]
-        results = apply_fact_updates(
-            updates, store_fn=recorder.store, forget_fn=recorder.forget
-        )
+        results = apply_fact_updates(updates, store_fn=recorder.store, forget_fn=recorder.forget)
         assert len(results) == 3
         # Each pair should be (forget, store)
         for i in range(3):
@@ -352,9 +351,7 @@ class TestApplyFactUpdates:
             make_update(old_fact_id=""),  # invalid
         ]
         with pytest.raises(FactUpdateError) as exc_info:
-            apply_fact_updates(
-                updates, store_fn=recorder.store, forget_fn=recorder.forget
-            )
+            apply_fact_updates(updates, store_fn=recorder.store, forget_fn=recorder.forget)
         assert exc_info.value.phase == "validation"
         assert len(recorder.calls) == 0  # Nothing executed
 
@@ -364,9 +361,7 @@ class TestApplyFactUpdates:
             make_update(old_fact_id="a", subject="s1"),
             make_update(old_fact_id="b", subject="s2"),
         ]
-        results = apply_fact_updates(
-            updates, store_fn=recorder.store, forget_fn=recorder.forget
-        )
+        results = apply_fact_updates(updates, store_fn=recorder.store, forget_fn=recorder.forget)
         assert len(results) == 2
         assert all("fact_id" in r for r in results)
 
@@ -388,9 +383,7 @@ class TestApplyFactUpdates:
             make_update(old_fact_id="c"),
         ]
         with pytest.raises(FactUpdateError):
-            apply_fact_updates(
-                updates, store_fn=recorder.store, forget_fn=counting_forget
-            )
+            apply_fact_updates(updates, store_fn=recorder.store, forget_fn=counting_forget)
         # First update completed (forget + store), second forget failed
         # Third update never started
         assert call_count == 2

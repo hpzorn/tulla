@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-import pytest
 from pydantic import BaseModel, Field
 
 from tulla.core.intent import IntentField, extract_intent_fields
-
 
 # ---------------------------------------------------------------------------
 # Test models
@@ -148,9 +144,7 @@ class TestIntentFieldMerging:
     def test_plain_field_has_no_preserves_intent(self) -> None:
         info = _MixedModel.model_fields["revision"]
         extra = info.json_schema_extra
-        assert extra is None or (
-            isinstance(extra, dict) and "preserves_intent" not in extra
-        )
+        assert extra is None or (isinstance(extra, dict) and "preserves_intent" not in extra)
 
     def test_caller_extra_is_preserved(self) -> None:
         info = _CallerExtra.model_fields["tag"]

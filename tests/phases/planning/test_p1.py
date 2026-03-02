@@ -90,21 +90,15 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_context_output_path(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_context_output_path(self, phase: P1Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "p1-discovery-context.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: P1Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase P1: Load Discovery Context" in prompt
 
-    def test_includes_discovery_dir(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_discovery_dir(self, phase: P1Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "/tmp/discovery-idea-42" in prompt
 
@@ -125,9 +119,7 @@ class TestBuildPrompt:
         assert "/tmp/research-idea-42" in prompt
         assert "research findings" in prompt.lower()
 
-    def test_no_research_block_when_absent(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_no_research_block_when_absent(self, phase: P1Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "SUPERSEDE" not in prompt
 
@@ -140,16 +132,12 @@ class TestBuildPrompt:
 class TestGetTools:
     """P1Phase.get_tools() tests."""
 
-    def test_includes_idea_pool(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_idea_pool(self, phase: P1Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
         assert any("ontology-server" in name for name in tool_names)
 
-    def test_includes_read_write_glob(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write_glob(self, phase: P1Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
@@ -165,15 +153,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """P1Phase.parse_output() when p1-discovery-context.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: P1Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="p1-discovery-context.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: P1Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -187,9 +171,7 @@ class TestParseOutputMissing:
 class TestParseOutputSuccess:
     """P1Phase.parse_output() when p1-discovery-context.md is present."""
 
-    def test_returns_p1_output(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_p1_output(self, phase: P1Phase, ctx: PhaseContext) -> None:
         context_file = ctx.work_dir / "p1-discovery-context.md"
         context_file.write_text(SAMPLE_CONTEXT, encoding="utf-8")
 
@@ -199,14 +181,9 @@ class TestParseOutputSuccess:
         assert result.triples_loaded == 3  # 3 tools in Available Tools table
         assert len(result.ontologies_queried) >= 1
 
-    def test_zero_triples_when_table_empty(
-        self, phase: P1Phase, ctx: PhaseContext
-    ) -> None:
+    def test_zero_triples_when_table_empty(self, phase: P1Phase, ctx: PhaseContext) -> None:
         minimal = (
-            "# P1: Discovery Context\n"
-            "**Discovery Source**: /tmp/disc\n"
-            "## Idea Summary\n"
-            "Test.\n"
+            "# P1: Discovery Context\n**Discovery Source**: /tmp/disc\n## Idea Summary\nTest.\n"
         )
         context_file = ctx.work_dir / "p1-discovery-context.md"
         context_file.write_text(minimal, encoding="utf-8")
@@ -227,9 +204,7 @@ class _MockP1Phase(P1Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "p1-discovery-context.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"

@@ -16,10 +16,10 @@ from tulla.hygiene.startup_log import (
     log_preflight_decision,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def clean_config() -> HygieneConfig:
@@ -75,16 +75,22 @@ class TestPreflightDecision:
 
     def test_frozen(self) -> None:
         d = PreflightDecision(
-            script_name="x", mode="clean", source="default",
-            work_dirs=[], remaining_args=[],
+            script_name="x",
+            mode="clean",
+            source="default",
+            work_dirs=[],
+            remaining_args=[],
         )
         with pytest.raises(AttributeError):
             d.mode = "check"  # type: ignore[misc]
 
     def test_as_dict(self) -> None:
         d = PreflightDecision(
-            script_name="s", mode="clean", source="default",
-            work_dirs=["./w"], remaining_args=[],
+            script_name="s",
+            mode="clean",
+            source="default",
+            work_dirs=["./w"],
+            remaining_args=[],
         )
         result = d.as_dict()
         assert isinstance(result, dict)
@@ -96,8 +102,11 @@ class TestPreflightDecision:
 
     def test_as_json(self) -> None:
         d = PreflightDecision(
-            script_name="s", mode="check", source="explicit",
-            work_dirs=[], remaining_args=[],
+            script_name="s",
+            mode="check",
+            source="explicit",
+            work_dirs=[],
+            remaining_args=[],
         )
         raw = d.as_json()
         parsed = json.loads(raw)
@@ -106,20 +115,29 @@ class TestPreflightDecision:
 
     def test_as_json_roundtrip(self) -> None:
         d = PreflightDecision(
-            script_name="rt", mode="no-clean", source="explicit",
-            work_dirs=["a", "b"], remaining_args=["--x"],
+            script_name="rt",
+            mode="no-clean",
+            source="explicit",
+            work_dirs=["a", "b"],
+            remaining_args=["--x"],
         )
         parsed = json.loads(d.as_json())
         assert parsed == d.as_dict()
 
     def test_equality(self) -> None:
         a = PreflightDecision(
-            script_name="s", mode="clean", source="default",
-            work_dirs=[], remaining_args=[],
+            script_name="s",
+            mode="clean",
+            source="default",
+            work_dirs=[],
+            remaining_args=[],
         )
         b = PreflightDecision(
-            script_name="s", mode="clean", source="default",
-            work_dirs=[], remaining_args=[],
+            script_name="s",
+            mode="clean",
+            source="default",
+            work_dirs=[],
+            remaining_args=[],
         )
         assert a == b
 
@@ -154,12 +172,14 @@ class TestDetectSource:
         assert _detect_source(clean_config, None) == "unknown"
 
     def test_explicit_inferred_when_argv_none_and_check(
-        self, check_config: HygieneConfig,
+        self,
+        check_config: HygieneConfig,
     ) -> None:
         assert _detect_source(check_config, None) == "explicit"
 
     def test_explicit_inferred_when_argv_none_and_no_clean(
-        self, no_clean_config: HygieneConfig,
+        self,
+        no_clean_config: HygieneConfig,
     ) -> None:
         assert _detect_source(no_clean_config, None) == "explicit"
 
@@ -173,7 +193,9 @@ class TestBuildPreflightDecision:
     """Tests for building a PreflightDecision."""
 
     def test_basic_clean_mode(
-        self, clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = build_preflight_decision("test", clean_config, work_dirs, argv=["--clean"])
         assert d.script_name == "test"
@@ -182,38 +204,53 @@ class TestBuildPreflightDecision:
         assert len(d.work_dirs) == 2
 
     def test_default_mode(
-        self, clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = build_preflight_decision("test", clean_config, work_dirs, argv=[])
         assert d.mode == "clean"
         assert d.source == "default"
 
     def test_check_mode(
-        self, check_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        check_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = build_preflight_decision("test", check_config, work_dirs, argv=["--check"])
         assert d.mode == "check"
         assert d.source == "explicit"
 
     def test_no_clean_mode(
-        self, no_clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        no_clean_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = build_preflight_decision(
-            "test", no_clean_config, work_dirs, argv=["--no-clean"],
+            "test",
+            no_clean_config,
+            work_dirs,
+            argv=["--no-clean"],
         )
         assert d.mode == "no-clean"
         assert d.source == "explicit"
 
     def test_remaining_args_passthrough(
-        self, config_with_remaining: HygieneConfig, work_dirs: list[Path],
+        self,
+        config_with_remaining: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = build_preflight_decision(
-            "test", config_with_remaining, work_dirs, argv=["--clean", "--idea", "42"],
+            "test",
+            config_with_remaining,
+            work_dirs,
+            argv=["--clean", "--idea", "42"],
         )
         assert d.remaining_args == ["--idea", "42"]
 
     def test_work_dirs_serialized_as_strings(
-        self, clean_config: HygieneConfig,
+        self,
+        clean_config: HygieneConfig,
     ) -> None:
         dirs = [Path("/a/b"), Path("relative/dir")]
         d = build_preflight_decision("test", clean_config, dirs, argv=[])
@@ -225,7 +262,9 @@ class TestBuildPreflightDecision:
         assert d.work_dirs == []
 
     def test_argv_none(
-        self, clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = build_preflight_decision("test", clean_config, work_dirs, argv=None)
         assert d.source == "unknown"
@@ -240,14 +279,19 @@ class TestLogPreflightDecision:
     """Tests for the main logging entry point."""
 
     def test_returns_decision(
-        self, clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = log_preflight_decision("test", clean_config, work_dirs, argv=["--clean"])
         assert isinstance(d, PreflightDecision)
         assert d.script_name == "test"
 
     def test_emits_info_log(
-        self, clean_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("my-script", clean_config, work_dirs, argv=["--clean"])
@@ -257,33 +301,46 @@ class TestLogPreflightDecision:
         assert any("source=explicit" in r.message for r in caplog.records)
 
     def test_logs_default_source(
-        self, clean_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", clean_config, work_dirs, argv=[])
         assert any("source=default" in r.message for r in caplog.records)
 
     def test_logs_check_mode(
-        self, check_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
+        self,
+        check_config: HygieneConfig,
+        work_dirs: list[Path],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", check_config, work_dirs, argv=["--check"])
         assert any("mode=check" in r.message for r in caplog.records)
 
     def test_logs_no_clean_mode(
-        self, no_clean_config: HygieneConfig, work_dirs: list[Path], caplog: pytest.LogCaptureFixture,
+        self,
+        no_clean_config: HygieneConfig,
+        work_dirs: list[Path],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.INFO, logger="tulla.hygiene.startup_log"):
             log_preflight_decision("test", no_clean_config, work_dirs, argv=["--no-clean"])
         assert any("mode=no-clean" in r.message for r in caplog.records)
 
     def test_debug_log_for_remaining_args(
-        self, config_with_remaining: HygieneConfig, work_dirs: list[Path],
+        self,
+        config_with_remaining: HygieneConfig,
+        work_dirs: list[Path],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.DEBUG, logger="tulla.hygiene.startup_log"):
             log_preflight_decision(
-                "test", config_with_remaining, work_dirs,
+                "test",
+                config_with_remaining,
+                work_dirs,
                 argv=["--clean", "--idea", "42"],
             )
         debug_msgs = [r.message for r in caplog.records if r.levelno == logging.DEBUG]
@@ -291,7 +348,9 @@ class TestLogPreflightDecision:
         assert any("--idea" in m for m in debug_msgs)
 
     def test_no_debug_log_without_remaining_args(
-        self, clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         with caplog.at_level(logging.DEBUG, logger="tulla.hygiene.startup_log"):
@@ -300,7 +359,9 @@ class TestLogPreflightDecision:
         assert not any("Remaining args" in m for m in debug_msgs)
 
     def test_decision_matches_returned(
-        self, clean_config: HygieneConfig, work_dirs: list[Path],
+        self,
+        clean_config: HygieneConfig,
+        work_dirs: list[Path],
     ) -> None:
         d = log_preflight_decision("test", clean_config, work_dirs, argv=["--clean"])
         assert d.mode == clean_config.mode.value

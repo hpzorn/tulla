@@ -1,8 +1,13 @@
 """TracePhase — assembles the final trace model from all prior phase outputs.
 
-# @pattern:EventSourcing -- Produces an immutable LightweightTraceResult from upstream phase outputs for KG persistence
-# @pattern:PortsAndAdapters -- Overrides run_claude() for local computation; Pipeline's PhaseFactPersister handles KG persistence
-# @principle:SeparationOfConcerns -- Assembles the model only; persistence delegated to PhaseFactPersister post-hook
+# @pattern:EventSourcing -- Produces an immutable
+#   LightweightTraceResult from upstream phase outputs for KG
+#   persistence
+# @pattern:PortsAndAdapters -- Overrides run_claude() for local
+#   computation; Pipeline's PhaseFactPersister handles KG
+#   persistence
+# @principle:SeparationOfConcerns -- Assembles the model only;
+#   persistence delegated to PhaseFactPersister post-hook
 
 Architecture decisions: arch:adr-53-1, arch:adr-53-4
 Quality focus: isaqb:FunctionalCorrectness
@@ -11,7 +16,7 @@ Quality focus: isaqb:FunctionalCorrectness
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from tulla.core.checkpoint import CheckpointStore
@@ -101,7 +106,7 @@ class TracePhase(Phase[LightweightTraceResult]):
         affected_files = ",".join(files_modified)
 
         # Timestamp as current UTC in ISO 8601 format
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = datetime.now(UTC).isoformat()
 
         # Optional fields from ctx.config (default to None)
         issue_ref = ctx.config.get("issue_ref")

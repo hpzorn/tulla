@@ -9,7 +9,6 @@ Used by phase ``parse_output()`` methods to populate semantic IntentFields.
 from __future__ import annotations
 
 import re
-from typing import Any
 
 
 def extract_section(

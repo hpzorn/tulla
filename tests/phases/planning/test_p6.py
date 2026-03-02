@@ -12,10 +12,14 @@ import pytest
 from tulla.adapters.claude_mock import MockClaudeAdapter
 from tulla.core.phase import ParseError, PhaseContext, PhaseResult, PhaseStatus
 from tulla.phases.planning.models import P6Output
-from tulla.phases.planning.p6 import P6Phase, PRD_NS, TRACE_NS, _compact_uri, _group_files_by_directory
+from tulla.phases.planning.p6 import (
+    PRD_NS,
+    P6Phase,
+    _compact_uri,
+    _group_files_by_directory,
+)
 from tulla.ports.claude import ClaudeResult
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -123,8 +127,7 @@ class TestBuildPrompt:
         ctx.config["granularity_feedback"] = "Split prd:req-42-1-1 into smaller parts."
         prompt = phase.build_prompt(ctx)
         assert prompt.endswith(
-            "## Granularity Feedback (MUST address)\n"
-            "Split prd:req-42-1-1 into smaller parts."
+            "## Granularity Feedback (MUST address)\nSplit prd:req-42-1-1 into smaller parts."
         )
 
     def test_feedback_empty_string_not_appended(self, phase: P6Phase, ctx: PhaseContext) -> None:
@@ -137,7 +140,7 @@ class TestBuildPrompt:
     def test_project_export_included_when_decisions_present(
         self, phase: P6Phase, ctx: PhaseContext
     ) -> None:
-        """build_prompt() includes project export instructions when project_decisions config is non-empty."""
+        """build_prompt() includes project export when decisions present."""
         ctx.config["project_decisions"] = [
             {
                 "id": "arch:adr-project-42-1",
@@ -388,11 +391,9 @@ prd:req-42-1-1 a prd:Requirement ;
 
 
 class TestGranularityMetrics:
-    """Granularity metrics: fine Turtle passes, coarse detected, cross-cutting exempt, homogeneous exempt."""
+    """Granularity metrics: fine passes, coarse detected, exemptions."""
 
-    def test_fine_turtle_passes(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_fine_turtle_passes(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """SAMPLE_TURTLE (all ≤3 files) has no coarse requirements."""
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
 
@@ -401,9 +402,7 @@ class TestGranularityMetrics:
         assert result.coarse_requirements == []
         assert result.granularity_passed is True
 
-    def test_coarse_detected(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_coarse_detected(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """SAMPLE_TURTLE_COARSE triggers coarse detection (7 heterogeneous files, low wpf)."""
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE_COARSE)
 
@@ -415,9 +414,7 @@ class TestGranularityMetrics:
         assert result.coarse_requirements[0]["homogeneous"] is False
         assert result.granularity_passed is False
 
-    def test_cross_cutting_exempt(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_cross_cutting_exempt(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """SAMPLE_TURTLE_CROSS_CUTTING is exempt from coarse detection via @cross-cutting."""
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE_CROSS_CUTTING)
 
@@ -426,9 +423,7 @@ class TestGranularityMetrics:
         assert result.coarse_requirements == []
         assert result.granularity_passed is True
 
-    def test_homogeneous_exempt(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_homogeneous_exempt(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """SAMPLE_TURTLE_HOMOGENEOUS is exempt because all files share the same basename."""
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE_HOMOGENEOUS)
 
@@ -446,9 +441,7 @@ class TestGranularityMetrics:
 class TestValidateOutputBlocking:
     """P6Phase.validate_output() is a blocking gate: passes fine, blocks coarse with ValueError."""
 
-    def test_passes_fine(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_passes_fine(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """validate_output() returns None when granularity_passed is True."""
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE)
         (ctx.work_dir / "p6-prd-summary.md").write_text("# Summary\n")
@@ -457,9 +450,7 @@ class TestValidateOutputBlocking:
         # Should not raise
         assert phase.validate_output(ctx, parsed) is None
 
-    def test_blocks_coarse_with_value_error(
-        self, phase: P6Phase, ctx: PhaseContext
-    ) -> None:
+    def test_blocks_coarse_with_value_error(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """validate_output() raises ValueError when coarse requirements exist."""
         (ctx.work_dir / "p6-prd-export.ttl").write_text(SAMPLE_TURTLE_COARSE)
 
@@ -577,6 +568,7 @@ class TestExecuteRetryLoop:
 
     def test_fails_after_retries_exhausted(self, ctx: PhaseContext) -> None:
         """All attempts produce coarse Turtle: FAILURE after retries exhausted."""
+
         def _side_effect(ctx_: PhaseContext, prompt: str, tools: list) -> ClaudeResult:
             turtle_file = ctx_.work_dir / "p6-prd-export.ttl"
             summary_file = ctx_.work_dir / "p6-prd-summary.md"
@@ -760,7 +752,7 @@ prd:req-42-1-1 a prd:Requirement ;
 
 
 class TestBuildGranularityFeedback:
-    """P6Phase._build_granularity_feedback() returns Template A markdown with metrics and split plans."""
+    """_build_granularity_feedback() returns Template A markdown."""
 
     def test_returns_empty_for_no_coarse(self, phase: P6Phase, ctx: PhaseContext) -> None:
         """When there are no coarse requirements, returns empty string."""
@@ -788,13 +780,15 @@ class TestBuildGranularityFeedback:
             summary_file=ctx.work_dir / "p6-prd-summary.md",
             requirements_exported=1,
             prd_context="prd-idea-42",
-            coarse_requirements=[{
-                "requirement": "prd:req-42-1-1",
-                "file_count": 4,
-                "word_count": 2,
-                "wpf": 0.5,
-                "homogeneous": False,
-            }],
+            coarse_requirements=[
+                {
+                    "requirement": "prd:req-42-1-1",
+                    "file_count": 4,
+                    "word_count": 2,
+                    "wpf": 0.5,
+                    "homogeneous": False,
+                }
+            ],
             granularity_passed=False,
         )
         result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
@@ -813,13 +807,15 @@ class TestBuildGranularityFeedback:
             summary_file=ctx.work_dir / "p6-prd-summary.md",
             requirements_exported=1,
             prd_context="prd-idea-42",
-            coarse_requirements=[{
-                "requirement": "prd:req-42-1-1",
-                "file_count": 4,
-                "word_count": 2,
-                "wpf": 0.5,
-                "homogeneous": False,
-            }],
+            coarse_requirements=[
+                {
+                    "requirement": "prd:req-42-1-1",
+                    "file_count": 4,
+                    "word_count": 2,
+                    "wpf": 0.5,
+                    "homogeneous": False,
+                }
+            ],
             granularity_passed=False,
         )
         result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
@@ -838,13 +834,15 @@ class TestBuildGranularityFeedback:
             summary_file=ctx.work_dir / "p6-prd-summary.md",
             requirements_exported=1,
             prd_context="prd-idea-42",
-            coarse_requirements=[{
-                "requirement": "prd:req-42-1-1",
-                "file_count": 4,
-                "word_count": 2,
-                "wpf": 0.5,
-                "homogeneous": False,
-            }],
+            coarse_requirements=[
+                {
+                    "requirement": "prd:req-42-1-1",
+                    "file_count": 4,
+                    "word_count": 2,
+                    "wpf": 0.5,
+                    "homogeneous": False,
+                }
+            ],
             granularity_passed=False,
         )
         result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
@@ -864,13 +862,15 @@ class TestBuildGranularityFeedback:
             summary_file=ctx.work_dir / "p6-prd-summary.md",
             requirements_exported=1,
             prd_context="prd-idea-42",
-            coarse_requirements=[{
-                "requirement": "prd:req-42-1-1",
-                "file_count": 4,
-                "word_count": 2,
-                "wpf": 0.5,
-                "homogeneous": False,
-            }],
+            coarse_requirements=[
+                {
+                    "requirement": "prd:req-42-1-1",
+                    "file_count": 4,
+                    "word_count": 2,
+                    "wpf": 0.5,
+                    "homogeneous": False,
+                }
+            ],
             granularity_passed=False,
         )
         result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
@@ -886,13 +886,15 @@ class TestBuildGranularityFeedback:
             summary_file=ctx.work_dir / "p6-prd-summary.md",
             requirements_exported=1,
             prd_context="prd-idea-42",
-            coarse_requirements=[{
-                "requirement": "prd:req-42-1-1",
-                "file_count": 4,
-                "word_count": 2,
-                "wpf": 0.5,
-                "homogeneous": False,
-            }],
+            coarse_requirements=[
+                {
+                    "requirement": "prd:req-42-1-1",
+                    "file_count": 4,
+                    "word_count": 2,
+                    "wpf": 0.5,
+                    "homogeneous": False,
+                }
+            ],
             granularity_passed=False,
         )
         result = PhaseResult(status=PhaseStatus.SUCCESS, data=parsed)
@@ -976,9 +978,7 @@ class TestRetryMechanism:
         ctx.config["claude_port"] = MockClaudeAdapter()
         ctx.config["max_granularity_retries"] = 1
 
-        phase = _MockP6Phase(
-            turtle_per_attempt=[SAMPLE_TURTLE_COARSE, SAMPLE_TURTLE_COARSE]
-        )
+        phase = _MockP6Phase(turtle_per_attempt=[SAMPLE_TURTLE_COARSE, SAMPLE_TURTLE_COARSE])
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.FAILURE
@@ -1038,9 +1038,7 @@ class TestBuildGranularityFeedbackViaMock:
         ctx.config["claude_port"] = MockClaudeAdapter()
         ctx.config["max_granularity_retries"] = 1
 
-        phase = _MockP6Phase(
-            turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE]
-        )
+        phase = _MockP6Phase(turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE])
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
@@ -1052,9 +1050,7 @@ class TestBuildGranularityFeedbackViaMock:
         ctx.config["claude_port"] = MockClaudeAdapter()
         ctx.config["max_granularity_retries"] = 1
 
-        phase = _MockP6Phase(
-            turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE]
-        )
+        phase = _MockP6Phase(turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE])
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
@@ -1068,9 +1064,7 @@ class TestBuildGranularityFeedbackViaMock:
         ctx.config["claude_port"] = MockClaudeAdapter()
         ctx.config["max_granularity_retries"] = 1
 
-        phase = _MockP6Phase(
-            turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE]
-        )
+        phase = _MockP6Phase(turtle_per_attempt=[COARSE_MULTI_DIR_TURTLE, FINE_TURTLE])
         result = phase.execute(ctx)
 
         assert result.status == PhaseStatus.SUCCESS
@@ -1152,7 +1146,9 @@ class _MockOntologyPort(OntologyPort):
     def recall_facts(self, *, subject=None, predicate=None, context=None, limit=100):
         return {"result": []}
 
-    def query_ideas(self, *, sparql=None, lifecycle=None, author=None, tag=None, search=None, limit=50):
+    def query_ideas(
+        self, *, sparql=None, lifecycle=None, author=None, tag=None, search=None, limit=50
+    ):
         return {"ideas": []}
 
     def get_idea(self, idea_id):
@@ -1164,7 +1160,9 @@ class _MockOntologyPort(OntologyPort):
     def sparql_update(self, query, *, validate=True):
         return {"status": "ok"}
 
-    def update_idea(self, idea_id, *, title=None, description=None, content=None, lifecycle=None, tags=None):
+    def update_idea(
+        self, idea_id, *, title=None, description=None, content=None, lifecycle=None, tags=None
+    ):
         return {}
 
     def set_lifecycle(self, idea_id, new_state, *, reason=""):
@@ -1179,7 +1177,15 @@ class _MockOntologyPort(OntologyPort):
     ) -> dict[str, Any]:
         return {}
 
-    def add_triple(self, subject: str, predicate: str, object: str, *, is_literal: bool = False, ontology: str | None = None) -> dict[str, Any]:
+    def add_triple(
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        is_literal: bool = False,
+        ontology: str | None = None,
+    ) -> dict[str, Any]:
         return {"status": "added"}
 
     def remove_triples_by_subject(self, subject: str, *, ontology: str | None = None) -> int:

@@ -7,7 +7,6 @@ investigation, reading sources and answering each research question.
 from __future__ import annotations
 
 import json
-import re
 from datetime import date
 from typing import Any
 

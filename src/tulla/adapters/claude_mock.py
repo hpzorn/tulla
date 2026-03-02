@@ -7,7 +7,7 @@ all phase tests to avoid external dependencies.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from tulla.ports.claude import ClaudePort, ClaudeRequest, ClaudeResult
 

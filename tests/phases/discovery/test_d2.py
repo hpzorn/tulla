@@ -80,27 +80,19 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_personas_output_path(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_personas_output_path(self, phase: D2Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "d2-personas.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: D2Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase D2: Persona Discovery" in prompt
 
-    def test_reads_d1_inventory(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_reads_d1_inventory(self, phase: D2Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "d1-inventory.md" in prompt
 
-    def test_upstream_facts_included_when_present(
-        self, phase: D2Phase, tmp_path: Path
-    ) -> None:
+    def test_upstream_facts_included_when_present(self, phase: D2Phase, tmp_path: Path) -> None:
         """Upstream facts from config are grouped and rendered in the prompt."""
         sample_triples = [
             {
@@ -126,16 +118,12 @@ class TestBuildPrompt:
         assert "key_capabilities" in prompt
         assert "ecosystem_context" in prompt
 
-    def test_upstream_facts_omitted_when_empty(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_upstream_facts_omitted_when_empty(self, phase: D2Phase, ctx: PhaseContext) -> None:
         """No upstream facts section when config has no upstream_facts."""
         prompt = phase.build_prompt(ctx)
         assert "## Upstream Facts" not in prompt
 
-    def test_upstream_facts_before_goal(
-        self, phase: D2Phase, tmp_path: Path
-    ) -> None:
+    def test_upstream_facts_before_goal(self, phase: D2Phase, tmp_path: Path) -> None:
         """Upstream facts section appears before ## Goal."""
         sample_triples = [
             {
@@ -165,16 +153,12 @@ class TestBuildPrompt:
 class TestGetTools:
     """D2Phase.get_tools() tests."""
 
-    def test_includes_web_search(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_web_search(self, phase: D2Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
         assert "WebSearch" in tool_names
 
-    def test_includes_read_write(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write(self, phase: D2Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
@@ -189,15 +173,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """D2Phase.parse_output() when d2-personas.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: D2Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="d2-personas.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: D2Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -211,9 +191,7 @@ class TestParseOutputMissing:
 class TestParseOutputSuccess:
     """D2Phase.parse_output() when d2-personas.md is present."""
 
-    def test_returns_d2_output(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_d2_output(self, phase: D2Phase, ctx: PhaseContext) -> None:
         personas_file = ctx.work_dir / "d2-personas.md"
         personas_file.write_text(SAMPLE_PERSONAS, encoding="utf-8")
 
@@ -221,15 +199,14 @@ class TestParseOutputSuccess:
 
         assert result.personas_file == personas_file
         import json
+
         personas = json.loads(result.personas)
         assert len(personas) == 3
         assert result.primary_persona_jtbd == (
             "When I am building features, I want to track impact, so I can prioritise."
         )
 
-    def test_empty_personas_when_table_empty(
-        self, phase: D2Phase, ctx: PhaseContext
-    ) -> None:
+    def test_empty_personas_when_table_empty(self, phase: D2Phase, ctx: PhaseContext) -> None:
         minimal = (
             "# D2: Persona Discovery\n"
             "## Persona Overview\n"
@@ -241,6 +218,7 @@ class TestParseOutputSuccess:
 
         result = phase.parse_output(ctx, raw="raw")
         import json
+
         assert json.loads(result.personas) == []
 
 
@@ -256,9 +234,7 @@ class _MockD2Phase(D2Phase):
         super().__init__()
         self._personas_content = personas_content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "d2-personas.md"
         output_file.write_text(self._personas_content, encoding="utf-8")
         return "mock-raw-output"
@@ -275,6 +251,7 @@ class TestExecuteWithMock:
         assert result.data is not None
         assert result.data.personas_file == ctx.work_dir / "d2-personas.md"
         import json
+
         assert len(json.loads(result.data.personas)) == 3
         assert result.error is None
         assert result.duration_s > 0

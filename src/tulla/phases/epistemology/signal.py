@@ -23,7 +23,10 @@ _OUTPUT_FILE = "ep-pyrrhon-ideas.md"
 
 
 class PyrrhonPhase(Phase[EpistemologyOutput]):
-    """Epistemology Pyrrhon mode: construct equipollent arguments, suspend, generate from stillness."""
+    """Epistemology Pyrrhon mode: construct equipollent arguments.
+
+    Suspends judgment and generates ideas from stillness.
+    """
 
     phase_id: str = "ep-pyrrhon"
     timeout_s: float = 900.0

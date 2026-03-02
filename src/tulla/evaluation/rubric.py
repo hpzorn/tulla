@@ -19,53 +19,52 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from tulla.ports.claude import ClaudePort, ClaudeRequest
-
 
 # ---------------------------------------------------------------------------
 # Dimension enums
 # ---------------------------------------------------------------------------
 
 
-class ReasoningDirection(str, Enum):
+class ReasoningDirection(StrEnum):
     TOP_DOWN = "top-down"
     BOTTOM_UP = "bottom-up"
     OUTSIDE_IN = "outside-in"
     LATERAL = "lateral"
 
 
-class AssumptionStance(str, Enum):
+class AssumptionStance(StrEnum):
     ACCEPTING = "accepting"
     QUESTIONING = "questioning"
     INVERTING = "inverting"
     SUSPENDING = "suspending"
 
 
-class SynthesisStyle(str, Enum):
+class SynthesisStyle(StrEnum):
     ADDITIVE = "additive"
     DIALECTICAL = "dialectical"
     ELIMINATIVE = "eliminative"
     COMBINATORIAL = "combinatorial"
 
 
-class EvidenceGrounding(str, Enum):
+class EvidenceGrounding(StrEnum):
     INTERNAL = "internal"
     EXTERNAL_ESTABLISHED = "external-established"
     EXTERNAL_CURRENT = "external-current"
     CROSS_DOMAIN = "cross-domain"
 
 
-class ContradictionHandling(str, Enum):
+class ContradictionHandling(StrEnum):
     IGNORE = "ignore"
     RESOLVE = "resolve"
     TRANSCEND = "transcend"
     PRESERVE = "preserve"
 
 
-class CreativityType(str, Enum):
+class CreativityType(StrEnum):
     EXPLORATORY = "exploratory"
     COMBINATIONAL = "combinational"
     TRANSFORMATIONAL = "transformational"
@@ -195,7 +194,7 @@ def compare_modes(scores: dict[str, RubricScore]) -> dict[tuple[str, str], int]:
         for b in names[i + 1 :]:
             shared = sum(
                 va == vb
-                for va, vb in zip(scores[a].as_tuple(), scores[b].as_tuple())
+                for va, vb in zip(scores[a].as_tuple(), scores[b].as_tuple(), strict=False)
             )
             overlaps[(a, b)] = shared
 

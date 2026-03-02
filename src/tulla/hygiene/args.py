@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Sequence
 
 
 class HygieneMode(Enum):

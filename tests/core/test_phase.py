@@ -16,7 +16,6 @@ from tulla.core.phase import (
     PhaseStatus,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers – concrete Phase subclass for testing
 # ---------------------------------------------------------------------------
@@ -31,9 +30,7 @@ class _EchoPhase(Phase[str]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return []
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         return "raw-output"
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> str:
@@ -43,18 +40,14 @@ class _EchoPhase(Phase[str]):
 class _FailingClaudePhase(_EchoPhase):
     """Phase whose run_claude always raises."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         raise RuntimeError("Claude blew up")
 
 
 class _TimeoutPhase(_EchoPhase):
     """Phase whose run_claude raises TimeoutError."""
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         raise TimeoutError("took too long")
 
 

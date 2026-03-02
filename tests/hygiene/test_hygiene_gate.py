@@ -177,9 +177,7 @@ class TestHygieneGateCheckMode:
         # Check mode should NOT remove files.
         assert lock_file.exists()
 
-    def test_check_mode_passes_remaining_args_in_fallthrough(
-        self, tmp_path: Path
-    ) -> None:
+    def test_check_mode_passes_remaining_args_in_fallthrough(self, tmp_path: Path) -> None:
         """When exit_func doesn't actually exit, remaining_args are available."""
         mock_exit = MagicMock()
         buf = io.StringIO()
@@ -235,7 +233,7 @@ class TestGateResult:
         gate_result = GateResult(config=config, report=None)
         try:
             gate_result.config = config  # type: ignore[misc]
-            assert False, "Should have raised FrozenInstanceError"
+            raise AssertionError("Should have raised FrozenInstanceError")
         except AttributeError:
             pass
 

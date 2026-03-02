@@ -4,23 +4,21 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, call
 
 import pytest
 from pydantic import BaseModel
 
 from tulla.core.checkpoint import CheckpointStore
 from tulla.core.intent import IntentField
-from tulla.namespaces import PHASE_NS, TRACE_NS, RDF_TYPE
 from tulla.core.phase import (
     Phase,
     PhaseContext,
     PhaseResult,
     PhaseStatus,
 )
-from tulla.core.pipeline import Pipeline, PipelineResult
+from tulla.core.pipeline import Pipeline
+from tulla.namespaces import PHASE_NS, TRACE_NS
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -49,9 +47,7 @@ class StubPhase(Phase[str]):
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
         return []
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         return self._output
 
     def parse_output(self, ctx: PhaseContext, raw: Any) -> str:
@@ -415,13 +411,19 @@ class MockOntologyPort(OntologyPort):
         return {"facts": []}
 
     def sparql_query(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         self.sparql_query_calls.append(query)
         return {"results": []}
 
     def sparql_update(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"status": "ok"}
 
@@ -432,7 +434,11 @@ class MockOntologyPort(OntologyPort):
         return 0
 
     def set_lifecycle(
-        self, idea_id: str, new_state: str, *, reason: str = "",
+        self,
+        idea_id: str,
+        new_state: str,
+        *,
+        reason: str = "",
     ) -> dict[str, Any]:
         return {}
 
@@ -586,9 +592,7 @@ class TestPipelinePhaseHooks:
         assert result.final_status == PhaseStatus.SUCCESS
         # Phase B should have a trace:tracesTo pointing to Phase A's subject
         trace_calls = [
-            (s, p, o)
-            for s, p, o in ontology.add_triple_calls
-            if p == f"{TRACE_NS}tracesTo"
+            (s, p, o) for s, p, o in ontology.add_triple_calls if p == f"{TRACE_NS}tracesTo"
         ]
         # Phase A has no predecessor, Phase B traces to Phase A
         assert len(trace_calls) == 1

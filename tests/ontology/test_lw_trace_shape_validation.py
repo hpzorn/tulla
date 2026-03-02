@@ -1,8 +1,13 @@
 """Integration test: LightweightTraceResult triples pass LWTraceOutputShape validation.
 
-# @pattern:EventSourcing -- Validates that the immutable trace event (LightweightTraceResult) produces triples conforming to the SHACL structural contract
-# @pattern:PortsAndAdapters -- Mock OntologyPort verifies triple structure at the port boundary without requiring a live ontology-server
-# @principle:DependencyInversion -- Test depends on OntologyPort ABC; mock performs structural SHACL-like validation in-process
+# @pattern:EventSourcing -- Validates that the immutable trace event
+#   (LightweightTraceResult) produces triples conforming to the SHACL
+#   structural contract
+# @pattern:PortsAndAdapters -- Mock OntologyPort verifies triple
+#   structure at the port boundary without requiring a live
+#   ontology-server
+# @principle:DependencyInversion -- Test depends on OntologyPort ABC;
+#   mock performs structural SHACL-like validation in-process
 
 Verification criteria (prd:req-53-5-2):
   Integration test against ontology-server validates that a
@@ -20,16 +25,12 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
-from tulla.core.intent import extract_intent_fields
 from tulla.core.phase import PhaseResult, PhaseStatus
 from tulla.core.phase_facts import PhaseFactPersister
 from tulla.namespaces import PHASE_NS
 from tulla.ontology.phase_shapes import get_shape_for_phase
 from tulla.phases.lightweight.models import LightweightTraceResult
 from tulla.ports.ontology import OntologyPort
-
 
 # ---------------------------------------------------------------------------
 # SHACL-validating mock OntologyPort
@@ -70,16 +71,21 @@ class _SHACLValidatingOntologyPort(OntologyPort):
         is_literal: bool = False,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.triples.append({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "is_literal": is_literal,
-        })
+        self.triples.append(
+            {
+                "subject": subject,
+                "predicate": predicate,
+                "object": object,
+                "is_literal": is_literal,
+            }
+        )
         return {"status": "added"}
 
     def remove_triples_by_subject(
-        self, subject: str, *, ontology: str | None = None,
+        self,
+        subject: str,
+        *,
+        ontology: str | None = None,
     ) -> int:
         before = len(self.triples)
         self.triples = [t for t in self.triples if t["subject"] != subject]
@@ -92,15 +98,15 @@ class _SHACLValidatingOntologyPort(OntologyPort):
         *,
         ontology: str | None = None,
     ) -> dict[str, Any]:
-        self.validate_calls.append({
-            "instance_uri": instance_uri,
-            "shape_uri": shape_uri,
-        })
+        self.validate_calls.append(
+            {
+                "instance_uri": instance_uri,
+                "shape_uri": shape_uri,
+            }
+        )
 
         # Perform structural SHACL-like validation
-        instance_triples = [
-            t for t in self.triples if t["subject"] == instance_uri
-        ]
+        instance_triples = [t for t in self.triples if t["subject"] == instance_uri]
         predicate_counts: dict[str, int] = {}
         for t in instance_triples:
             p = t["predicate"]
@@ -110,13 +116,9 @@ class _SHACLValidatingOntologyPort(OntologyPort):
         for prop, (min_count, max_count) in _LW_TRACE_REQUIRED_PROPERTIES.items():
             actual = predicate_counts.get(prop, 0)
             if min_count is not None and actual < min_count:
-                violations.append(
-                    f"{prop}: expected minCount {min_count}, got {actual}"
-                )
+                violations.append(f"{prop}: expected minCount {min_count}, got {actual}")
             if max_count is not None and actual > max_count:
-                violations.append(
-                    f"{prop}: expected maxCount {max_count}, got {actual}"
-                )
+                violations.append(f"{prop}: expected maxCount {max_count}, got {actual}")
 
         return {
             "conforms": len(violations) == 0,
@@ -134,8 +136,13 @@ class _SHACLValidatingOntologyPort(OntologyPort):
         return {}
 
     def store_fact(
-        self, subject: str, predicate: str, object: str,
-        *, context: str | None = None, confidence: float = 1.0,
+        self,
+        subject: str,
+        predicate: str,
+        object: str,
+        *,
+        context: str | None = None,
+        confidence: float = 1.0,
     ) -> dict[str, Any]:
         return {"stored": True}
 
@@ -143,18 +150,28 @@ class _SHACLValidatingOntologyPort(OntologyPort):
         return {}
 
     def recall_facts(
-        self, *, subject: str | None = None, predicate: str | None = None,
-        context: str | None = None, limit: int = 100,
+        self,
+        *,
+        subject: str | None = None,
+        predicate: str | None = None,
+        context: str | None = None,
+        limit: int = 100,
     ) -> dict[str, Any]:
         return {"facts": []}
 
     def sparql_query(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"results": []}
 
     def sparql_update(
-        self, query: str, *, validate: bool = True,
+        self,
+        query: str,
+        *,
+        validate: bool = True,
     ) -> dict[str, Any]:
         return {"status": "ok"}
 
@@ -165,7 +182,11 @@ class _SHACLValidatingOntologyPort(OntologyPort):
         return 0
 
     def set_lifecycle(
-        self, idea_id: str, new_state: str, *, reason: str = "",
+        self,
+        idea_id: str,
+        new_state: str,
+        *,
+        reason: str = "",
     ) -> dict[str, Any]:
         return {}
 
@@ -272,9 +293,7 @@ class TestLWTraceOutputShapeValidation:
 
         predicates = {t["predicate"] for t in ontology.triples}
         for required_prop in _LW_TRACE_REQUIRED_PROPERTIES:
-            assert required_prop in predicates, (
-                f"Missing required predicate: {required_prop}"
-            )
+            assert required_prop in predicates, f"Missing required predicate: {required_prop}"
 
     def test_produced_by_appears_exactly_once(self) -> None:
         """phase:producedBy appears exactly 1 time (sh:minCount 1, sh:maxCount 1)."""
@@ -297,9 +316,9 @@ class TestLWTraceOutputShapeValidation:
         )
 
         produced_by_count = sum(
-            1 for t in ontology.triples
-            if t["subject"] == subject_uri
-            and t["predicate"] == f"{PHASE_NS}producedBy"
+            1
+            for t in ontology.triples
+            if t["subject"] == subject_uri and t["predicate"] == f"{PHASE_NS}producedBy"
         )
         assert produced_by_count == 1
 
@@ -330,7 +349,8 @@ class TestLWTraceOutputShapeValidation:
         # Manually remove a required triple to simulate a gap
         subject_uri = f"{PHASE_NS}test-53-fail-lw-trace"
         ontology.triples = [
-            t for t in ontology.triples
+            t
+            for t in ontology.triples
             if not (
                 t["subject"] == subject_uri
                 and t["predicate"] == f"{PHASE_NS}preserves-change_type"

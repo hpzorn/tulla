@@ -107,28 +107,20 @@ class TestBuildPrompt:
         prompt = phase.build_prompt(ctx)
         assert ctx.idea_id in prompt
 
-    def test_includes_value_mapping_output_path(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_value_mapping_output_path(self, phase: D3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "d3-value-mapping.md" in prompt
 
-    def test_includes_phase_heading(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_phase_heading(self, phase: D3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "Phase D3: Value Mapping" in prompt
 
-    def test_reads_d1_and_d2(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_reads_d1_and_d2(self, phase: D3Phase, ctx: PhaseContext) -> None:
         prompt = phase.build_prompt(ctx)
         assert "d1-inventory.md" in prompt
         assert "d2-personas.md" in prompt
 
-    def test_upstream_facts_included_when_present(
-        self, phase: D3Phase, tmp_path: Path
-    ) -> None:
+    def test_upstream_facts_included_when_present(self, phase: D3Phase, tmp_path: Path) -> None:
         """Upstream facts from D1 and D2 are grouped and rendered in the prompt."""
         sample_triples = [
             {
@@ -160,16 +152,12 @@ class TestBuildPrompt:
         assert "ecosystem_context" in prompt
         assert "primary_persona_jtbd" in prompt
 
-    def test_upstream_facts_omitted_when_empty(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_upstream_facts_omitted_when_empty(self, phase: D3Phase, ctx: PhaseContext) -> None:
         """No upstream facts section when config has no upstream_facts."""
         prompt = phase.build_prompt(ctx)
         assert "## Upstream Facts" not in prompt
 
-    def test_upstream_facts_before_goal(
-        self, phase: D3Phase, tmp_path: Path
-    ) -> None:
+    def test_upstream_facts_before_goal(self, phase: D3Phase, tmp_path: Path) -> None:
         """Upstream facts section appears before ## Goal."""
         sample_triples = [
             {
@@ -199,17 +187,13 @@ class TestBuildPrompt:
 class TestGetTools:
     """D3Phase.get_tools() tests."""
 
-    def test_includes_read_write(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_read_write(self, phase: D3Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = {t["name"] for t in tools}
         assert "Read" in tool_names
         assert "Write" in tool_names
 
-    def test_includes_idea_pool(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_includes_idea_pool(self, phase: D3Phase, ctx: PhaseContext) -> None:
         tools = phase.get_tools(ctx)
         tool_names = [t["name"] for t in tools]
         assert any("ontology-server" in name for name in tool_names)
@@ -223,15 +207,11 @@ class TestGetTools:
 class TestParseOutputMissing:
     """D3Phase.parse_output() when d3-value-mapping.md is absent."""
 
-    def test_raises_parse_error_on_missing_file(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_raises_parse_error_on_missing_file(self, phase: D3Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError, match="d3-value-mapping.md not found"):
             phase.parse_output(ctx, raw="anything")
 
-    def test_parse_error_includes_context(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_parse_error_includes_context(self, phase: D3Phase, ctx: PhaseContext) -> None:
         with pytest.raises(ParseError) as exc_info:
             phase.parse_output(ctx, raw="raw-data")
         assert "work_dir" in exc_info.value.context
@@ -245,9 +225,7 @@ class TestParseOutputMissing:
 class TestParseOutputSuccess:
     """D3Phase.parse_output() when d3-value-mapping.md is present."""
 
-    def test_returns_d3_output(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
+    def test_returns_d3_output(self, phase: D3Phase, ctx: PhaseContext) -> None:
         value_file = ctx.work_dir / "d3-value-mapping.md"
         value_file.write_text(SAMPLE_VALUE_MAPPING, encoding="utf-8")
 
@@ -257,14 +235,8 @@ class TestParseOutputSuccess:
         assert result.quadrant == "Major Project"
         assert result.verdict == "P1-High | Strong ROI | High confidence"
 
-    def test_empty_verdict_when_missing(
-        self, phase: D3Phase, ctx: PhaseContext
-    ) -> None:
-        minimal = (
-            "# D3: Value Mapping\n"
-            "## Value Summary\n"
-            "No data.\n"
-        )
+    def test_empty_verdict_when_missing(self, phase: D3Phase, ctx: PhaseContext) -> None:
+        minimal = "# D3: Value Mapping\n## Value Summary\nNo data.\n"
         value_file = ctx.work_dir / "d3-value-mapping.md"
         value_file.write_text(minimal, encoding="utf-8")
 
@@ -285,9 +257,7 @@ class _MockD3Phase(D3Phase):
         super().__init__()
         self._content = content
 
-    def run_claude(
-        self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]
-    ) -> Any:
+    def run_claude(self, ctx: PhaseContext, prompt: str, tools: list[dict[str, Any]]) -> Any:
         output_file = ctx.work_dir / "d3-value-mapping.md"
         output_file.write_text(self._content, encoding="utf-8")
         return "mock-raw-output"
