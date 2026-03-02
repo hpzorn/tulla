@@ -25,7 +25,7 @@ from typing import Any
 
 from tulla.core.intent import extract_intent_fields
 from tulla.core.phase import PhaseResult
-from tulla.namespaces import ARCH_NS, PHASE_NS, TRACE_NS, RDF_TYPE
+from tulla.namespaces import ARCH_NS, PHASE_NS, RDF_TYPE, TRACE_NS
 from tulla.ports.ontology import OntologyPort
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,9 @@ class PhaseFactPersister:
         subject = f"{PHASE_NS}{idea_id}-{phase_id}"
 
         # (3) Idempotent cleanup — wipe all prior triples for this subject
-        # @pattern:EventSourcing -- Idempotent cleanup via remove_triples_by_subject ensures pipeline resume/rerun never duplicates A-Box triples
+        # @pattern:EventSourcing -- Idempotent cleanup via
+        # remove_triples_by_subject ensures pipeline resume/rerun
+        # never duplicates A-Box triples
         cleared = self._ontology.remove_triples_by_subject(subject)
         if cleared:
             logger.info(
@@ -124,7 +126,9 @@ class PhaseFactPersister:
         stored += 1
 
         # (5) Intent fields as direct literal edges
-        # @pattern:EventSourcing -- Skip None values to avoid persisting "None" literals, aligning with SHACL minCount=0 for optional fields (arch:adr-73-4)
+        # @pattern:EventSourcing -- Skip None values to avoid
+        # persisting "None" literals, aligning with SHACL
+        # minCount=0 for optional fields (arch:adr-73-4)
         for field_name, value in intent_fields.items():
             if value is None:
                 continue
@@ -486,7 +490,10 @@ def traverse_chain(
     subject = f"{PHASE_NS}{idea_id}-{phase_id}"
 
     # Step 1: Find all ancestors via property path
-    path_expr = f"trace:tracesTo{{1,{max_depth}}}" if max_depth != _TRAVERSE_MAX_DEPTH else "trace:tracesTo+"
+    if max_depth != _TRAVERSE_MAX_DEPTH:
+        path_expr = f"trace:tracesTo{{1,{max_depth}}}"
+    else:
+        path_expr = "trace:tracesTo+"
     ancestor_query = (
         f"SELECT ?ancestor WHERE {{\n"
         f"  <{subject}> {path_expr} ?ancestor .\n"

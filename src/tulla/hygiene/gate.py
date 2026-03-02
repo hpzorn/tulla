@@ -29,11 +29,11 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
 
-from tulla.hygiene.args import HygieneConfig, HygieneMode, parse_hygiene_args
+from tulla.hygiene.args import HygieneConfig, parse_hygiene_args
 from tulla.hygiene.check import run_check_mode_cli
 from tulla.hygiene.preflight import (
     DEFAULT_STALE_THRESHOLD_SECS,

@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import sys
 from datetime import date
 from typing import Any
 
@@ -78,8 +77,10 @@ class P4Phase(Phase[P4Output]):
             "\n"
             "## Instructions\n"
             "\n"
-            "**CRITICAL**: Your implementation plan MUST have tasks for ALL features from P1's Feature Scope.\n"
-            "Cross-reference with P3's Feature Coverage Matrix. Every feature gets implementation tasks.\n"
+            "**CRITICAL**: Your implementation plan MUST have tasks "
+            "for ALL features from P1's Feature Scope.\n"
+            "Cross-reference with P3's Feature Coverage Matrix. "
+            "Every feature gets implementation tasks.\n"
             "Do not drop features. Do not add features not in the scope.\n"
             "\n"
             f"Write to: {output_file}\n"
@@ -139,7 +140,8 @@ class P4Phase(Phase[P4Output]):
             "| [Feature 2] | Phase M | Task M.1 | ✓ Covered |\n"
             "| ... | ... | ... | ... |\n"
             "\n"
-            "**Coverage**: [X]/[Y] features have tasks. If any feature shows '✗ Missing', add tasks.\n"
+            "**Coverage**: [X]/[Y] features have tasks. "
+            "If any feature shows '✗ Missing', add tasks.\n"
             "\n"
             "## Blocked Tasks (Need Research)\n"
             "| Task | Blocked By | Research Question |\n"
@@ -156,7 +158,10 @@ class P4Phase(Phase[P4Output]):
             "- Do NOT write implementation code — that is Implementation-Tulla's job.\n"
             "- Focus on: inputs, outputs, interfaces, data structures, and acceptance criteria.\n"
             "- Bad: ```python\\ndef foo(): ...```\n"
-            "- Good: \"Create function `foo()` that accepts a list of Requirement objects and returns a dependency DAG as a dict mapping task IDs to their transitive dependencies.\"\n"
+            "- Good: \"Create function `foo()` that accepts a list "
+            "of Requirement objects and returns a dependency DAG "
+            "as a dict mapping task IDs to their transitive "
+            "dependencies.\"\n"
             "\n"
             "### EXCEPTION: Prompt-Content Tasks\n"
             "\n"
@@ -164,7 +169,8 @@ class P4Phase(Phase[P4Output]):
             "agent instructions, or phase prompt template), the Details section MUST be expanded\n"
             "beyond 2-4 sentences to specify the DOMAIN METHODOLOGY the prompt should encode:\n"
             "\n"
-            "- List the specific **methodological steps** the prompt must instruct the AI to follow\n"
+            "- List the specific **methodological steps** the "
+            "prompt must instruct the AI to follow\n"
             "- Name the **frameworks, taxonomies, or protocols** the prompt must reference\n"
             "  (e.g., PICOS, GRADE, systematic review checklist, experimental design types)\n"
             "- Specify the **quality criteria** the prompt must enforce for output quality\n"
@@ -300,10 +306,7 @@ def _check_homogeneity(files: list[str]) -> bool:
         return True
 
     extensions = {os.path.splitext(f)[1] for f in files}
-    if len(extensions) == 1 and extensions != {""}:
-        return True
-
-    return False
+    return bool(len(extensions) == 1 and extensions != {""})
 
 
 def _extract_task_files(task_body: str) -> list[str]:

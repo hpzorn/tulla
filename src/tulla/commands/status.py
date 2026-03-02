@@ -289,9 +289,10 @@ def format_status_table(
         )
 
     # Box-drawing lines
-    top = f"┌{'─' * (id_width + 2)}┬{'─' * (title_width + 2)}┬{'─' * (status_width + 2)}┬{'─' * (deps_width + 2)}┐"
-    sep = f"├{'─' * (id_width + 2)}┼{'─' * (title_width + 2)}┼{'─' * (status_width + 2)}┼{'─' * (deps_width + 2)}┤"
-    bot = f"└{'─' * (id_width + 2)}┴{'─' * (title_width + 2)}┴{'─' * (status_width + 2)}┴{'─' * (deps_width + 2)}┘"
+    w = [id_width + 2, title_width + 2, status_width + 2, deps_width + 2]
+    top = f"┌{'─' * w[0]}┬{'─' * w[1]}┬{'─' * w[2]}┬{'─' * w[3]}┐"
+    sep = f"├{'─' * w[0]}┼{'─' * w[1]}┼{'─' * w[2]}┼{'─' * w[3]}┤"
+    bot = f"└{'─' * w[0]}┴{'─' * w[1]}┴{'─' * w[2]}┴{'─' * w[3]}┘"
 
     # Header
     header = fmt_row(col_id, col_title, col_status, col_deps)

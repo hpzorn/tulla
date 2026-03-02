@@ -9,9 +9,13 @@ resolved with the following precedence (highest → lowest):
 3. YAML configuration file
 4. Built-in defaults
 
-# @principle:SeparationOfConcerns -- Config layer isolates env/YAML/defaults resolution from pipeline logic
-# @principle:InformationHiding -- AgentConfig exposes budget/timeout knobs while hiding per-phase wiring details
-# @principle:OpenClosedPrinciple -- New pipeline profiles (e.g. lightweight) added via Field(default_factory) without modifying existing agent configs
+# @principle:SeparationOfConcerns -- Config layer isolates
+#   env/YAML/defaults resolution from pipeline logic
+# @principle:InformationHiding -- AgentConfig exposes
+#   budget/timeout knobs while hiding per-phase wiring details
+# @principle:OpenClosedPrinciple -- New pipeline profiles (e.g.
+#   lightweight) added via Field(default_factory) without
+#   modifying existing agent configs
 """
 
 from __future__ import annotations
@@ -19,10 +23,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import yaml
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import yaml
-
 
 # ---------------------------------------------------------------------------
 # Per-agent configuration

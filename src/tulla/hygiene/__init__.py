@@ -37,21 +37,21 @@ from tulla.hygiene.args import (
     parse_hygiene_args,
 )
 
-# Pre-flight hygiene
-from tulla.hygiene.preflight import (
-    ALL_CLEANABLE_SUFFIXES,
-    DEFAULT_STALE_THRESHOLD_SECS,
-    HygieneReport,
-    StaleFile,
-    inspect_directory,
-    run_preflight_hygiene,
-)
-
 # Check mode
 from tulla.hygiene.check import (
     check_mode_exit_code,
     run_check_mode,
     run_check_mode_cli,
+)
+
+# Fact update utilities
+from tulla.hygiene.fact_update import (
+    FactStore,
+    FactUpdate,
+    FactUpdateError,
+    apply_fact_update,
+    apply_fact_updates,
+    validate_fact_update,
 )
 
 # Control flow gate
@@ -71,11 +71,14 @@ from tulla.hygiene.help import (
     inject_hygiene_help,
 )
 
-# Trap handler
-from tulla.hygiene.trap import (
-    TRAPPED_SIGNALS,
-    TrapContext,
-    install_trap_handler,
+# Pre-flight hygiene
+from tulla.hygiene.preflight import (
+    ALL_CLEANABLE_SUFFIXES,
+    DEFAULT_STALE_THRESHOLD_SECS,
+    HygieneReport,
+    StaleFile,
+    inspect_directory,
+    run_preflight_hygiene,
 )
 
 # Startup logging
@@ -85,14 +88,11 @@ from tulla.hygiene.startup_log import (
     log_preflight_decision,
 )
 
-# Fact update utilities
-from tulla.hygiene.fact_update import (
-    FactStore,
-    FactUpdate,
-    FactUpdateError,
-    apply_fact_update,
-    apply_fact_updates,
-    validate_fact_update,
+# Trap handler
+from tulla.hygiene.trap import (
+    TRAPPED_SIGNALS,
+    TrapContext,
+    install_trap_handler,
 )
 
 __all__ = [

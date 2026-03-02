@@ -7,8 +7,8 @@ Provides concrete implementations of ports for Claude, Codex, OpenCode, and onto
 
 from tulla.adapters.claude_cli import ClaudeCLIAdapter
 from tulla.adapters.codex_cli import CodexCLIAdapter
-from tulla.adapters.opencode_cli import OpenCodeCLIAdapter
 from tulla.adapters.ontology_mcp import OntologyMCPAdapter
+from tulla.adapters.opencode_cli import OpenCodeCLIAdapter
 
 __all__ = [
     "ClaudeCLIAdapter",

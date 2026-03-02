@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -284,9 +284,13 @@ def _build_pipeline(
             total_budget_usd=config.epistemology.budget_usd,
         )
 
-    # @pattern:Plugin -- Lightweight agent registered via elif branch; same factory contract as other agents
-    # @principle:DependencyInversion -- CLI depends on Pipeline abstraction returned by factory, not on concrete phase classes
-    # @principle:HighCohesion -- All pipeline dispatch, dry-run display, and result reporting grouped in one CLI module
+    # @pattern:Plugin -- Lightweight agent registered via elif
+    #   branch; same factory contract as other agents
+    # @principle:DependencyInversion -- CLI depends on Pipeline
+    #   abstraction returned by factory, not on concrete phase
+    #   classes
+    # @principle:HighCohesion -- All pipeline dispatch, dry-run
+    #   display, and result reporting grouped in one CLI module
     if agent == "lightweight":
         from tulla.phases.lightweight.pipeline import lightweight_pipeline
 
@@ -298,7 +302,9 @@ def _build_pipeline(
             change_description=description,
         )
 
-    # @principle:OpenClosedPrinciple -- _build_pipeline() is open for new agents via elif branches without modifying existing wiring
+    # @principle:OpenClosedPrinciple -- _build_pipeline() is open
+    #   for new agents via elif branches without modifying
+    #   existing wiring
     raise click.ClickException(
         f"Agent '{agent}' pipeline is not yet implemented. "
         f"Available: discovery, planning, research, implementation, epistemology, lightweight"
@@ -590,7 +596,7 @@ def run(
             )
         resolved_work_dir = found.resolve()
     else:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         resolved_work_dir = (
             config.work_base_dir / f"idea-{idea}-{agent}-{timestamp}"
         ).resolve()
@@ -797,12 +803,12 @@ def promote_adr_cmd(
 
     if adr_id is None:
         # List idea-scope ADRs via SPARQL
-        query = f"""\
-SELECT ?adr ?label WHERE {{
+        query = """\
+SELECT ?adr ?label WHERE {
   ?adr a isaqb:ArchitectureDecision .
   ?adr isaqb:scope "idea" .
-  OPTIONAL {{ ?adr rdfs:label ?label }}
-}}
+  OPTIONAL { ?adr rdfs:label ?label }
+}
 ORDER BY ?adr"""
 
         try:
@@ -850,7 +856,7 @@ ORDER BY ?adr"""
         sys.exit(EXIT_FAILURE)
 
     click.echo(f"Promoted {adr_uri}")
-    click.echo(f"  isaqb:scope  -> \"project\"")
+    click.echo("  isaqb:scope  -> \"project\"")
     click.echo(f"  prd:hasADR   -> {project_uri}")
 
 

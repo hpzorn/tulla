@@ -40,7 +40,10 @@ _OUTPUT_FILE = "ep-auto-ideas.md"
 
 
 class AutoPhase(Phase[EpistemologyOutput]):
-    """Epistemology auto mode: diagnose the idea's epistemological situation, then select and apply philosopher-grounded modes."""
+    """Epistemology auto mode: diagnose the idea's epistemological situation.
+
+    Selects and applies philosopher-grounded modes.
+    """
 
     phase_id: str = "ep-auto"
     timeout_s: float = 1200.0  # 20 minutes — larger scope
@@ -147,14 +150,23 @@ class AutoPhase(Phase[EpistemologyOutput]):
             "## Diagnosis\n"
             "| Diagnostic Question | Mode Indicated | Evidence | Strength |\n"
             "|---------------------|---------------|----------|----------|\n"
-            "| Contested Claims | Pyrrhonian Skepticism | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Unexplained Anomaly | Peircean Abduction | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Genuine Contradiction | Hegelian Dialectics | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Non-Binary Tension | Catuṣkoṭi | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Unclear Purpose/Composition | Aristotelian Four Causes | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Indeterminate Situation | Deweyan Inquiry | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Untested Bold Claim | Popperian Falsification | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
-            "| Observable Pattern | Baconian Inductivism | {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Contested Claims | Pyrrhonian Skepticism "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Unexplained Anomaly | Peircean Abduction "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Genuine Contradiction | Hegelian Dialectics "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Non-Binary Tension | Catuṣkoṭi "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Unclear Purpose/Composition "
+            "| Aristotelian Four Causes "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Indeterminate Situation | Deweyan Inquiry "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Untested Bold Claim | Popperian Falsification "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
+            "| Observable Pattern | Baconian Inductivism "
+            "| {evidence or N/A} | {strong/moderate/weak/N/A} |\n"
             "\n"
             "## Mode Prescription\n"
             "| Mode | Diagnostic Basis | Selection Rationale |\n"

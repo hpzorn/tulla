@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass as _dc_dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 from tulla.core.intent import IntentField
+
 
 class PlanningInput(BaseModel):
     """Input parameters for a planning phase run."""
@@ -64,7 +64,9 @@ class P3Output(BaseModel):
 
     dependency_graph_file: Path
     total_dependencies: int = IntentField(description="Total number of requirement dependencies")
-    circular_dependencies: int = IntentField(description="Number of circular dependencies detected")
+    circular_dependencies: int = IntentField(
+        description="Number of circular dependencies detected",
+    )
     architecture_decisions: str = IntentField(
         default="[]",
         description="JSON list of {title, decision, rationale} from ADRs",

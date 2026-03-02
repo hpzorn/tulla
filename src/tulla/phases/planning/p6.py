@@ -65,7 +65,7 @@ class P6Phase(Phase[P6Output]):
         Returns the number of triples successfully stored.
         Raises ``RuntimeError`` if more than 10% of triples fail.
         """
-        from rdflib import Graph, Literal, URIRef
+        from rdflib import Graph, Literal
 
         ontology_port = ctx.config.get("ontology_port")
         if ontology_port is None:
@@ -89,10 +89,7 @@ class P6Phase(Phase[P6Output]):
         for s, p, o in g:
             subj = compact_uri(str(s))
             pred = compact_uri(str(p))
-            if isinstance(o, Literal):
-                obj = str(o)
-            else:
-                obj = compact_uri(str(o))
+            obj = str(o) if isinstance(o, Literal) else compact_uri(str(o))
 
             try:
                 ontology_port.store_fact(subj, pred, obj, context=prd_context)
@@ -348,11 +345,17 @@ class P6Phase(Phase[P6Output]):
             "- `prd:files` (string) - Files to create/modify\n"
             "- `prd:action` (string) - Either 'create' (new file) or 'modify' (edit existing)\n"
             "- `prd:verification` (string) - How to verify completion\n"
-            "- `prd:relatedADR` (string, multi-valued) - Links requirement to an architecture decision (e.g. \"arch:adr-{idea_id}-1\")\n"
-            "- `prd:qualityFocus` (URI) - isaqb quality attribute this requirement primarily addresses (e.g. `isaqb:Testability`, `isaqb:Maintainability`, `isaqb:FunctionalCorrectness`)\n"
+            "- `prd:relatedADR` (string, multi-valued) - Links "
+            "requirement to an architecture decision "
+            f"(e.g. \"arch:adr-{idea_id}-1\")\n"
+            "- `prd:qualityFocus` (URI) - isaqb quality attribute "
+            "this requirement primarily addresses "
+            "(e.g. `isaqb:Testability`, `isaqb:Maintainability`, "
+            "`isaqb:FunctionalCorrectness`)\n"
             "- `prd:filesCount` (integer) - Number of files this requirement touches\n"
             "- `prd:descriptionWordCount` (integer) - Word count of the requirement description\n"
-            "- `prd:wordsPerFile` (float) - Ratio of description words to files (descriptionWordCount / filesCount)\n"
+            "- `prd:wordsPerFile` (float) - Ratio of description "
+            "words to files (descriptionWordCount / filesCount)\n"
             "\n"
             "## Instructions\n"
             "\n"
@@ -389,20 +392,25 @@ class P6Phase(Phase[P6Output]):
             "   ```\n"
             "\n"
             "3.5. **Link requirements to architecture (MANDATORY)**\n"
-            f'   - FIRST: call mcp__ontology-server__recall_facts with context="arch-idea-{idea_id}" '
+            "   - FIRST: call mcp__ontology-server__recall_facts "
+            f'with context="arch-idea-{idea_id}" '
             "to retrieve all ADRs, quality goals, and design principles\n"
             "   - For EVERY requirement, determine which ADR(s) it relates to and add "
             "prd:relatedADR to the Turtle output\n"
             "   - For EVERY requirement, identify the primary isaqb quality attribute it "
             "addresses and add prd:qualityFocus as a URI (e.g. `isaqb:Maintainability`, "
             "`isaqb:Testability`, `isaqb:FunctionalCorrectness`) — NOT a plain string\n"
-            "   - Every requirement MUST have at least one prd:relatedADR and one prd:qualityFocus.\n"
+            "   - Every requirement MUST have at least one "
+            "prd:relatedADR and one prd:qualityFocus.\n"
             "     If a requirement genuinely relates to no ADR, use the closest match — "
             "architecture decisions exist to guide implementation, so the mapping always exists.\n"
             "   - For EACH requirement, also include granularity metrics in the Turtle:\n"
             "     a. Count the files listed in `prd:files` → add as `prd:filesCount` (integer)\n"
-            "     b. Count the words in `prd:description` → add as `prd:descriptionWordCount` (integer)\n"
-            "     c. Compute wordsPerFile = descriptionWordCount / filesCount → add as `prd:wordsPerFile` (float, rounded to 2 decimals)\n"
+            "     b. Count the words in `prd:description` → "
+            "add as `prd:descriptionWordCount` (integer)\n"
+            "     c. Compute wordsPerFile = descriptionWordCount "
+            "/ filesCount → add as `prd:wordsPerFile` "
+            "(float, rounded to 2 decimals)\n"
             "\n"
             "   NOTE: Do NOT call store_fact — the A-box is hydrated automatically\n"
             "   after the Turtle file is validated.\n"

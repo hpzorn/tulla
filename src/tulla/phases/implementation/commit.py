@@ -83,7 +83,7 @@ class CommitPhase:
                 )
 
             # Commit
-            commit_result = subprocess.run(
+            subprocess.run(
                 ["git", "commit", "-m", message],
                 cwd=str(project_root),
                 capture_output=True,

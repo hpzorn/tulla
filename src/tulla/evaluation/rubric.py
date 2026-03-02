@@ -24,7 +24,6 @@ from typing import Any
 
 from tulla.ports.claude import ClaudePort, ClaudeRequest
 
-
 # ---------------------------------------------------------------------------
 # Dimension enums
 # ---------------------------------------------------------------------------
@@ -195,7 +194,7 @@ def compare_modes(scores: dict[str, RubricScore]) -> dict[tuple[str, str], int]:
         for b in names[i + 1 :]:
             shared = sum(
                 va == vb
-                for va, vb in zip(scores[a].as_tuple(), scores[b].as_tuple())
+                for va, vb in zip(scores[a].as_tuple(), scores[b].as_tuple(), strict=False)
             )
             overlaps[(a, b)] = shared
 

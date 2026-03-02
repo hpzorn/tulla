@@ -115,7 +115,7 @@ class ImplementPhase:
     ) -> str:
         """Build the implementation prompt for Claude."""
         lines = [
-            f"You are Implementation-Tulla, an ontology-driven implementation agent.",
+            "You are Implementation-Tulla, an ontology-driven implementation agent.",
             "",
             "## Your Task",
             f"Implement requirement: {requirement.requirement_id}",

@@ -356,7 +356,7 @@ class VerifyPhase:
 
     @staticmethod
     def extract_lesson(
-        verify_output: "VerifyOutput",
+        verify_output: VerifyOutput,
         retries_used: int,
         failure_feedback: str = "",
     ) -> str | None:

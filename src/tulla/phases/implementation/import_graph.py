@@ -11,9 +11,7 @@ Quality focus: isaqb:Correctness
 from __future__ import annotations
 
 import ast
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from dataclasses import dataclass
 
 # ---------------------------------------------------------------------------
 # Layer classification rules per structural pattern
@@ -94,9 +92,8 @@ def _extract_imports(source: str) -> list[tuple[int, str]]:
         if isinstance(node, ast.Import):
             for alias in node.names:
                 imports.append((node.lineno, alias.name))
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.append((node.lineno, node.module))
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.append((node.lineno, node.module))
     return imports
 
 

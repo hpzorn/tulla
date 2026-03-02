@@ -175,8 +175,10 @@ class P3Phase(Phase[P3Output]):
             "\n"
             "## Instructions\n"
             "\n"
-            "**CRITICAL**: Read the Feature Scope table in P1. Your architecture MUST cover ALL features listed there.\n"
-            "Do not drop features. Do not add features not in the scope. Trace every building block to a feature.\n"
+            "**CRITICAL**: Read the Feature Scope table in P1. "
+            "Your architecture MUST cover ALL features listed there.\n"
+            "Do not drop features. Do not add features not in the scope. "
+            "Trace every building block to a feature.\n"
             "\n"
             "Design an architecture that:\n"
             "1. Covers EVERY feature in P1's Feature Scope table (no exceptions)\n"
@@ -346,7 +348,8 @@ class P3Phase(Phase[P3Output]):
             "\n"
             "Keep total facts under 20. Be concise — no markdown formatting in values.\n"
             "\n"
-            "Be concrete and specific. This design will be translated directly into implementation tasks."
+            "Be concrete and specific. This design will be "
+            "translated directly into implementation tasks."
         )
 
     def get_tools(self, ctx: PhaseContext) -> list[dict[str, Any]]:
