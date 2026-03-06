@@ -3,7 +3,19 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/hpzorn/tulla/actions/workflows/ci.yml/badge.svg)](https://github.com/hpzorn/tulla/actions/workflows/ci.yml)
 
+## *Disclaimer* 
+
+**Tulla is *experimental* software built for research purposes. It is not meant for production use. It still has major security issues (such as prompt injection during research) that are typical for LLM based agents. It should only be used in sandbox environments without access to sensitive data/information. It is completely AI generated - mostly coded by itself. I only prompt, I did not review every line of code - which is an experiment and not recommended policy, especially it is not policy at my employer. This is a private project**
+
+
 Tulla is an autonomous agent that takes a raw idea and drives it through a structured pipeline — discovery, research, planning, and implementation — producing code at the end. Each phase is backed by an ontology and validated with SHACL, so the agent can't skip steps or produce incomplete work. It extends Geoffrey Huntley's [Ralph Wiggum loop](https://ghuntley.com/ralph/) with mandatory research, idea decomposition, and PRD-driven implementation.
+
+Tulla has been built to verify the following Research Questions
+* If guided properly, how long can a code agent go along without experiencing context drift?
+* Does guidance by Architecture Principles improve overall quality?
+* Does mapping to semantic concepts help to keep track of architecure decisions? (-> agentic memory)
+* Can the Zero Trust Reasoning Framework be implemented for such a coding harness? 
+
 
 ## The Loop
 
