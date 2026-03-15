@@ -85,6 +85,10 @@ Contributions are welcome. Please open an issue first to discuss what you'd like
 4. Run linting (`ruff check src/` and `mypy src/`)
 5. Open a pull request
 
+## Acknowledgements
+
+The `isaqb-ontology.ttl` ontology encodes terminology and concepts from the [iSAQB Glossary of Software Architecture Terminology](https://github.com/isaqb-org/glossary), originally created by **Gernot Starke** and **Dr. Peter Hruschka** and maintained by the [International Software Architecture Qualification Board (iSAQB)](https://www.isaqb.org/). The glossary is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0)](https://creativecommons.org/licenses/by-sa/4.0/). We gratefully acknowledge their work and that of the wider iSAQB contributor community for making this resource freely available.
+
 ## License
 
 [Apache 2.0](LICENSE)
